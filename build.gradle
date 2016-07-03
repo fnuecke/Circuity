@@ -1,0 +1,147 @@
+buildscript {
+  repositories {
+    jcenter()
+    maven {
+      name = "forge"
+      url = "http://files.minecraftforge.net/maven"
+    }
+  }
+  dependencies {
+    classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+  }
+}
+
+apply plugin: 'net.minecraftforge.gradle.forge'
+apply plugin: 'idea'
+apply plugin: 'maven-publish'
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+file "build.properties" withReader {
+  def prop = new Properties()
+  prop.load(it)
+  ext.config = new ConfigSlurper().parse prop
+}
+
+version = config.mod.version
+group = config.mod.group
+archivesBaseName = config.mod.name
+
+def getGitRef() {
+  try {
+    def stdout = new ByteArrayOutputStream()
+    exec {
+      commandLine 'git', 'rev-parse', '--short', 'HEAD'
+      standardOutput = stdout
+    }
+    return stdout.toString().trim()
+  } catch (Throwable e) {
+    return "unknown"
+  }
+}
+
+if (System.getenv("BUILD_NUMBER") != null)
+  version += ".${System.getenv("BUILD_NUMBER")}"
+
+if (config.mod.subversion != null && config.mod.subversion != "")
+  version += "-${config.mod.subversion}"
+
+if (System.getenv("BUILD_NUMBER") == null)
+  version += "+" + getGitRef()
+
+ext.simpleVersion = version
+version = "MC${config.minecraft.version}-${project.version}"
+
+minecraft {
+  if (config.forge.branch != null && config.forge.branch != "")
+    version = "${config.minecraft.version}-${config.forge.version}-${config.forge.branch}"
+  else
+    version = "${config.minecraft.version}-${config.forge.version}"
+  runDir = "run"
+  mappings = config.minecraft.mappings
+  replace "@VERSION@", project.simpleVersion
+}
+
+repositories {
+}
+
+dependencies {
+  testCompile 'junit:junit:4.12'
+  testCompile 'org.mockito:mockito-core:2.+'
+}
+
+processResources {
+  inputs.property "version", project.version
+  inputs.property "mcversion", project.minecraft.version
+  inputs.property "forgeversion", config.forge.version
+
+  from(sourceSets.main.resources.srcDirs) {
+    include 'mcmod.info'
+    expand 'version':project.version, 'mcversion':project.minecraft.version, 'forgeversion':config.forge.version
+  }
+
+  from(sourceSets.main.resources.srcDirs) {
+    exclude 'mcmod.info'
+  }
+
+  // Move access transformer to META-INF
+  rename '(.+_at.cfg)', 'META-INF/$1'
+}
+
+jar {
+  configurations.compile.each { dep ->
+    from(project.zipTree(dep)) {
+      exclude 'META-INF', 'META-INF/**'
+    }
+  }
+  manifest {
+    attributes FMLAT: "circuity_at.cfg"
+  }
+}
+
+javadoc {
+  include 'li/cil/**/api/**'
+}
+
+task apiJar(type: Jar) {
+  from sourceSets.main.output
+  from sourceSets.main.java
+  classifier = 'api'
+  include 'li/cil/**/api/**'
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+  from 'build/docs/javadoc'
+  classifier 'javadoc'
+}
+
+task sourcesJar(type: Jar) {
+  from sourceSets.main.java
+  classifier = 'sources'
+}
+
+artifacts {
+  archives apiJar
+  archives javadocJar
+  archives sourcesJar
+}
+
+publishing {
+  publications {
+    mavenJava(MavenPublication) {
+      artifact jar
+      artifact apiJar
+      artifact javadocJar
+      artifact sourcesJar
+    }
+  }
+  repositories {
+    maven {
+      url "${config.maven.url}"
+    }
+  }
+}
+
+// this is needed for IntelliJ so we don't have to copy over the assets manually every time
+idea.module.outputDir = file('build/classes/main')

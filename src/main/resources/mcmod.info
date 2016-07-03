@@ -1,0 +1,14 @@
+[{
+  "modid": "circuity",
+  "name": "Circuity",
+  "description": "It's a kind of magic.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "https://github.com/MightyPirates/Circuity",
+  "authorList": ["Sangar"],
+  "logoFile" : "assets/circuity/textures/logo.png",
+  "requiredMods": [ "Forge@[${forgeversion},)" ],
+  "dependencies": [],
+  "dependants": [],
+  "useDependencyInformation": "true"
+}]
