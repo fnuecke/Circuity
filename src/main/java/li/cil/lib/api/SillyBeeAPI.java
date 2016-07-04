@@ -17,6 +17,13 @@ public final class SillyBeeAPI {
     // --------------------------------------------------------------------- //
 
     /**
+     * Access to the capabilities API.
+     * <p>
+     * This is initialized by the library mod in the pre-init phase.
+     */
+    public static CapabilitiesAPI capabilities;
+
+    /**
      * Access to the serialization API.
      * <p>
      * This is initialized by the library mod in the pre-init phase.

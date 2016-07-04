@@ -1,0 +1,97 @@
+package li.cil.lib.ecs.component;
+
+import li.cil.lib.api.ecs.component.Location;
+import li.cil.lib.api.ecs.component.Redstone;
+import li.cil.lib.api.ecs.component.event.NeighborChangeListener;
+import li.cil.lib.api.ecs.manager.EntityComponentManager;
+import li.cil.lib.synchronization.value.SynchronizedByteArray;
+import li.cil.lib.util.Scheduler;
+import li.cil.lib.util.SpatialUtil;
+import net.minecraft.block.state.IBlockState;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.World;
+
+import javax.annotation.Nullable;
+import java.util.Optional;
+
+public abstract class AbstractRedstoneController extends AbstractComponent implements Redstone, NeighborChangeListener {
+    private final SynchronizedByteArray input = new SynchronizedByteArray(EnumFacing.VALUES.length);
+
+    // --------------------------------------------------------------------- //
+
+    protected AbstractRedstoneController(final EntityComponentManager manager, final long entity, final long id) {
+        super(manager, entity, id);
+    }
+
+    // --------------------------------------------------------------------- //
+    // Component
+
+    @Override
+    public void onCreate() {
+        final Optional<Location> transform = getComponent(Location.class);
+        transform.ifPresent(this::initializeInput);
+    }
+
+    // --------------------------------------------------------------------- //
+    // Redstone
+
+    @Override
+    public int getInput(@Nullable final EnumFacing side) {
+        return side != null ? input.get(side.getIndex()) & 0xFF : 0;
+    }
+
+    // --------------------------------------------------------------------- //
+    // NeighborChangeListener
+
+    @Override
+    public void onNeighborChange(final BlockPos neighborPos) {
+        final Optional<Location> transform = getComponent(Location.class);
+        transform.ifPresent(tf -> updateInput(tf, neighborPos));
+    }
+
+    // --------------------------------------------------------------------- //
+
+    protected static void notifyNeighbors(final Location transform) {
+        final World world = transform.getWorld();
+        final BlockPos pos = transform.getPosition();
+        final IBlockState state = world.getBlockState(pos);
+        world.notifyNeighborsOfStateChange(pos, state.getBlock());
+    }
+
+    protected static byte clampSignal(final int value) {
+        if (value < 0) return (byte) 0;
+        if (value > 0xFF) return (byte) 0xFF;
+        return (byte) value;
+    }
+
+    private void initializeInput(final Location transform) {
+        final World world = transform.getWorld();
+        final BlockPos pos = transform.getPosition();
+        Scheduler.schedule(world, () -> recomputeInput(world, pos));
+    }
+
+    private void updateInput(final Location transform, final BlockPos neighborPos) {
+        final World world = transform.getWorld();
+        final BlockPos pos = transform.getPosition();
+        final EnumFacing side = SpatialUtil.getNeighborFacing(pos, neighborPos);
+
+        final byte input = clampSignal(world.getRedstonePower(pos.offset(side), side));
+        if (input == getInput(side)) {
+            return;
+        }
+
+        if (input > getInput(side)) {
+            this.input.set(side.getIndex(), input);
+        } else {
+            recomputeInput(world, pos);
+        }
+    }
+
+    private void recomputeInput(final World world, final BlockPos pos) {
+        for (final EnumFacing side : EnumFacing.VALUES) {
+            final byte input = clampSignal(world.getRedstonePower(pos.offset(side), side));
+            this.input.set(side.getIndex(), input);
+        }
+    }
+}
