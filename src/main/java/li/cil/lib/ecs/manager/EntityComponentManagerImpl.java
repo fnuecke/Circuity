@@ -199,8 +199,6 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
 
     @Override
     public boolean removeComponent(final Component component) throws UnsupportedOperationException {
-        requireServerSide();
-
         if (!componentsById.containsKey(component.getId())) {
             return false;
         }
@@ -288,7 +286,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
 
     private void requireServerSide() throws UnsupportedOperationException {
         if (isClientSide()) {
-            throw new UnsupportedOperationException("Cannot create entities on the client side.");
+            throw new UnsupportedOperationException("Cannot create entities or components on the client side.");
         }
     }
 

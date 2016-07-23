@@ -3,6 +3,7 @@ package li.cil.lib.ecs.entity;
 import li.cil.lib.api.ecs.component.Component;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -15,7 +16,12 @@ public interface EntityContainerProxy extends EntityContainer {
 
     @Override
     default Iterable<Component> getComponents() {
-        return getManager().getComponents(getEntity());
+        final long entity = getEntity();
+        if (entity != 0) {
+            return getManager().getComponents(getEntity());
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     @Override

@@ -130,6 +130,13 @@ public class BlockEntityContainer extends Block {
     }
 
     @Override
+    public void neighborChanged(final IBlockState state, final World world, final BlockPos pos, final Block block) {
+        final Stream<NeighborChangeListener> listeners = getComponents(world, pos, NeighborChangeListener.class);
+        listeners.forEach(listener -> listener.onNeighborChange(null));
+        super.neighborChanged(state, world, pos, block);
+    }
+
+    @Override
     public boolean onBlockActivated(final World world, final BlockPos pos, final IBlockState state, final EntityPlayer player, final EnumHand hand, @Nullable final ItemStack heldItem, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
         final Stream<ActivationListener> listeners = getComponents(world, pos, ActivationListener.class);
         return listeners.anyMatch(listener -> listener.onActivated(player, hand, heldItem, side, hitX, hitY, hitZ)) ||
