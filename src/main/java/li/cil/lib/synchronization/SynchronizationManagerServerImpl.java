@@ -222,7 +222,7 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
             final NetHandlerPlayServer client = entry.getKey();
             final Map<World, Map<Component, NBTTagList>> infos = entry.getValue();
 
-            // TODO Package info by distance to player (via Transform component on entity) where possible, send further away data less frequently.
+            // TODO Package info by distance to player (via Location component on entity) where possible, send further away data less frequently.
 
             for (final Map.Entry<World, Map<Component, NBTTagList>> infoByWorld : infos.entrySet()) {
                 final World world = infoByWorld.getKey();

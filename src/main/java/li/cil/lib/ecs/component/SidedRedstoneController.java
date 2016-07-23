@@ -34,8 +34,8 @@ public final class SidedRedstoneController extends AbstractRedstoneController {
         final byte clampedOutput = clampSignal(output);
         if (clampedOutput == getOutput(side)) return;
         this.output.set(side != null ? side.getIndex() : EnumFacing.VALUES.length, clampedOutput);
-        final Optional<Location> transform = getComponent(Location.class);
-        transform.ifPresent(RedstoneController::notifyNeighbors);
+        final Optional<Location> location = getComponent(Location.class);
+        location.ifPresent(RedstoneController::notifyNeighbors);
         markChanged();
     }
 }

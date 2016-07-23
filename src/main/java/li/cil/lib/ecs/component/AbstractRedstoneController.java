@@ -29,8 +29,8 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
 
     @Override
     public void onCreate() {
-        final Optional<Location> transform = getComponent(Location.class);
-        transform.ifPresent(this::initializeInput);
+        final Optional<Location> location = getComponent(Location.class);
+        location.ifPresent(this::initializeInput);
     }
 
     // --------------------------------------------------------------------- //
@@ -46,15 +46,15 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
 
     @Override
     public void onNeighborChange(final BlockPos neighborPos) {
-        final Optional<Location> transform = getComponent(Location.class);
-        transform.ifPresent(tf -> updateInput(tf, neighborPos));
+        final Optional<Location> location = getComponent(Location.class);
+        location.ifPresent(l -> updateInput(l, neighborPos));
     }
 
     // --------------------------------------------------------------------- //
 
-    protected static void notifyNeighbors(final Location transform) {
-        final World world = transform.getWorld();
-        final BlockPos pos = transform.getPosition();
+    protected static void notifyNeighbors(final Location location) {
+        final World world = location.getWorld();
+        final BlockPos pos = location.getPosition();
         final IBlockState state = world.getBlockState(pos);
         world.notifyNeighborsOfStateChange(pos, state.getBlock());
     }
@@ -65,15 +65,15 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
         return (byte) value;
     }
 
-    private void initializeInput(final Location transform) {
-        final World world = transform.getWorld();
-        final BlockPos pos = transform.getPosition();
+    private void initializeInput(final Location location) {
+        final World world = location.getWorld();
+        final BlockPos pos = location.getPosition();
         Scheduler.schedule(world, () -> recomputeInput(world, pos));
     }
 
-    private void updateInput(final Location transform, final BlockPos neighborPos) {
-        final World world = transform.getWorld();
-        final BlockPos pos = transform.getPosition();
+    private void updateInput(final Location location, final BlockPos neighborPos) {
+        final World world = location.getWorld();
+        final BlockPos pos = location.getPosition();
         final EnumFacing side = SpatialUtil.getNeighborFacing(pos, neighborPos);
 
         final byte input = clampSignal(world.getRedstonePower(pos.offset(side), side));

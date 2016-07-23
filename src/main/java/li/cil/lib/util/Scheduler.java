@@ -1,6 +1,6 @@
 package li.cil.lib.util;
 
-import li.cil.oc.common.ModOpenComputers;
+import li.cil.lib.ModSillyBee;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
@@ -56,7 +56,7 @@ public final class Scheduler {
                 try {
                     scheduledCallback.getCallback().run();
                 } catch (final Throwable t) {
-                    ModOpenComputers.getLogger().error("Scheduled callback threw up.", t);
+                    ModSillyBee.getLogger().error("Scheduled callback threw up.", t);
                 }
             }
         } else {

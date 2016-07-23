@@ -16,7 +16,7 @@ public final class ChunkNotifyingChangeListener extends AbstractComponent implem
 
     @Override
     public void markChanged() {
-        final Optional<Location> transform = getComponent(Location.class);
-        transform.ifPresent(tf -> tf.getWorld().markChunkDirty(tf.getPosition(), null));
+        final Optional<Location> location = getComponent(Location.class);
+        location.ifPresent(l -> l.getWorld().markChunkDirty(l.getPosition(), null));
     }
 }

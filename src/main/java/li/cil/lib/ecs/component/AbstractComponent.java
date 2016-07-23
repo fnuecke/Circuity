@@ -65,9 +65,9 @@ public abstract class AbstractComponent implements Component {
     // --------------------------------------------------------------------- //
 
     public World getWorld() {
-        final Optional<Location> transform = getComponent(Location.class);
-        if (transform.isPresent()) {
-            return transform.get().getWorld();
+        final Optional<Location> location = getComponent(Location.class);
+        if (location.isPresent()) {
+            return location.get().getWorld();
         } else {
             throw new IllegalStateException("Not in any world.");
         }

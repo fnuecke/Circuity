@@ -26,7 +26,7 @@ public final class LocationEntity extends AbstractComponent implements Location 
 
     public Entity getParent() {
         final Entity entity = parent.get();
-        assert entity != null : "Trying to use transform component before setting owner.";
+        assert entity != null : "Trying to use location component before setting owner.";
         return entity;
     }
 

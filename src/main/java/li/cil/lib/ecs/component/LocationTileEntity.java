@@ -26,7 +26,7 @@ public final class LocationTileEntity extends AbstractComponent implements Locat
 
     public TileEntity getParent() {
         final TileEntity tileEntity = parent.get();
-        assert tileEntity != null : "Trying to use transform component before setting owner.";
+        assert tileEntity != null : "Trying to use location component before setting owner.";
         return tileEntity;
     }
 

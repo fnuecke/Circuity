@@ -16,8 +16,8 @@ public final class LocationChild extends AbstractComponent implements Location {
         super(manager, entity, id);
     }
 
-    public LocationChild setParent(final Location transform) {
-        this.parent.set(transform.getId());
+    public LocationChild setParent(final Location location) {
+        this.parent.set(location.getId());
         return this;
     }
 
@@ -25,10 +25,10 @@ public final class LocationChild extends AbstractComponent implements Location {
 
     public Location getParent() {
         final long parentId = parent.get();
-        assert parentId != 0 : "Trying to use transform component before setting owner.";
-        final Location transform = (Location) getManager().getComponent(parentId);
-        assert transform != null : "Trying to use transform component before setting owner.";
-        return transform;
+        assert parentId != 0 : "Trying to use location component before setting owner.";
+        final Location location = (Location) getManager().getComponent(parentId);
+        assert location != null : "Trying to use location component before setting owner.";
+        return location;
     }
 
     // --------------------------------------------------------------------- //
