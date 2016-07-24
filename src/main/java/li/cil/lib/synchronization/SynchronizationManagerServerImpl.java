@@ -73,8 +73,10 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
      */
     public void subscribeEntity(final NetHandlerPlayServer client, final EntityComponentManager manager, final long entity) {
         synchronized (trackingLock) {
-            for (final Component component : manager.getComponents(entity)) {
-                subscribeComponent(client, component);
+            if (manager.hasEntity(entity)) {
+                for (final Component component : manager.getComponents(entity)) {
+                    subscribeComponent(client, component);
+                }
             }
         }
     }
@@ -103,7 +105,9 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
      */
     public void unsubscribeEntity(final NetHandlerPlayServer client, final EntityComponentManager manager, final long entity) {
         synchronized (trackingLock) {
-            manager.getComponents(entity).forEach(component -> unsubscribeComponent(client, manager, component.getId()));
+            if (manager.hasEntity(entity)) {
+                manager.getComponents(entity).forEach(component -> unsubscribeComponent(client, manager, component.getId()));
+            }
         }
     }
 

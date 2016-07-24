@@ -79,7 +79,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
      * @return <code>true</code> if the entity was created; <code>false</code> if it already existed.
      */
     public boolean addEntity(final long entity) {
-        if (entities.contains(entity)) {
+        if (hasEntity(entity)) {
             return false;
         }
         entities.add(entity);
@@ -105,7 +105,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     public <T extends Component> T addComponent(final long entity, final long id, final Class<T> clazz) {
         validateEntity(entity);
 
-        if (componentsById.containsKey(id)) {
+        if (hasComponent(id)) {
             final Component component = componentsById.get(id);
             if (component.getEntity() != entity) {
                 throw new IllegalArgumentException("Component with this ID already exists but belongs to a different entity.");
@@ -138,7 +138,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
             component.onCreate();
 
             // Unlikely, but component may have decided to self-destruct in onCreate.
-            if (componentsById.containsKey(id)) {
+            if (hasComponent(id)) {
                 componentChangeListeners.forEach(l -> l.onComponentAdded(component));
 
                 return component;
@@ -163,9 +163,14 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     }
 
     @Override
+    public boolean hasEntity(final long entity) {
+        return entities.contains(entity);
+    }
+
+    @Override
     public boolean removeEntity(final long entity) {
         // Remove at the end, so that the entity still exists while components are removed.
-        if (!entities.contains(entity)) {
+        if (!hasEntity(entity)) {
             return false;
         }
 
@@ -198,8 +203,18 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     }
 
     @Override
+    public boolean hasComponent(final long component) {
+        return componentsById.containsKey(component);
+    }
+
+    @Override
+    public boolean hasComponent(final Component component) {
+        return component == componentsById.get(component.getId());
+    }
+
+    @Override
     public boolean removeComponent(final Component component) throws UnsupportedOperationException {
-        if (!componentsById.containsKey(component.getId())) {
+        if (!hasComponent(component.getId())) {
             return false;
         }
 
@@ -300,7 +315,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     }
 
     private void validateEntity(final long entity) {
-        if (!entities.contains(entity)) {
+        if (!hasEntity(entity)) {
             throw new IllegalArgumentException("Invalid entity.");
         }
     }

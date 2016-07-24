@@ -45,6 +45,14 @@ public interface EntityComponentManager {
     long addEntity() throws UnsupportedOperationException;
 
     /**
+     * Get whether an entity with the specified ID exists.
+     *
+     * @param entity the entity to check.
+     * @return <code>true</code> if the entity exists; <code>false</code> otherwise.
+     */
+    boolean hasEntity(final long entity);
+
+    /**
      * Destroys an entity and all of its components.
      * <p>
      * When called on the client side, this will automatically unsubscribe
@@ -77,6 +85,22 @@ public interface EntityComponentManager {
      */
     @Nullable
     <T extends Component> T addComponent(final long entity, final Class<T> clazz) throws UnsupportedOperationException;
+
+    /**
+     * Get whether a component with the specified ID exists.
+     *
+     * @param component the component to check.
+     * @return <code>true</code> if the component exists; <code>false</code> otherwise.
+     */
+    boolean hasComponent(final long component);
+
+    /**
+     * Get whether the specified component exists in this manager.
+     *
+     * @param component the component to check.
+     * @return <code>true</code> if the component exists; <code>false</code> otherwise.
+     */
+    boolean hasComponent(final Component component);
 
     /**
      * Destroy a component.
