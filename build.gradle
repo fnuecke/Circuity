@@ -90,11 +90,6 @@ processResources {
 }
 
 jar {
-  configurations.compile.each { dep ->
-    from(project.zipTree(dep)) {
-      exclude 'META-INF', 'META-INF/**'
-    }
-  }
   manifest {
     attributes FMLAT: "circuity_at.cfg"
   }
