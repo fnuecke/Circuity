@@ -15,10 +15,10 @@ import javax.annotation.Nullable;
  * <p>
  * <em>Important</em>: a device is responsible for persisting the interrupt
  * numbers assigned to it via {@link #setAcceptedInterrupts(int[])} until
- * {@link #deactivate()} is called. This is necessary for devices to have the
- * same interrupt numbers assigned to them after a save and load, because the
- * {@link BusController} does not store the interrupt numbers of the connected
- * devices.
+ * <code>null</code> is passed to {@link #setAcceptedInterrupts(int[])}.
+ * This is necessary for devices to have the same interrupt numbers assigned
+ * to them after a save and load, because the {@link BusController} does not
+ * store the interrupt numbers of the connected devices.
  */
 public interface InterruptSink extends BusDevice {
     /**
@@ -37,6 +37,7 @@ public interface InterruptSink extends BusDevice {
      * The device <em>is required to persist the interrupts it is currently
      * occupying</em>.
      *
+     * @param interrupts the list of available interrupts.
      * @return the number of interrupts this device provides.
      */
     int[] getAcceptedInterrupts(final int[] interrupts);

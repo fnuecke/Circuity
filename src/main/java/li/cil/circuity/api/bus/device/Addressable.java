@@ -59,6 +59,7 @@ public interface Addressable extends BusDevice {
      * If the resulting block overlaps with another, it is the users
      * responsibility to resolve any conflicts via the address mapper.
      *
+     * @param address the address range to preferably select a location.
      * @return the address block at which this device would like to be mapped.
      */
     AddressBlock getAddress(final AddressBlock address);
