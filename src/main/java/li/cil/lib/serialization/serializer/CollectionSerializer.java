@@ -16,10 +16,10 @@ import java.util.Iterator;
 import java.util.List;
 
 public class CollectionSerializer implements Serializer {
-    private static final String ITEM_CLASS_TAG = "itemClass";
-    private static final String ITEM_TAG = "item";
-    private static final String ITEM_CLASSES_TAG = "itemClasses";
-    private static final String ITEMS_TAG = "items";
+    private static final String ITEM_CLASS_TAG = "class";
+    private static final String ITEM_TAG = "value";
+    private static final String ITEM_CLASSES_TAG = "classes";
+    private static final String ITEMS_TAG = "values";
 
     // --------------------------------------------------------------------- //
 

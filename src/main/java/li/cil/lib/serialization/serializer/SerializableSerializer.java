@@ -17,8 +17,8 @@ import java.util.List;
 import java.util.Objects;
 
 public final class SerializableSerializer implements Serializer {
-    private static final String FIELD_CLASS_TAG = "fieldClass";
-    private static final String FIELD_TAG = "field";
+    private static final String FIELD_CLASS_TAG = "class";
+    private static final String FIELD_VALUE_TAG = "value";
 
     // --------------------------------------------------------------------- //
 
@@ -53,7 +53,7 @@ public final class SerializableSerializer implements Serializer {
                         if (!areTypesEquivalent(field.getType(), fieldValue.getClass())) {
                             fieldInfoTag.setTag(FIELD_CLASS_TAG, serialization.serialize(fieldValue.getClass()));
                         }
-                        fieldInfoTag.setTag(FIELD_TAG, serialization.serialize(fieldValue));
+                        fieldInfoTag.setTag(FIELD_VALUE_TAG, serialization.serialize(fieldValue));
                     }
                 }
                 tag.setTag(getPersistedName(field), fieldInfoTag);
@@ -89,13 +89,13 @@ public final class SerializableSerializer implements Serializer {
                         fieldClass = field.getType();
                     }
 
-                    if (fieldClass != null && fieldInfoTag.hasKey(FIELD_TAG)) {
+                    if (fieldClass != null && fieldInfoTag.hasKey(FIELD_VALUE_TAG)) {
                         // Get old object to deserialize into. Make sure it's of compatible type.
                         final Object target = field.get(instance);
                         if (target != null && target.getClass() == fieldClass) {
-                            value = serialization.deserialize(target, fieldClass, fieldInfoTag.getTag(FIELD_TAG));
+                            value = serialization.deserialize(target, fieldClass, fieldInfoTag.getTag(FIELD_VALUE_TAG));
                         } else {
-                            value = serialization.deserialize(fieldClass, fieldInfoTag.getTag(FIELD_TAG));
+                            value = serialization.deserialize(fieldClass, fieldInfoTag.getTag(FIELD_VALUE_TAG));
                         }
                     } else {
                         if (fieldClass == null) {
