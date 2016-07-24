@@ -2,22 +2,17 @@ package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.common.bus.AbstractBusController;
-import li.cil.circuity.common.capabilities.CapabilityBusDevice;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
-import net.minecraft.util.EnumFacing;
 import net.minecraft.world.World;
-import net.minecraftforge.common.capabilities.Capability;
-
-import javax.annotation.Nullable;
 
 @Serializable
-public class BlockBusController extends BlockBusSegment {
+public class BusControllerBlock extends BusSegmentBlock {
     @Serialize
     private final BlockBusControllerImpl controller = new BlockBusControllerImpl();
 
-    public BlockBusController(final EntityComponentManager manager, final long entity, final long id) {
+    public BusControllerBlock(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
     }
 
@@ -37,21 +32,11 @@ public class BlockBusController extends BlockBusSegment {
     }
 
     // --------------------------------------------------------------------- //
-    // ICapabilityProvider
+    // AbstractComponentBusDevice
 
     @Override
-    public boolean hasCapability(final Capability<?> capability, @Nullable final EnumFacing facing) {
-        return capability == CapabilityBusDevice.BUS_DEVICE_CAPABILITY ||
-                super.hasCapability(capability, facing);
-    }
-
-    @Nullable
-    @Override
-    public <T> T getCapability(final Capability<T> capability, @Nullable final EnumFacing facing) {
-        if (capability == CapabilityBusDevice.BUS_DEVICE_CAPABILITY) {
-            return CapabilityBusDevice.BUS_DEVICE_CAPABILITY.cast(controller);
-        }
-        return super.getCapability(capability, facing);
+    protected BusDevice getDevice() {
+        return controller;
     }
 
     // --------------------------------------------------------------------- //
@@ -59,12 +44,12 @@ public class BlockBusController extends BlockBusSegment {
     private final class BlockBusControllerImpl extends AbstractBusController {
         @Override
         protected World getBusWorld() {
-            return BlockBusController.this.getWorld();
+            return BusControllerBlock.this.getWorld();
         }
 
         @Override
         public Iterable<BusDevice> getDevices() {
-            return BlockBusController.this.segment.getDevices();
+            return BusControllerBlock.this.segment.getDevices();
         }
     }
 }

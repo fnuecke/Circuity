@@ -7,13 +7,10 @@ import li.cil.circuity.common.capabilities.CapabilityBusDevice;
 import li.cil.lib.api.ecs.component.Location;
 import li.cil.lib.api.ecs.component.event.NeighborChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
-import li.cil.lib.ecs.component.AbstractComponent;
 import net.minecraft.tileentity.TileEntity;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ICapabilityProvider;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
@@ -22,13 +19,13 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
-public class BlockBusSegment extends AbstractComponent implements NeighborChangeListener, ICapabilityProvider {
+public class BusSegmentBlock extends AbstractComponentBusDevice implements NeighborChangeListener {
     protected final BlockBusSegmentImpl segment = new BlockBusSegmentImpl();
     private final Set<BusDevice> neighbors = new HashSet<>();
 
     // --------------------------------------------------------------------- //
 
-    public BlockBusSegment(final EntityComponentManager manager, final long entity, final long id) {
+    public BusSegmentBlock(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
     }
 
@@ -59,20 +56,11 @@ public class BlockBusSegment extends AbstractComponent implements NeighborChange
     }
 
     // --------------------------------------------------------------------- //
-    // ICapabilityProvider
+    // AbstractComponentBusDevice
 
     @Override
-    public boolean hasCapability(final Capability<?> capability, @Nullable final EnumFacing facing) {
-        return capability == CapabilityBusDevice.BUS_DEVICE_CAPABILITY;
-    }
-
-    @Nullable
-    @Override
-    public <T> T getCapability(final Capability<T> capability, @Nullable final EnumFacing facing) {
-        if (capability == CapabilityBusDevice.BUS_DEVICE_CAPABILITY) {
-            return CapabilityBusDevice.BUS_DEVICE_CAPABILITY.cast(segment);
-        }
-        return null;
+    protected BusDevice getDevice() {
+        return segment;
     }
 
     // --------------------------------------------------------------------- //
@@ -80,13 +68,13 @@ public class BlockBusSegment extends AbstractComponent implements NeighborChange
     protected final class BlockBusSegmentImpl extends AbstractBusDevice implements BusSegment {
         @Override
         public Iterable<BusDevice> getDevices() {
-            return BlockBusSegment.this.getDevicesCollection();
+            return BusSegmentBlock.this.getDevicesCollection();
         }
     }
 
     private Collection<BusDevice> getDevicesCollection() {
-        final Optional<Location> location = BlockBusSegment.this.getComponent(Location.class);
-        return location.map(BlockBusSegment::getDevicesAt).orElse(Collections.emptySet());
+        final Optional<Location> location = BusSegmentBlock.this.getComponent(Location.class);
+        return location.map(BusSegmentBlock::getDevicesAt).orElse(Collections.emptySet());
     }
 
     private static Collection<BusDevice> getDevicesAt(final Location location) {

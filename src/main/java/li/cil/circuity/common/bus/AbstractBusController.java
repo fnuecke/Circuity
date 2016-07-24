@@ -42,7 +42,7 @@ import java.util.Set;
  * </li>
  * </ul>
  * <p>
- * <h3>Mapped memory</h3>
+ * Mapped memory:
  * <table>
  * <tr><td>0</td><td>Number of mapped devices. Read-only.</td></tr>
  * <tr><td>1</td><td>Selected device. Read-write.</td></tr>
