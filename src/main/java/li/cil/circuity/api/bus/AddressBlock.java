@@ -38,6 +38,16 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
     // --------------------------------------------------------------------- //
 
     public AddressBlock(final int offset, final int length, final int wordSize) {
+        if (offset < 0) {
+            throw new IllegalArgumentException("Offset must not be negative.");
+        }
+        if (length < 0) {
+            throw new IllegalArgumentException("Length must not be negative.");
+        }
+        if (wordSize < 0) {
+            throw new IllegalArgumentException("Word size must not be negative.");
+        }
+
         this.offset = offset;
         this.length = length;
         this.wordSize = wordSize;
@@ -91,8 +101,8 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
 
     @Override
     public void deserializeNBT(final NBTTagCompound nbt) {
-        offset = nbt.getInteger(OFFSET_TAG);
-        length = nbt.getInteger(LENGTH_TAG);
-        wordSize = nbt.getInteger(WORD_SIZE_TAG);
+        offset = Math.max(0, nbt.getInteger(OFFSET_TAG));
+        length = Math.max(0, nbt.getInteger(LENGTH_TAG));
+        wordSize = Math.max(0, nbt.getInteger(WORD_SIZE_TAG));
     }
 }
