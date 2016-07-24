@@ -38,7 +38,7 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
 
     @Override
     public int getInput(@Nullable final EnumFacing side) {
-        return side != null ? input.get(side.getIndex()) & 0xFF : 0;
+        return (side != null ? input.get(side.getIndex()) : getMaxInput()) & 0xFF;
     }
 
     // --------------------------------------------------------------------- //
@@ -67,6 +67,14 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
         if (value < 0) return (byte) 0;
         if (value > 0xFF) return (byte) 0xFF;
         return (byte) value;
+    }
+
+    private int getMaxInput() {
+        int max = 0;
+        for (final EnumFacing value : EnumFacing.VALUES) {
+            max = Math.max(max, input.get(value.getIndex()));
+        }
+        return max;
     }
 
     private void initializeInput(final Location location) {
