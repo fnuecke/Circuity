@@ -5,6 +5,7 @@ import li.cil.circuity.common.Globals;
 import li.cil.circuity.common.tileentity.TileEntityBusCable;
 import li.cil.circuity.common.tileentity.TileEntityBusController;
 import li.cil.circuity.common.tileentity.TileEntityRandomAccessMemory;
+import li.cil.circuity.common.tileentity.TileEntityRedstoneController;
 import li.cil.lib.block.BlockEntityContainer;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.Material;
@@ -14,6 +15,7 @@ public final class Blocks {
     public static Block busController;
     public static Block busCable;
     public static Block randomAccessMemory;
+    public static Block redstoneController;
 
     public static void init() {
         busController = GameRegistry.register(new BlockEntityContainer(Material.IRON).
@@ -36,6 +38,13 @@ public final class Blocks {
                 setUnlocalizedName(Constants.RANDOM_ACCESS_MEMORY_NAME).
                 setRegistryName(Constants.RANDOM_ACCESS_MEMORY_NAME));
         GameRegistry.registerTileEntity(TileEntityRandomAccessMemory.class, Constants.RANDOM_ACCESS_MEMORY_NAME);
+
+        redstoneController = GameRegistry.register(new BlockEntityContainer(Material.IRON).
+                setTileEntity((world, state) -> new TileEntityRedstoneController()).
+                setCreativeTab(Globals.CREATIVE_TAB).
+                setUnlocalizedName(Constants.REDSTONE_CONTROLLER_NAME).
+                setRegistryName(Constants.REDSTONE_CONTROLLER_NAME));
+        GameRegistry.registerTileEntity(TileEntityRedstoneController.class, Constants.REDSTONE_CONTROLLER_NAME);
     }
 
     private Blocks() {

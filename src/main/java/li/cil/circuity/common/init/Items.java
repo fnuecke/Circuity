@@ -10,6 +10,7 @@ public final class Items {
     public static Item busController;
     public static Item busCable;
     public static Item randomAccessMemory;
+    public static Item redstoneController;
 
     public static void init() {
         busController = GameRegistry.register(new ItemBlock(Blocks.busController).
@@ -26,6 +27,11 @@ public final class Items {
                 setCreativeTab(Globals.CREATIVE_TAB).
                 setUnlocalizedName(Constants.RANDOM_ACCESS_MEMORY_NAME).
                 setRegistryName(Constants.RANDOM_ACCESS_MEMORY_NAME));
+
+        redstoneController = GameRegistry.register(new ItemBlock(Blocks.redstoneController).
+                setCreativeTab(Globals.CREATIVE_TAB).
+                setUnlocalizedName(Constants.REDSTONE_CONTROLLER_NAME).
+                setRegistryName(Constants.REDSTONE_CONTROLLER_NAME));
     }
 
     private Items() {
