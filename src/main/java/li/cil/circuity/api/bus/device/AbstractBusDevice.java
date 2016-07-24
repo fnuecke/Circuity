@@ -8,6 +8,11 @@ import javax.annotation.Nullable;
 public abstract class AbstractBusDevice implements BusDevice {
     protected BusController controller;
 
+    @Nullable
+    public BusController getController() {
+        return controller;
+    }
+
     @Override
     public void setBusController(@Nullable final BusController controller) {
         this.controller = controller;
