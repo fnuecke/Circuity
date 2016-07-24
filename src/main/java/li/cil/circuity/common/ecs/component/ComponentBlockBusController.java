@@ -1,7 +1,7 @@
 package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.common.bus.BusControllerImpl;
+import li.cil.circuity.common.bus.AbstractBusController;
 import li.cil.circuity.common.capabilities.CapabilityBusDevice;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
@@ -56,7 +56,7 @@ public class ComponentBlockBusController extends ComponentBlockBusSegment {
 
     // --------------------------------------------------------------------- //
 
-    private final class BlockBusControllerImpl extends BusControllerImpl {
+    private final class BlockBusControllerImpl extends AbstractBusController {
         @Override
         protected World getBusWorld() {
             return ComponentBlockBusController.this.getWorld();

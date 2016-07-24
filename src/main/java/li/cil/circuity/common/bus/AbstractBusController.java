@@ -50,7 +50,7 @@ import java.util.Set;
  * <tr><td>2</td><td>Low address selected device is mapped to. Read-only.</td></tr>
  * </table>
  */
-public abstract class BusControllerImpl extends AbstractAddressable implements BusController {
+public abstract class AbstractBusController extends AbstractAddressable implements BusController {
     /**
      * The number of addressable words via this buses address space.
      */
