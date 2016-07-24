@@ -18,7 +18,6 @@ public abstract class ProxyCommon {
     }
 
     public void init(final FMLInitializationEvent event) {
-
     }
 
     public void postInit(final FMLPostInitializationEvent event) {
