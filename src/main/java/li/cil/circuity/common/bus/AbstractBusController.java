@@ -136,7 +136,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
     @Override
     protected AddressBlock validateAddress(final AddressBlock address) {
-        return address.take(8 + 8 + 16);
+        return new AddressBlock(Math.max(address.getOffset(), 0xC000), (1 + 1 + 2) * 8, address.getWordSize());
     }
 
     @Override
@@ -499,7 +499,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             if (available > 0) {
                 final AddressBlock candidate = new AddressBlock(address, available, FULL_ADDRESS_BLOCK.getWordSize());
                 final AddressBlock requested = newAddressable.getAddress(candidate);
-                if (requested.getOffset() == candidate.getOffset() && requested.getLength() <= candidate.getLength()) {
+                if (requested.getOffset() >= candidate.getOffset() && requested.getOffset() + requested.getLength() <= candidate.getOffset() + candidate.getLength()) {
                     return requested;
                 }
             }
