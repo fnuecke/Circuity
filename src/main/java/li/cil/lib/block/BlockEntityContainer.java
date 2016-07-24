@@ -7,7 +7,6 @@ import li.cil.lib.api.ecs.component.event.EntityCollisionListener;
 import li.cil.lib.api.ecs.component.event.EntityWalkListener;
 import li.cil.lib.api.ecs.component.event.NeighborChangeListener;
 import li.cil.lib.ecs.entity.EntityContainer;
-import li.cil.lib.tileentity.TileEntityEntityContainer;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.MapColor;
 import net.minecraft.block.material.Material;
@@ -26,27 +25,15 @@ import net.minecraft.world.World;
 import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.BiFunction;
 import java.util.stream.Stream;
 
-public class BlockEntityContainer extends Block {
-    private BiFunction<World, IBlockState, ? extends TileEntityEntityContainer> tileEntityFactory;
-
-    // --------------------------------------------------------------------- //
-
+public class BlockEntityContainer extends BlockWithTileEntity {
     public BlockEntityContainer(final Material material, final MapColor mapColor) {
         super(material, mapColor);
     }
 
     public BlockEntityContainer(final Material material) {
         super(material);
-    }
-
-    // --------------------------------------------------------------------- //
-
-    public BlockEntityContainer setTileEntity(@Nullable final BiFunction<World, IBlockState, ? extends TileEntityEntityContainer> factory) {
-        this.tileEntityFactory = factory;
-        return this;
     }
 
     // --------------------------------------------------------------------- //
@@ -68,22 +55,6 @@ public class BlockEntityContainer extends Block {
             return container.getComponents(clazz);
         }
         return Stream.empty();
-    }
-
-    // --------------------------------------------------------------------- //
-    // TileEntity creation
-
-    @Override
-    public boolean hasTileEntity(final IBlockState state) {
-        return tileEntityFactory != null;
-    }
-
-    @Override
-    public TileEntity createTileEntity(final World world, final IBlockState state) {
-        if (tileEntityFactory != null) {
-            return tileEntityFactory.apply(world, state);
-        }
-        return super.createTileEntity(world, state);
     }
 
     // --------------------------------------------------------------------- //
