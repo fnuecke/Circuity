@@ -250,8 +250,9 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     public <T> Iterable<T> getComponents(final Class<T> clazz) {
         if (componentsByType.containsKey(clazz)) {
             return (Iterable<T>) componentsByType.get(clazz);
+        } else {
+            return Collections.emptyList();
         }
-        return Collections.emptyList();
     }
 
     @Override
@@ -262,21 +263,21 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     @Override
     @SuppressWarnings("unchecked")
     public <T> Stream<T> getComponents(final long entity, final Class<T> clazz) {
-        validateEntity(entity);
-
         if (componentsByEntityAndType.containsKey(entity)) {
             final HashMap<Class<? extends Component>, List<? extends Component>> componentTypes = componentsByEntityAndType.get(entity);
             return componentTypes.entrySet().stream().filter(e -> clazz.isAssignableFrom(e.getKey())).flatMap(e -> ((List<T>) e.getValue()).stream());
+        } else {
+            return Stream.empty();
         }
-
-        return Stream.empty();
     }
 
     @Override
     public Iterable<Component> getComponents(final long entity) {
-        validateEntity(entity);
-
-        return componentsByEntity.get(entity);
+        if (hasEntity(entity)) {
+            return componentsByEntity.get(entity);
+        } else {
+            return Collections.emptyList();
+        }
     }
 
     // --------------------------------------------------------------------- //
