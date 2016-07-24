@@ -1,6 +1,6 @@
 package li.cil.circuity.api.bus;
 
-public interface BusController {
+public interface BusController extends BusSegment {
     void scheduleScan();
 
     void mapAndWrite(final int address, final int value);

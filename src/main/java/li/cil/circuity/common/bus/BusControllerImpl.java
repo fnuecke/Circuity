@@ -30,9 +30,16 @@ import java.util.Set;
  * <p>
  * Subclasses are required to provide the following functionality:
  * <ul>
- * <li>implement {@link #getBusWorld()}, which is used when scheduling scans.</li>
- * <li>implement {@link #getSeedSegments()}, which is used as seed when rescanning.</li>
- * <li>call {@link #scheduleScan()} when the list of neighboring bus segments changed.</li>
+ * <li>
+ * implement {@link #getBusWorld()}, which is used when scheduling scans.
+ * </li>
+ * <li>
+ * call {@link #scheduleScan()} when added to the world and when the list of
+ * neighboring bus segments changed.
+ * </li>
+ * <li>
+ * call {@link #clear()} when they get disposed/removed from the world.
+ * </li>
  * </ul>
  * <p>
  * <h3>Mapped memory</h3>
@@ -48,6 +55,12 @@ public abstract class BusControllerImpl extends AbstractAddressable implements B
      * The number of addressable words via this buses address space.
      */
     public static final int ADDRESS_COUNT = 0xFFFF;
+
+    /**
+     * The interval in which to re-scan the bus in case multiple controllers
+     * were detected or the scan hit the end of the loaded world, in seconds.
+     */
+    private static final int RESCAN_INTERVAL = 5;
 
     /**
      * Address block representing the full address space of the bus.
@@ -211,7 +224,7 @@ public abstract class BusControllerImpl extends AbstractAddressable implements B
 
     // --------------------------------------------------------------------- //
 
-    public void dispose() {
+    public void clear() {
         synchronized (busLock) {
             if (!doAnyAddressesOverlap()) {
                 Arrays.fill(addresses, null);
@@ -261,8 +274,6 @@ public abstract class BusControllerImpl extends AbstractAddressable implements B
 
     protected abstract World getBusWorld();
 
-    protected abstract Iterable<BusSegment> getSeedSegments();
-
     // --------------------------------------------------------------------- //
 
     // Avoids one level of indentation in scan.
@@ -284,12 +295,14 @@ public abstract class BusControllerImpl extends AbstractAddressable implements B
             final Set<BusSegment> closed = new HashSet<>();
             final Queue<BusSegment> open = new ArrayDeque<>();
 
-            getSeedSegments().forEach(open::add);
-
             // Avoid null entries in iterables returned by getDevices() to screw
             // things up. Not that anyone should ever do that, but I don't trust
             // people not to screw this up, so we're playing it safe.
             closed.add(null);
+
+            // Start at the bus controller. This is why the BusController
+            // interface extends the BusSegment interface; homogenizes things.
+            open.add(this);
 
             // Explore the graph implicitly defined by bus segments' getDevices()
             // return values (which are, essentially, the edges in the graph) in
@@ -355,6 +368,16 @@ public abstract class BusControllerImpl extends AbstractAddressable implements B
                     device.setBusController(null);
                 }
             }
+        }
+
+        // Multiple controllers on one bus are a no-go. If we detect we're
+        // connected to another controller, shut down everything and start
+        // rescanning periodically.
+        final boolean hasMultipleControllers = devices.stream().anyMatch(device -> device instanceof BusController && device != this);
+        if (hasMultipleControllers) {
+            clear();
+            scheduledScan = Scheduler.scheduleIn(getBusWorld(), RESCAN_INTERVAL * 20, this::scanSynchronized);
+            return;
         }
 
         // The above leaves us with the list of added devices, update internal
