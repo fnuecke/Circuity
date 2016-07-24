@@ -1,6 +1,6 @@
 package li.cil.circuity.common.tileentity;
 
-import li.cil.circuity.common.ecs.component.ComponentBlockBusController;
+import li.cil.circuity.common.ecs.component.BlockBusController;
 import li.cil.lib.tileentity.TileEntityEntityContainer;
 
 public class TileEntityBusController extends TileEntityEntityContainer {
@@ -8,6 +8,6 @@ public class TileEntityBusController extends TileEntityEntityContainer {
     protected void addComponents() {
         super.addComponents();
 
-        addComponent(ComponentBlockBusController.class);
+        addComponent(BlockBusController.class);
     }
 }

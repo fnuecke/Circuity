@@ -13,11 +13,11 @@ import net.minecraftforge.common.capabilities.Capability;
 import javax.annotation.Nullable;
 
 @Serializable
-public class ComponentBlockBusController extends ComponentBlockBusSegment {
+public class BlockBusController extends BlockBusSegment {
     @Serialize
     private final BlockBusControllerImpl controller = new BlockBusControllerImpl();
 
-    public ComponentBlockBusController(final EntityComponentManager manager, final long entity, final long id) {
+    public BlockBusController(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
     }
 
@@ -59,12 +59,12 @@ public class ComponentBlockBusController extends ComponentBlockBusSegment {
     private final class BlockBusControllerImpl extends AbstractBusController {
         @Override
         protected World getBusWorld() {
-            return ComponentBlockBusController.this.getWorld();
+            return BlockBusController.this.getWorld();
         }
 
         @Override
         public Iterable<BusDevice> getDevices() {
-            return ComponentBlockBusController.this.getDevices();
+            return BlockBusController.this.segment.getDevices();
         }
     }
 }

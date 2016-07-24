@@ -1,8 +1,8 @@
 package li.cil.circuity.common.ecs.component;
 
-import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusSegment;
+import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.common.capabilities.CapabilityBusDevice;
 import li.cil.lib.api.ecs.component.Location;
 import li.cil.lib.api.ecs.component.event.NeighborChangeListener;
@@ -22,11 +22,13 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 
-public class ComponentBlockBusSegment extends AbstractComponent implements NeighborChangeListener, BusSegment, ICapabilityProvider {
+public class BlockBusSegment extends AbstractComponent implements NeighborChangeListener, ICapabilityProvider {
+    protected final BlockBusSegmentImpl segment = new BlockBusSegmentImpl();
     private final Set<BusDevice> neighbors = new HashSet<>();
-    private BusController controller;
 
-    public ComponentBlockBusSegment(final EntityComponentManager manager, final long entity, final long id) {
+    // --------------------------------------------------------------------- //
+
+    public BlockBusSegment(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
     }
 
@@ -35,8 +37,8 @@ public class ComponentBlockBusSegment extends AbstractComponent implements Neigh
 
     @Override
     public void onDestroy() {
-        if (controller != null) {
-            controller.scheduleScan();
+        if (segment.getController() != null) {
+            segment.getController().scheduleScan();
         }
     }
 
@@ -48,25 +50,12 @@ public class ComponentBlockBusSegment extends AbstractComponent implements Neigh
         // Remote check here to avoid the neighbor scan; scheduleScan() also
         // does this check, so it's technically not necessary, but avoids some
         // unnecessary overhead on the client.
-        if (controller != null && !getWorld().isRemote) {
+        if (segment.getController() != null && !getWorld().isRemote) {
             final Collection<BusDevice> devices = getDevicesCollection();
             if (neighbors.retainAll(devices) | neighbors.addAll(devices)) {
-                controller.scheduleScan();
+                segment.getController().scheduleScan();
             }
         }
-    }
-
-    // --------------------------------------------------------------------- //
-    // BusSegment
-
-    @Override
-    public void setBusController(@Nullable final BusController controller) {
-        this.controller = controller;
-    }
-
-    @Override
-    public Iterable<BusDevice> getDevices() {
-        return getDevicesCollection();
     }
 
     // --------------------------------------------------------------------- //
@@ -81,16 +70,23 @@ public class ComponentBlockBusSegment extends AbstractComponent implements Neigh
     @Override
     public <T> T getCapability(final Capability<T> capability, @Nullable final EnumFacing facing) {
         if (capability == CapabilityBusDevice.BUS_DEVICE_CAPABILITY) {
-            return CapabilityBusDevice.BUS_DEVICE_CAPABILITY.cast(this);
+            return CapabilityBusDevice.BUS_DEVICE_CAPABILITY.cast(segment);
         }
         return null;
     }
 
     // --------------------------------------------------------------------- //
 
-    protected Collection<BusDevice> getDevicesCollection() {
-        final Optional<Location> location = getComponent(Location.class);
-        return location.map(ComponentBlockBusSegment::getDevicesAt).orElse(Collections.emptySet());
+    protected final class BlockBusSegmentImpl extends AbstractBusDevice implements BusSegment {
+        @Override
+        public Iterable<BusDevice> getDevices() {
+            return BlockBusSegment.this.getDevicesCollection();
+        }
+    }
+
+    private Collection<BusDevice> getDevicesCollection() {
+        final Optional<Location> location = BlockBusSegment.this.getComponent(Location.class);
+        return location.map(BlockBusSegment::getDevicesAt).orElse(Collections.emptySet());
     }
 
     private static Collection<BusDevice> getDevicesAt(final Location location) {
