@@ -348,15 +348,15 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
                     if (device instanceof Addressable) {
                         final Addressable addressable = (Addressable) device;
-                        final AddressBlock memory = addressBlocks.remove(addressable);
 
                         int index = Collections.binarySearch(addressables, addressable, addressComparator);
                         while (addressables.get(index) != addressable) index++;
                         addressables.remove(index);
 
-                        setAddressMap(memory, null);
+                        final AddressBlock memory = addressBlocks.remove(addressable);
 
                         if (!didAnyAddressesOverlap) {
+                            setAddressMap(memory, null);
                             addressable.setAddress(null);
                         }
                     }
@@ -389,8 +389,9 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
             if (device instanceof Addressable) {
                 final Addressable addressable = (Addressable) device;
-                final AddressBlock memory;
-                addressBlocks.put(addressable, memory = getFreeAddress(addressable));
+                final AddressBlock memory = getFreeAddress(addressable);
+
+                addressBlocks.put(addressable, memory);
 
                 final int index = Collections.binarySearch(addressables, addressable, addressComparator);
                 addressables.add(index >= 0 ? index : ~index, addressable);
@@ -438,7 +439,9 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         // the overlap (can solve the overlap if a device was removed, opening
         // a slot for a previously overlapping device).
         if (doAnyAddressesOverlap) {
+            // Clear to allow assigning everything to anything.
             addressBlocks.clear();
+
             for (final Addressable addressable : addressables) {
                 addressBlocks.put(addressable, getFreeAddress(addressable));
             }
@@ -464,7 +467,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             final AddressBlock memory2 = addressBlocks.get(addressable2);
 
             final int end1 = memory1.getOffset() + memory1.getLength();
-            if (end1 >= memory2.getOffset()) {
+            if (end1 > ADDRESS_COUNT) {
+                return true;
+            }
+
+            if (end1 > memory2.getOffset()) {
                 return true;
             }
         }
@@ -492,7 +499,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             if (available > 0) {
                 final AddressBlock candidate = new AddressBlock(address, available, FULL_ADDRESS_BLOCK.getWordSize());
                 final AddressBlock requested = newAddressable.getAddress(candidate);
-                if (requested.getLength() <= available) {
+                if (requested.getOffset() == candidate.getOffset() && requested.getLength() <= candidate.getLength()) {
                     return requested;
                 }
             }
@@ -502,7 +509,9 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             address = Math.max(address, memory.getOffset() + memory.getLength());
         }
 
-        // Failed to find a gap,
-        return newAddressable.getAddress(FULL_ADDRESS_BLOCK);
+        // Either we failed to find a gap, or we're at the empty space after the
+        // last currently mapped addressable device. Use that space, even if it
+        // means overlap.
+        return newAddressable.getAddress(new AddressBlock(address, FULL_ADDRESS_BLOCK.getLength() - address, FULL_ADDRESS_BLOCK.getWordSize()));
     }
 }
