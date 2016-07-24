@@ -10,6 +10,7 @@ import li.cil.lib.api.serialization.Serialize;
 
 @Serializable
 public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevice {
+    @Serialize
     private final RandomAccessMemoryImpl device = new RandomAccessMemoryImpl();
 
     @Serialize
@@ -61,6 +62,7 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
         @Override
         public void write(final int address, final int value) {
             BusDeviceRandomAccessMemory.this.memory[address] = (byte) value;
+            BusDeviceRandomAccessMemory.this.markChanged();
         }
     }
 }

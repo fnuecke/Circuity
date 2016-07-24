@@ -7,6 +7,7 @@ import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.lib.api.ecs.component.Redstone;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
+import li.cil.lib.api.serialization.Serialize;
 
 import java.util.Optional;
 
@@ -21,6 +22,7 @@ import java.util.Optional;
  */
 @Serializable
 public final class BusDeviceRedstoneController extends AbstractComponentBusDevice {
+    @Serialize
     private final RedstoneControllerImpl device = new RedstoneControllerImpl();
 
     // --------------------------------------------------------------------- //
