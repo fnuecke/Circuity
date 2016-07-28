@@ -36,7 +36,6 @@ public class InventoryMutable extends InventoryImmutable implements ItemHandlerM
         return capability == ITEM_HANDLER_MODIFIABLE_CAPABILITY || super.hasCapability(capability, facing);
     }
 
-    @Nullable
     @Override
     public <T> T getCapability(final Capability<T> capability, @Nullable final EnumFacing facing) {
         if (capability == ITEM_HANDLER_MODIFIABLE_CAPABILITY) {

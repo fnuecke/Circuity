@@ -1,5 +1,6 @@
 package li.cil.lib.tileentity;
 
+import li.cil.circuity.common.capabilities.NoSuchCapabilityException;
 import li.cil.lib.ModSillyBee;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
@@ -126,8 +127,6 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
         return false;
     }
 
-    @SuppressWarnings("NullableProblems") // Until Forge fixes their stuffs...
-    @Nullable
     @Override
     public <T> T getCapability(final Capability<T> capability, final EnumFacing facing) {
         final List<T> instances = new ArrayList<>();
@@ -142,7 +141,7 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
         }
 
         if (instances.isEmpty()) {
-            return null;
+            throw new NoSuchCapabilityException();
         }
         if (instances.size() == 1) {
             return instances.get(0);

@@ -1,11 +1,12 @@
 package li.cil.lib.ecs.component;
 
+import li.cil.circuity.common.capabilities.NoSuchCapabilityException;
+import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
-import li.cil.lib.synchronization.value.SynchronizedArray;
-import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.items.ItemHandlerListWrapper;
 import li.cil.lib.items.ItemHandlerProxy;
+import li.cil.lib.synchronization.value.SynchronizedArray;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraftforge.common.capabilities.Capability;
@@ -67,12 +68,11 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
         return capability == ITEM_HANDLER_CAPABILITY;
     }
 
-    @Nullable
     @Override
     public <T> T getCapability(final Capability<T> capability, @Nullable final EnumFacing facing) {
         if (capability == ITEM_HANDLER_CAPABILITY) {
             return ITEM_HANDLER_CAPABILITY.cast(this);
         }
-        return null;
+        throw new NoSuchCapabilityException();
     }
 }

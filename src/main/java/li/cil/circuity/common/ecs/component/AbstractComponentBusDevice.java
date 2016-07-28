@@ -2,6 +2,7 @@ package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.common.capabilities.CapabilityBusDevice;
+import li.cil.circuity.common.capabilities.NoSuchCapabilityException;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.ecs.component.AbstractComponent;
 import net.minecraft.util.EnumFacing;
@@ -22,12 +23,11 @@ public abstract class AbstractComponentBusDevice extends AbstractComponent imple
         return capability == CapabilityBusDevice.BUS_DEVICE_CAPABILITY;
     }
 
-    @Nullable
     @Override
     public <T> T getCapability(final Capability<T> capability, @Nullable final EnumFacing facing) {
         if (capability == CapabilityBusDevice.BUS_DEVICE_CAPABILITY) {
             return CapabilityBusDevice.BUS_DEVICE_CAPABILITY.cast(getDevice());
         }
-        return null;
+        throw new NoSuchCapabilityException();
     }
 }
