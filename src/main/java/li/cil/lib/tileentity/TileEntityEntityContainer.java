@@ -131,12 +131,16 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
     public <T> T getCapability(final Capability<T> capability, final EnumFacing facing) {
         final List<T> instances = new ArrayList<>();
 
-        addCapability(super.getCapability(capability, facing), instances);
+        if (super.hasCapability(capability, facing)) {
+            addCapability(super.getCapability(capability, facing), instances);
+        }
 
         for (final Component component : getComponents()) {
             if (component instanceof ICapabilityProvider) {
                 final ICapabilityProvider provider = (ICapabilityProvider) component;
-                addCapability(provider.getCapability(capability, facing), instances);
+                if (provider.hasCapability(capability, facing)) {
+                    addCapability(provider.getCapability(capability, facing), instances);
+                }
             }
         }
 
@@ -150,6 +154,7 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
     }
 
     private static <T> void addCapability(@Nullable final T instance, final List<T> instances) {
+        // Paranoia.
         if (instance != null) {
             instances.add(instance);
         }
@@ -180,7 +185,6 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
     }
 
     protected void addComponents() {
-        //noinspection ConstantConditions Guaranteed to not be null because LocationTilEntity doesn't destroy self in onCreate.
         addComponent(LocationTileEntity.class).setParent(this);
         addComponent(ChunkNotifyingChangeListener.class);
     }
