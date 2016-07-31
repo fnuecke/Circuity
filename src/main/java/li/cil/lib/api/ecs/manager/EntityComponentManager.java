@@ -72,18 +72,17 @@ public interface EntityComponentManager {
      * provide a constructor of the correct format, as described in the documentation
      * of the {@link Component} interface.
      * <p>
-     * Note that this may return null in the specific case that the component destroys
-     * itself in its {@link Component#onCreate()} callback. A component may choose to
-     * do so when certain preconditions for its existence are not met. Typically this
-     * will not be the case though.
+     * Note that this may return an invalid component in the specific case that
+     * the component destroys itself in its {@link Component#onCreate()}
+     * callback. A component may choose to do so when certain preconditions for
+     * its existence are not met. Typically this will not be the case though.
      *
      * @param entity the entity to add the component to.
      * @param clazz  the type of the component to create.
      * @param <T>    the generic type of the component to create.
-     * @return the newly created component, or <code>null</code>.
+     * @return the newly created component.
      * @throws UnsupportedOperationException when invoked on the client side.
      */
-    @Nullable
     <T extends Component> T addComponent(final long entity, final Class<T> clazz) throws UnsupportedOperationException;
 
     /**

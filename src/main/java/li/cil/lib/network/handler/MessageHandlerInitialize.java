@@ -41,7 +41,7 @@ public class MessageHandlerInitialize extends AbstractMessageHandlerNoResponse<M
             assert (componentClass != null);
 
             final Component component = manager.addComponent(entity, componentId, componentClass);
-            if (component != null && componentInfo.hasKey(MessageInitialize.COMPONENT_TAG)) {
+            if (manager.hasComponent(component) && componentInfo.hasKey(MessageInitialize.COMPONENT_TAG)) {
                 final NBTTagList componentNbt = componentInfo.getTagList(MessageInitialize.COMPONENT_TAG, Constants.NBT.TAG_COMPOUND);
                 synchronization.update(component, componentNbt);
             }

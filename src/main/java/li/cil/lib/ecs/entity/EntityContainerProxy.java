@@ -2,13 +2,11 @@ package li.cil.lib.ecs.entity;
 
 import li.cil.lib.api.ecs.component.Component;
 
-import javax.annotation.Nullable;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.stream.Stream;
 
 public interface EntityContainerProxy extends EntityContainer {
-    @Nullable
     @Override
     default <T extends Component> T addComponent(final Class<T> clazz) {
         return getManager().addComponent(getEntity(), clazz);

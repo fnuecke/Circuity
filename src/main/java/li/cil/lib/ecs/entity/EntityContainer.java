@@ -3,7 +3,6 @@ package li.cil.lib.ecs.entity;
 import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 
-import javax.annotation.Nullable;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -12,7 +11,6 @@ public interface EntityContainer {
 
     long getEntity();
 
-    @Nullable
     <T extends Component> T addComponent(Class<T> clazz);
 
     Iterable<Component> getComponents();

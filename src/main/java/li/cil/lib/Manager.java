@@ -33,7 +33,7 @@ public enum Manager implements ManagerAPI {
     }
 
     @SubscribeEvent
-    public void onTick(final TickEvent.ServerTickEvent event) {
+    public void handleServerTick(final TickEvent.ServerTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             for (final Map.Entry<World, EntityComponentManager> entry : managers.entrySet()) {
                 update(entry.getKey(), false);
@@ -42,7 +42,7 @@ public enum Manager implements ManagerAPI {
     }
 
     @SubscribeEvent
-    public void onTick(final TickEvent.ClientTickEvent event) {
+    public void handleClientTick(final TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             for (final Map.Entry<World, EntityComponentManager> entry : managers.entrySet()) {
                 update(entry.getKey(), true);

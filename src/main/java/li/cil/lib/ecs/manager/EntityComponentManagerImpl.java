@@ -45,9 +45,9 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     // --------------------------------------------------------------------- //
 
     /**
-     * Called each tick from {@link li.cil.lib.Manager#onTick(TickEvent.ClientTickEvent)}
-     * or {@link li.cil.lib.Manager#onTick(TickEvent.ServerTickEvent)} (depending on which
-     * side this manager is on).
+     * Called each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
+     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)}
+     * (depending on which side this manager is on).
      * <p>
      * Processes lists of added and removed components, then updates all
      * tickable components currently managed by this manager.
@@ -55,13 +55,17 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     public void update() {
         for (final ITickable component : addedUpdatingComponents) {
             final int index = Collections.binarySearch(updatingComponents, component, COMPONENT_COMPARATOR);
+            assert index < 0 : "Inserting tickable that is already in the list!";
             updatingComponents.add(~index, component);
         }
+        addedUpdatingComponents.clear();
 
         for (final ITickable component : removedUpdatingComponents) {
             final int index = Collections.binarySearch(updatingComponents, component, COMPONENT_COMPARATOR);
+            assert index >= 0 : "Removing tickable that is not in the list!";
             updatingComponents.remove(index);
         }
+        removedUpdatingComponents.clear();
 
         for (final ITickable component : updatingComponents) {
             if (!removedUpdatingComponents.contains(component)) {
@@ -84,7 +88,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
         }
         entities.add(entity);
 
-        entityChangeListeners.forEach(l -> l.onEntityAdded(this, entity));
+        entityChangeListeners.forEach(l -> l.handleEntityAdded(this, entity));
 
         return true;
     }
@@ -100,7 +104,6 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
      * @param <T>    the type of the component to create.
      * @return the created (or existing) component.
      */
-    @Nullable
     @SuppressWarnings("unchecked")
     public <T extends Component> T addComponent(final long entity, final long id, final Class<T> clazz) {
         validateEntity(entity);
@@ -140,11 +143,9 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
             // Unlikely, but component may have decided to self-destruct in onCreate.
             if (hasComponent(id)) {
                 componentChangeListeners.forEach(l -> l.onComponentAdded(component));
-
-                return component;
-            } else {
-                return null;
             }
+
+            return component;
         } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
             throw Throwables.propagate(e);
         }
@@ -187,12 +188,11 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
 
         entities.remove(entity);
 
-        entityChangeListeners.forEach(l -> l.onEntityRemoved(this, entity));
+        entityChangeListeners.forEach(l -> l.handleEntityRemoved(this, entity));
 
         return true;
     }
 
-    @Nullable
     @Override
     public <T extends Component> T addComponent(final long entity, final Class<T> clazz) throws UnsupportedOperationException {
         requireServerSide();

@@ -1,6 +1,7 @@
 package li.cil.lib.ecs.component;
 
 import li.cil.circuity.common.capabilities.NoSuchCapabilityException;
+import li.cil.lib.api.ecs.component.event.InventoryChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
@@ -22,6 +23,11 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
     @CapabilityInject(IItemHandler.class)
     public static Capability<IItemHandler> ITEM_HANDLER_CAPABILITY;
 
+    @FunctionalInterface
+    public interface ItemFilter {
+        boolean canInsertItem(final IItemHandler inventory, final int slot, final ItemStack stack);
+    }
+
     // --------------------------------------------------------------------- //
 
     @Serialize
@@ -34,11 +40,27 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
         }
 
         @Override
-        public void setStackInSlot(final int slot, @Nullable final ItemStack stack) {
-            super.setStackInSlot(slot, stack);
+        protected int getStackLimit(final int slot, final ItemStack stack) {
+            return stackLimit >= 0 ? stackLimit : super.getStackLimit(slot, stack);
+        }
+
+        @Override
+        protected void onContentsChanged(final int slot) {
             markChanged();
+            InventoryImmutable.this.fireInventoryChanged(slot);
+        }
+
+        @Nullable
+        @Override
+        public ItemStack insertItem(final int slot, final ItemStack stack, final boolean simulate) {
+            if (filter != null && !filter.canInsertItem(this, slot, stack))
+                return stack;
+            return super.insertItem(slot, stack, simulate);
         }
     };
+
+    private int stackLimit = -1;
+    private ItemFilter filter;
 
     // --------------------------------------------------------------------- //
 
@@ -48,8 +70,19 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
 
     // --------------------------------------------------------------------- //
 
-    public void setSize(final int size) {
+    public InventoryImmutable setSize(final int size) {
         stacks.setSize(size);
+        return this;
+    }
+
+    public InventoryImmutable setStackLimit(final int limit) {
+        stackLimit = limit;
+        return this;
+    }
+
+    public InventoryImmutable setFilter(@Nullable final ItemFilter filter) {
+        this.filter = filter;
+        return this;
     }
 
     // --------------------------------------------------------------------- //
@@ -74,5 +107,11 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
             return ITEM_HANDLER_CAPABILITY.cast(this);
         }
         throw new NoSuchCapabilityException();
+    }
+
+    // --------------------------------------------------------------------- //
+
+    private void fireInventoryChanged(final int slot) {
+        getComponents(InventoryChangeListener.class).forEach(l -> l.handleInventoryChange(this, slot));
     }
 }
