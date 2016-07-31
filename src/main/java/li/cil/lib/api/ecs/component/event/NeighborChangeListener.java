@@ -10,5 +10,5 @@ import javax.annotation.Nullable;
  * entity based entities.
  */
 public interface NeighborChangeListener {
-    void onNeighborChange(@Nullable final BlockPos neighborPos);
+    void handleNeighborChange(@Nullable final BlockPos neighborPos);
 }

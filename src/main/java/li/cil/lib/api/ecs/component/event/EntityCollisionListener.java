@@ -7,5 +7,5 @@ import net.minecraft.entity.Entity;
  * collides with the component's entity.
  */
 public interface EntityCollisionListener {
-    boolean onEntityCollided(final Entity entity);
+    boolean handleEntityCollided(final Entity entity);
 }

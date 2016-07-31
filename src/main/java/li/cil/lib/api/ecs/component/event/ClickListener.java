@@ -7,5 +7,5 @@ import net.minecraft.entity.player.EntityPlayer;
  * interacts with the component's entity by clicking it.
  */
 public interface ClickListener {
-    boolean onClicked(final EntityPlayer player);
+    boolean handleClicked(final EntityPlayer player);
 }

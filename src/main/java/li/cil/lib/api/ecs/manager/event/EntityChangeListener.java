@@ -10,7 +10,7 @@ import li.cil.lib.api.synchronization.SynchronizationManager;
  * component system they are responsible for.
  */
 public interface EntityChangeListener {
-    void onEntityAdded(final EntityComponentManager manager, final long entity);
+    void handleEntityAdded(final EntityComponentManager manager, final long entity);
 
-    void onEntityRemoved(final EntityComponentManager manager, final long entity);
+    void handleEntityRemoved(final EntityComponentManager manager, final long entity);
 }

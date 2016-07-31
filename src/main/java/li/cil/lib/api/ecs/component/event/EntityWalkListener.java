@@ -7,5 +7,5 @@ import net.minecraft.entity.Entity;
  * walks over the component's entity.
  */
 public interface EntityWalkListener {
-    boolean onEntityWalk(final Entity entity);
+    boolean handleEntityWalk(final Entity entity);
 }

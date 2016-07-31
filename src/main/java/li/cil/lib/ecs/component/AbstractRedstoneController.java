@@ -45,7 +45,7 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
     // NeighborChangeListener
 
     @Override
-    public void onNeighborChange(@Nullable final BlockPos neighborPos) {
+    public void handleNeighborChange(@Nullable final BlockPos neighborPos) {
         final Optional<Location> location = getComponent(Location.class);
         if (neighborPos != null) {
             location.ifPresent(l -> updateInput(l, neighborPos));

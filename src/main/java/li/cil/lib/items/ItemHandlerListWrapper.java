@@ -18,6 +18,9 @@ public abstract class ItemHandlerListWrapper implements IItemHandler, IItemHandl
         return stack.getMaxStackSize();
     }
 
+    protected void onContentsChanged(final int slot) {
+    }
+
     // --------------------------------------------------------------------- //
     // IItemHandler
 
@@ -34,7 +37,7 @@ public abstract class ItemHandlerListWrapper implements IItemHandler, IItemHandl
 
     @Nullable
     @Override
-    public ItemStack insertItem(final int slot, @Nullable final ItemStack stack, final boolean simulate) {
+    public ItemStack insertItem(final int slot, final ItemStack stack, final boolean simulate) {
         if (stack == null || stack.stackSize <= 0) {
             return null;
         }
@@ -103,6 +106,7 @@ public abstract class ItemHandlerListWrapper implements IItemHandler, IItemHandl
     public void setStackInSlot(final int slot, @Nullable final ItemStack stack) {
         if (!ItemStack.areItemStacksEqual(getList().get(slot), stack)) {
             getList().set(slot, stack);
+            onContentsChanged(slot);
         }
     }
 

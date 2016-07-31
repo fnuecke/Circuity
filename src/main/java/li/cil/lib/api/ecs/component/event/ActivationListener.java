@@ -12,5 +12,5 @@ import javax.annotation.Nullable;
  * interacts with the component's entity by right clicking it.
  */
 public interface ActivationListener {
-    boolean onActivated(final EntityPlayer player, final EnumHand hand, @Nullable final ItemStack heldItem, final EnumFacing side, final float hitX, final float hitY, final float hitZ);
+    boolean handleActivated(final EntityPlayer player, final EnumHand hand, @Nullable final ItemStack heldItem, final EnumFacing side, final float hitX, final float hitY, final float hitZ);
 }
