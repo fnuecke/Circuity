@@ -34,6 +34,8 @@ public class BusSegmentBlock extends AbstractComponentBusDevice implements Neigh
 
     @Override
     public void onDestroy() {
+        super.onDestroy();
+
         if (segment.getController() != null) {
             segment.getController().scheduleScan();
         }

@@ -51,7 +51,7 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
     // --------------------------------------------------------------------- //
 
     private final class RandomAccessMemoryImpl extends AbstractAddressable implements AddressHint {
-        public static final int DEVICE_ADDRESS_OFFSET = 0x0000;
+        private static final int DEVICE_ADDRESS_OFFSET = 0x0000;
 
         // --------------------------------------------------------------------- //
         // AbstractAddressable

@@ -21,6 +21,8 @@ public class BusControllerBlock extends BusSegmentBlock {
 
     @Override
     public void onCreate() {
+        super.onCreate();
+
         controller.scheduleScan();
     }
 
@@ -28,6 +30,8 @@ public class BusControllerBlock extends BusSegmentBlock {
     // necessity our own, so we really don't need to schedule a scan anymore.
     @Override
     public void onDestroy() {
+        super.onDestroy();
+
         controller.clear();
     }
 

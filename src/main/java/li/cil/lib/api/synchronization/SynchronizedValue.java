@@ -22,6 +22,7 @@ import java.util.List;
  * synchronized to the client. When no manager is currently set, no client is
  * tracking the entity the component belongs to, so no synchronization is required.
  *
+ * @see li.cil.lib.synchronization.value.SynchronizedBoolean
  * @see li.cil.lib.synchronization.value.SynchronizedByte
  * @see li.cil.lib.synchronization.value.SynchronizedShort
  * @see li.cil.lib.synchronization.value.SynchronizedInt
