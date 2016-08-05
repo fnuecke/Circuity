@@ -1,6 +1,5 @@
 package li.cil.lib.ecs.component;
 
-import li.cil.lib.api.ecs.component.Location;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
@@ -8,7 +7,6 @@ import li.cil.lib.synchronization.value.SynchronizedByteArray;
 import net.minecraft.util.EnumFacing;
 
 import javax.annotation.Nullable;
-import java.util.Optional;
 
 @Serializable
 public final class SidedRedstoneController extends AbstractRedstoneController {
@@ -34,8 +32,7 @@ public final class SidedRedstoneController extends AbstractRedstoneController {
         final byte clampedOutput = clampSignal(output);
         if (clampedOutput == getOutput(side)) return;
         this.output.set(side != null ? side.getIndex() : EnumFacing.VALUES.length, clampedOutput);
-        final Optional<Location> location = getComponent(Location.class);
-        location.ifPresent(RedstoneController::notifyNeighbors);
+        scheduleNotifyNeighbors();
         markChanged();
     }
 }

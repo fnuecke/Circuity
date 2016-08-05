@@ -17,6 +17,8 @@ import java.util.Optional;
 
 public abstract class AbstractRedstoneController extends AbstractComponent implements Redstone, NeighborChangeListener {
     private final SynchronizedByteArray input = new SynchronizedByteArray(EnumFacing.VALUES.length);
+    private Scheduler.ScheduledCallback scheduledInputComputation;
+    private Scheduler.ScheduledCallback scheduledNeighborNotification;
 
     // --------------------------------------------------------------------- //
 
@@ -29,8 +31,23 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
 
     @Override
     public void onCreate() {
-        final Optional<Location> location = getComponent(Location.class);
-        location.ifPresent(this::initializeInput);
+        super.onCreate();
+
+        scheduleInputComputation();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+
+        if (scheduledInputComputation != null) {
+            Scheduler.cancel(getWorld(), scheduledInputComputation);
+            scheduledInputComputation = null;
+        }
+        if (scheduledNeighborNotification != null) {
+            Scheduler.cancel(getWorld(), scheduledNeighborNotification);
+            scheduledNeighborNotification = null;
+        }
     }
 
     // --------------------------------------------------------------------- //
@@ -50,18 +67,11 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
         if (neighborPos != null) {
             location.ifPresent(l -> updateInput(l, neighborPos));
         } else {
-            location.ifPresent(l -> recomputeInput(l.getWorld(), l.getPosition()));
+            scheduleInputComputation();
         }
     }
 
     // --------------------------------------------------------------------- //
-
-    protected static void notifyNeighbors(final Location location) {
-        final World world = location.getWorld();
-        final BlockPos pos = location.getPosition();
-        final IBlockState state = world.getBlockState(pos);
-        world.notifyNeighborsOfStateChange(pos, state.getBlock());
-    }
 
     protected static byte clampSignal(final int value) {
         if (value < 0) return (byte) 0;
@@ -69,21 +79,55 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
         return (byte) value;
     }
 
-    private int getMaxInput() {
-        int max = 0;
-        for (final EnumFacing value : EnumFacing.VALUES) {
-            max = Math.max(max, input.get(value.getIndex()));
-        }
-        return max;
+    protected final void scheduleNotifyNeighbors() {
+        if (scheduledNeighborNotification != null) return;
+
+        final World world = getWorld();
+        if (world.isRemote) return;
+
+        scheduledNeighborNotification = Scheduler.schedule(world, this::handleNotifyNeighbors);
     }
 
-    private void initializeInput(final Location location) {
+    private void handleNotifyNeighbors() {
+        scheduledNeighborNotification = null;
+        final Optional<Location> location = getComponent(Location.class);
+        location.ifPresent(AbstractRedstoneController::notifyNeighbors);
+    }
+
+    private static void notifyNeighbors(final Location location) {
         final World world = location.getWorld();
         final BlockPos pos = location.getPosition();
-        Scheduler.schedule(world, () -> recomputeInput(world, pos));
+        final IBlockState state = world.getBlockState(pos);
+        world.notifyNeighborsOfStateChange(pos, state.getBlock());
+    }
+
+    private void scheduleInputComputation() {
+        if (scheduledInputComputation != null) return;
+
+        final World world = getWorld();
+        if (world.isRemote) return;
+
+        scheduledInputComputation = Scheduler.schedule(world, this::handleInputComputation);
+    }
+
+    private void handleInputComputation() {
+        scheduledNeighborNotification = null;
+        final Optional<Location> location = getComponent(Location.class);
+        location.ifPresent(this::computeInput);
+    }
+
+    private void computeInput(final Location location) {
+        final World world = location.getWorld();
+        final BlockPos pos = location.getPosition();
+        for (final EnumFacing side : EnumFacing.VALUES) {
+            final byte input = clampSignal(world.getRedstonePower(pos.offset(side), side));
+            this.input.set(side.getIndex(), input);
+        }
     }
 
     private void updateInput(final Location location, final BlockPos neighborPos) {
+        if (scheduledInputComputation != null) return;
+
         final World world = location.getWorld();
         final BlockPos pos = location.getPosition();
         final EnumFacing side = SpatialUtil.getNeighborFacing(pos, neighborPos);
@@ -96,14 +140,15 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
         if (input > getInput(side)) {
             this.input.set(side.getIndex(), input);
         } else {
-            recomputeInput(world, pos);
+            scheduleInputComputation();
         }
     }
 
-    private void recomputeInput(final World world, final BlockPos pos) {
-        for (final EnumFacing side : EnumFacing.VALUES) {
-            final byte input = clampSignal(world.getRedstonePower(pos.offset(side), side));
-            this.input.set(side.getIndex(), input);
+    private int getMaxInput() {
+        int max = 0;
+        for (final EnumFacing value : EnumFacing.VALUES) {
+            max = Math.max(max, input.get(value.getIndex()));
         }
+        return max;
     }
 }
