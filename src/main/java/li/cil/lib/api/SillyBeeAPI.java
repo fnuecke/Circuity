@@ -44,6 +44,13 @@ public final class SillyBeeAPI {
      */
     public static ManagerAPI manager;
 
+    /**
+     * Access to external data storage API.
+     * <p>
+     * This is initialized by the library mod in the pre-init phase.
+     */
+    public static StorageAPI storage;
+
     // --------------------------------------------------------------------- //
 
     private SillyBeeAPI() {

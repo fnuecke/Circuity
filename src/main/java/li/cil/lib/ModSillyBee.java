@@ -9,6 +9,7 @@ import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityInject;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import org.apache.logging.log4j.Logger;
@@ -41,8 +42,14 @@ public final class ModSillyBee {
         Serialization.init();
         Synchronization.init();
         Manager.init();
+        Storage.init();
 
         SillyBeeAPI.capabilities.register(ITEM_HANDLER_CAPABILITY, ItemHandlerWrapperProvider.INSTANCE);
         SillyBeeAPI.capabilities.register(ITEM_HANDLER_MODIFIABLE_CAPABILITY, ItemHandlerModifiableWrapperProvider.INSTANCE);
+    }
+
+    @Mod.EventHandler
+    public void serverStopped(final FMLServerStoppedEvent event) {
+        Storage.INSTANCE.handleServerStopped(event);
     }
 }
