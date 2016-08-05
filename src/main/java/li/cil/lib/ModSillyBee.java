@@ -38,10 +38,11 @@ public final class ModSillyBee {
         Scheduler.init();
 
         Capabilities.init();
-        Serialization.init();
-        Synchronization.init();
         Manager.init();
+        Scheduler.init();
+        Serialization.init();
         Storage.init();
+        Synchronization.init();
 
         SillyBeeAPI.capabilities.register(ITEM_HANDLER_CAPABILITY, ItemHandlerWrapperProvider.INSTANCE);
         SillyBeeAPI.capabilities.register(ITEM_HANDLER_MODIFIABLE_CAPABILITY, ItemHandlerModifiableWrapperProvider.INSTANCE);
