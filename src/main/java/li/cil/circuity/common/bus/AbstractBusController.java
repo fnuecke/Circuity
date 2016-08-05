@@ -5,6 +5,7 @@ import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusSegment;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.lib.util.Scheduler;
 import net.minecraft.world.World;
@@ -50,7 +51,7 @@ import java.util.Set;
  * <tr><td>2</td><td>Low address selected device is mapped to. Read-only.</td></tr>
  * </table>
  */
-public abstract class AbstractBusController extends AbstractAddressable implements BusController {
+public abstract class AbstractBusController extends AbstractAddressable implements BusController, AddressHint {
     /**
      * The number of addressable words via this buses address space.
      */
@@ -66,6 +67,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
      * Address block representing the full address space of the bus.
      */
     private static final AddressBlock FULL_ADDRESS_BLOCK = new AddressBlock(0, ADDRESS_COUNT, 8);
+
+    /**
+     * Offset after which to map the controller itself.
+     */
+    private static final int DEVICE_ADDRESS_OFFSET = 0xC000;
 
     // --------------------------------------------------------------------- //
 
@@ -132,12 +138,15 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     private int selected;
 
     // --------------------------------------------------------------------- //
-    // Addressable
+    // AbstractAddressable
 
     @Override
     protected AddressBlock validateAddress(final AddressBlock memory) {
-        return new AddressBlock(Math.max(memory.getOffset(), 0xC000), (1 + 1 + 2) * 8, memory.getWordSize());
+        return memory.take(DEVICE_ADDRESS_OFFSET, (1 + 1 + 2) * 8);
     }
+
+    // --------------------------------------------------------------------- //
+    // Addressable
 
     @Override
     public int read(final int address) {
@@ -177,6 +186,14 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 selected = value;
                 break;
         }
+    }
+
+    // --------------------------------------------------------------------- //
+    // AddressHint
+
+    @Override
+    public int getSortHint() {
+        return DEVICE_ADDRESS_OFFSET;
     }
 
     // --------------------------------------------------------------------- //
@@ -446,7 +463,15 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             // Clear to allow assigning everything to anything.
             addressBlocks.clear();
 
+            // Look for devices with sort hints, add them in the order given.
+            addressables.stream().
+                    filter(a -> a instanceof AddressHint).
+                    sorted(AbstractBusController::compareAddressHints).
+                    forEach(a -> addressBlocks.put(a, getFreeAddress(a)));
+
+            // Then add the remaining devices.
             for (final Addressable addressable : addressables) {
+                if (addressable instanceof AddressHint) continue;
                 addressBlocks.put(addressable, getFreeAddress(addressable));
             }
 
@@ -517,5 +542,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         // last currently mapped addressable device. Use that space, even if it
         // means overlap.
         return newAddressable.getMemory(new AddressBlock(address, FULL_ADDRESS_BLOCK.getLength() - address, FULL_ADDRESS_BLOCK.getWordSize()));
+    }
+
+    private static int compareAddressHints(final Addressable a1, final Addressable a2) {
+        final AddressHint ah1 = (AddressHint) a1;
+        final AddressHint ah2 = (AddressHint) a2;
+        return ah1.getSortHint() - ah2.getSortHint();
     }
 }

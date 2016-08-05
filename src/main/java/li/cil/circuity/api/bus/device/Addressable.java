@@ -96,7 +96,21 @@ public interface Addressable extends BusDevice {
      */
     void setMemory(@Nullable final AddressBlock memory);
 
+    // --------------------------------------------------------------------- //
+
+    /**
+     * Reads a value from this device from the specified local address.
+     *
+     * @param address the local address to read from.
+     * @return the value read.
+     */
     int read(final int address);
 
+    /**
+     * Write a value to this device to the specified local address.
+     *
+     * @param address the local address to write to.
+     * @param value   the value to write to the device.
+     */
     void write(final int address, final int value);
 }

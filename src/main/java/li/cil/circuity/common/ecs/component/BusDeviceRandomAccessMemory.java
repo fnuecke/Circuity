@@ -3,6 +3,7 @@ package li.cil.circuity.common.ecs.component;
 import li.cil.circuity.api.bus.AddressBlock;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
@@ -49,11 +50,19 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
     // --------------------------------------------------------------------- //
 
-    private final class RandomAccessMemoryImpl extends AbstractAddressable {
+    private final class RandomAccessMemoryImpl extends AbstractAddressable implements AddressHint {
+        public static final int DEVICE_ADDRESS_OFFSET = 0x0000;
+
+        // --------------------------------------------------------------------- //
+        // AbstractAddressable
+
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
-            return memory.take(BusDeviceRandomAccessMemory.this.memory.length * 8);
+            return memory.take(DEVICE_ADDRESS_OFFSET, BusDeviceRandomAccessMemory.this.memory.length * 8);
         }
+
+        // --------------------------------------------------------------------- //
+        // Addressable
 
         @Override
         public int read(final int address) {
@@ -64,6 +73,14 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
         public void write(final int address, final int value) {
             BusDeviceRandomAccessMemory.this.memory[address] = (byte) value;
             BusDeviceRandomAccessMemory.this.markChanged();
+        }
+
+        // --------------------------------------------------------------------- //
+        // AddressHint
+
+        @Override
+        public int getSortHint() {
+            return DEVICE_ADDRESS_OFFSET;
         }
     }
 }

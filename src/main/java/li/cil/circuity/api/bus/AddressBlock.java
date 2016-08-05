@@ -87,6 +87,10 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
         return new AddressBlock(offset, (int) Math.ceil(bits / (double) wordSize), wordSize);
     }
 
+    public AddressBlock take(final int minOffset, final int bits) {
+        return new AddressBlock(Math.max(offset, minOffset), (int) Math.ceil(bits / (double) wordSize), wordSize);
+    }
+
     // --------------------------------------------------------------------- //
     // INBTSerializable
 
