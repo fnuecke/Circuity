@@ -3,7 +3,7 @@ package li.cil.circuity.common.ecs.component;
 import li.cil.circuity.api.bus.AddressBlock;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
-import li.cil.circuity.api.bus.device.Addressable;
+import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.lib.api.ecs.component.Redstone;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
@@ -41,11 +41,19 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
 
     // --------------------------------------------------------------------- //
 
-    private final class RedstoneControllerImpl extends AbstractAddressable implements Addressable {
+    private final class RedstoneControllerImpl extends AbstractAddressable implements AddressHint {
+        private static final int DEVICE_ADDRESS_OFFSET = 0x8000;
+
+        // --------------------------------------------------------------------- //
+        // AbstractAddressable
+
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
-            return new AddressBlock(Math.max(memory.getOffset(), 0x8000), 2 * 8, memory.getWordSize());
+            return memory.take(DEVICE_ADDRESS_OFFSET, 2 * 8);
         }
+
+        // --------------------------------------------------------------------- //
+        // Addressable
 
         @Override
         public int read(final int address) {
@@ -71,6 +79,14 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
                     break;
                 }
             }
+        }
+
+        // --------------------------------------------------------------------- //
+        // AddressHint
+
+        @Override
+        public int getSortHint() {
+            return DEVICE_ADDRESS_OFFSET;
         }
     }
 }
