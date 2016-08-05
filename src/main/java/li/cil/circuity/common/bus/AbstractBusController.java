@@ -7,7 +7,8 @@ import li.cil.circuity.api.bus.BusSegment;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
-import li.cil.lib.util.Scheduler;
+import li.cil.lib.api.SillyBeeAPI;
+import li.cil.lib.api.scheduler.ScheduledCallback;
 import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
@@ -130,7 +131,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     /**
      * Whether we have a scan scheduled already (avoid multiple scans).
      */
-    private Scheduler.ScheduledCallback scheduledScan;
+    private ScheduledCallback scheduledScan;
 
     /**
      * Currently selected device for reading its address via serial interface.
@@ -205,7 +206,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         if (world.isRemote) return;
         synchronized (busLock) {
             if (scheduledScan == null) {
-                scheduledScan = Scheduler.schedule(world, this::scanSynchronized);
+                scheduledScan = SillyBeeAPI.scheduler.schedule(world, this::scanSynchronized);
             }
         }
     }
@@ -259,7 +260,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             addressBlocks.clear();
 
             if (scheduledScan != null) {
-                Scheduler.cancel(getBusWorld(), scheduledScan);
+                SillyBeeAPI.scheduler.cancel(getBusWorld(), scheduledScan);
                 scheduledScan = null;
             }
         }
@@ -397,7 +398,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         final boolean hasMultipleControllers = devices.stream().anyMatch(device -> device instanceof BusController && device != this);
         if (hasMultipleControllers) {
             clear();
-            scheduledScan = Scheduler.scheduleIn(getBusWorld(), RESCAN_INTERVAL * 20, this::scanSynchronized);
+            scheduledScan = SillyBeeAPI.scheduler.scheduleIn(getBusWorld(), RESCAN_INTERVAL * 20, this::scanSynchronized);
             return;
         }
 

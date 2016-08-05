@@ -1,11 +1,12 @@
 package li.cil.lib.ecs.component;
 
+import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Location;
 import li.cil.lib.api.ecs.component.Redstone;
 import li.cil.lib.api.ecs.component.event.NeighborChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
+import li.cil.lib.api.scheduler.ScheduledCallback;
 import li.cil.lib.synchronization.value.SynchronizedByteArray;
-import li.cil.lib.util.Scheduler;
 import li.cil.lib.util.SpatialUtil;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.EnumFacing;
@@ -17,8 +18,8 @@ import java.util.Optional;
 
 public abstract class AbstractRedstoneController extends AbstractComponent implements Redstone, NeighborChangeListener {
     private final SynchronizedByteArray input = new SynchronizedByteArray(EnumFacing.VALUES.length);
-    private Scheduler.ScheduledCallback scheduledInputComputation;
-    private Scheduler.ScheduledCallback scheduledNeighborNotification;
+    private ScheduledCallback scheduledInputComputation;
+    private ScheduledCallback scheduledNeighborNotification;
 
     // --------------------------------------------------------------------- //
 
@@ -41,11 +42,11 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
         super.onDestroy();
 
         if (scheduledInputComputation != null) {
-            Scheduler.cancel(getWorld(), scheduledInputComputation);
+            SillyBeeAPI.scheduler.cancel(getWorld(), scheduledInputComputation);
             scheduledInputComputation = null;
         }
         if (scheduledNeighborNotification != null) {
-            Scheduler.cancel(getWorld(), scheduledNeighborNotification);
+            SillyBeeAPI.scheduler.cancel(getWorld(), scheduledNeighborNotification);
             scheduledNeighborNotification = null;
         }
     }
@@ -85,7 +86,7 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
         final World world = getWorld();
         if (world.isRemote) return;
 
-        scheduledNeighborNotification = Scheduler.schedule(world, this::handleNotifyNeighbors);
+        scheduledNeighborNotification = SillyBeeAPI.scheduler.schedule(world, this::handleNotifyNeighbors);
     }
 
     private void handleNotifyNeighbors() {
@@ -107,7 +108,7 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
         final World world = getWorld();
         if (world.isRemote) return;
 
-        scheduledInputComputation = Scheduler.schedule(world, this::handleInputComputation);
+        scheduledInputComputation = SillyBeeAPI.scheduler.schedule(world, this::handleInputComputation);
     }
 
     private void handleInputComputation() {

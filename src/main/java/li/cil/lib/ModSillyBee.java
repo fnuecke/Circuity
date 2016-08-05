@@ -4,7 +4,6 @@ import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.capabilities.ItemHandlerModifiableWrapperProvider;
 import li.cil.lib.capabilities.ItemHandlerWrapperProvider;
 import li.cil.lib.network.Network;
-import li.cil.lib.util.Scheduler;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityInject;
 import net.minecraftforge.fml.common.Mod;

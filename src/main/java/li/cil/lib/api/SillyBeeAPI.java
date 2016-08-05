@@ -24,20 +24,6 @@ public final class SillyBeeAPI {
     public static CapabilitiesAPI capabilities;
 
     /**
-     * Access to the serialization API.
-     * <p>
-     * This is initialized by the library mod in the pre-init phase.
-     */
-    public static SerializationAPI serialization;
-
-    /**
-     * Access to the synchronization API.
-     * <p>
-     * This is initialized by the library mod in the pre-init phase.
-     */
-    public static SynchronizationAPI synchronization;
-
-    /**
      * Access to the manager API.
      * <p>
      * This is initialized by the library mod in the pre-init phase.
@@ -45,11 +31,32 @@ public final class SillyBeeAPI {
     public static ManagerAPI manager;
 
     /**
+     * Access to the scheduler API.
+     * <p>
+     * This is initialized by the library mod in the pre-init phase.
+     */
+    public static SchedulerAPI scheduler;
+
+    /**
+     * Access to the serialization API.
+     * <p>
+     * This is initialized by the library mod in the pre-init phase.
+     */
+    public static SerializationAPI serialization;
+
+    /**
      * Access to external data storage API.
      * <p>
      * This is initialized by the library mod in the pre-init phase.
      */
     public static StorageAPI storage;
+
+    /**
+     * Access to the synchronization API.
+     * <p>
+     * This is initialized by the library mod in the pre-init phase.
+     */
+    public static SynchronizationAPI synchronization;
 
     // --------------------------------------------------------------------- //
 

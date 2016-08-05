@@ -1,6 +1,7 @@
-package li.cil.lib.util;
+package li.cil.lib;
 
-import li.cil.lib.ModSillyBee;
+import li.cil.lib.api.SchedulerAPI;
+import li.cil.lib.api.scheduler.ScheduledCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
@@ -12,13 +13,20 @@ import javax.annotation.Nullable;
 import java.util.PriorityQueue;
 import java.util.WeakHashMap;
 
-public final class Scheduler {
-    private static final Scheduler INSTANCE = new Scheduler();
+public enum Scheduler implements SchedulerAPI {
+    INSTANCE;
+
+    // --------------------------------------------------------------------- //
+
     private final WeakHashMap<World, PriorityQueue<ScheduledCallback>> scheduledCallbacks = new WeakHashMap<>();
+
+    // --------------------------------------------------------------------- //
 
     public static void init() {
         MinecraftForge.EVENT_BUS.register(INSTANCE);
     }
+
+    // --------------------------------------------------------------------- //
 
     @SubscribeEvent
     public void onTick(final TickEvent.ServerTickEvent event) {
@@ -37,6 +45,42 @@ public final class Scheduler {
             }
         }
     }
+
+    // --------------------------------------------------------------------- //
+    // SchedulerAPI
+
+    @Override
+    public ScheduledCallback schedule(final World world, final Runnable callback) {
+        return scheduleIn(world, 0, callback);
+    }
+
+    @Override
+    public ScheduledCallback scheduleIn(final World world, final int ticks, final Runnable callback) {
+        return scheduleAt(world, world.getTotalWorldTime() + ticks, callback);
+    }
+
+    @Override
+    public ScheduledCallback scheduleAt(final World world, final long tick, final Runnable callback) {
+        final ScheduledCallback scheduledCallback = new ScheduledCallbackImpl(tick, callback);
+        synchronized (INSTANCE.scheduledCallbacks) {
+            INSTANCE.scheduledCallbacks.
+                    computeIfAbsent(world, (ignored) -> new PriorityQueue<>()).
+                    add(scheduledCallback);
+        }
+        return scheduledCallback;
+    }
+
+    @Override
+    public void cancel(final World world, final ScheduledCallback callback) {
+        synchronized (INSTANCE.scheduledCallbacks) {
+            final PriorityQueue<ScheduledCallback> queue = INSTANCE.scheduledCallbacks.get(world);
+            if (queue != null) {
+                queue.remove(callback);
+            }
+        }
+    }
+
+    // --------------------------------------------------------------------- //
 
     private static void runWorldCallbacksServer(@Nullable final World world, final PriorityQueue<ScheduledCallback> queue) {
         if (world == null) queue.clear();
@@ -68,7 +112,7 @@ public final class Scheduler {
         if (!world.isRemote) {
             return isWorldLoadedServer(world);
         } else {
-            return iwWorldLoadedClient(world);
+            return isWorldLoadedClient(world);
         }
     }
 
@@ -76,42 +120,11 @@ public final class Scheduler {
         return DimensionManager.getWorld(world.provider.getDimension()) == world;
     }
 
-    private static boolean iwWorldLoadedClient(final World world) {
+    private static boolean isWorldLoadedClient(final World world) {
         return Minecraft.getMinecraft().theWorld == world;
     }
 
-    public static ScheduledCallback schedule(final World world, final Runnable callback) {
-        return scheduleIn(world, 0, callback);
-    }
-
-    public static ScheduledCallback scheduleIn(final World world, final int ticks, final Runnable callback) {
-        return scheduleAt(world, world.getTotalWorldTime() + ticks, callback);
-    }
-
-    public static ScheduledCallback scheduleAt(final World world, final long tick, final Runnable callback) {
-        final ScheduledCallback scheduledCallback = new ScheduledCallbackImpl(tick, callback);
-        synchronized (INSTANCE.scheduledCallbacks) {
-            INSTANCE.scheduledCallbacks.
-                    computeIfAbsent(world, (ignored) -> new PriorityQueue<>()).
-                    add(scheduledCallback);
-        }
-        return scheduledCallback;
-    }
-
-    public static void cancel(final World world, final ScheduledCallback callback) {
-        synchronized (INSTANCE.scheduledCallbacks) {
-            final PriorityQueue<ScheduledCallback> queue = INSTANCE.scheduledCallbacks.get(world);
-            if (queue != null) {
-                queue.remove(callback);
-            }
-        }
-    }
-
-    public interface ScheduledCallback {
-        long getTick();
-
-        Runnable getCallback();
-    }
+    // --------------------------------------------------------------------- //
 
     private static final class ScheduledCallbackImpl implements ScheduledCallback, Comparable<ScheduledCallback> {
         private final long tick;
