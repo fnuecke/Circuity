@@ -1,6 +1,7 @@
 package li.cil.lib;
 
 import li.cil.lib.api.SchedulerAPI;
+import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.scheduler.ScheduledCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
@@ -23,6 +24,7 @@ public enum Scheduler implements SchedulerAPI {
     // --------------------------------------------------------------------- //
 
     public static void init() {
+        SillyBeeAPI.scheduler = INSTANCE;
         MinecraftForge.EVENT_BUS.register(INSTANCE);
     }
 
