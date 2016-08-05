@@ -1,6 +1,7 @@
 package li.cil.circuity.common;
 
 import li.cil.circuity.common.capabilities.CapabilityBusDevice;
+import li.cil.circuity.common.capabilities.CapabilityEEPROM;
 import li.cil.circuity.common.init.Blocks;
 import li.cil.circuity.common.init.Items;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
@@ -15,6 +16,7 @@ public abstract class ProxyCommon {
         Items.init();
 
         CapabilityBusDevice.register();
+        CapabilityEEPROM.register();
     }
 
     public void init(final FMLInitializationEvent event) {
