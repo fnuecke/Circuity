@@ -24,7 +24,7 @@ public interface BusDevice {
      * When <code>controller</code> is non-<code>null</code>, this merely means
      * that the device is now connected to a bus with a single {@link BusController}.
      * This will always be called before further configuration of the device by
-     * the bus controller, e.g. via {@link Addressable#setAddress(AddressBlock)},
+     * the bus controller, e.g. via {@link Addressable#setMemory(AddressBlock)},
      * {@link InterruptSource#setEmittedInterrupts(int[])} or {@link InterruptSink#setAcceptedInterrupts(int[])}.
      * <p>
      * When <code>controller</code> is <code>null</code>, this means the device

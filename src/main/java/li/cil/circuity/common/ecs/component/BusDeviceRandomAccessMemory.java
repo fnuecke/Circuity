@@ -3,18 +3,19 @@ package li.cil.circuity.common.ecs.component;
 import li.cil.circuity.api.bus.AddressBlock;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
-import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 
 @Serializable
 public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevice {
+    private static final byte[] EMPTY = new byte[0];
+
     @Serialize
     private final RandomAccessMemoryImpl device = new RandomAccessMemoryImpl();
 
     @Serialize
-    private byte[] memory = new byte[0];
+    private byte[] memory = EMPTY;
 
     // --------------------------------------------------------------------- //
 
@@ -29,7 +30,7 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
     }
 
     public void setSize(final int bytes) {
-        final byte[] newMemory = new byte[bytes];
+        final byte[] newMemory = bytes > 0 ? new byte[bytes] : EMPTY;
         System.arraycopy(memory, 0, newMemory, 0, Math.min(memory.length, newMemory.length));
         memory = newMemory;
 
@@ -48,10 +49,10 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
     // --------------------------------------------------------------------- //
 
-    private final class RandomAccessMemoryImpl extends AbstractAddressable implements Addressable {
+    private final class RandomAccessMemoryImpl extends AbstractAddressable {
         @Override
-        protected AddressBlock validateAddress(final AddressBlock address) {
-            return address.take(BusDeviceRandomAccessMemory.this.memory.length * 8);
+        protected AddressBlock validateAddress(final AddressBlock memory) {
+            return memory.take(BusDeviceRandomAccessMemory.this.memory.length * 8);
         }
 
         @Override

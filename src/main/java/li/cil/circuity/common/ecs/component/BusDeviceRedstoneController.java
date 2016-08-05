@@ -43,8 +43,8 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
 
     private final class RedstoneControllerImpl extends AbstractAddressable implements Addressable {
         @Override
-        protected AddressBlock validateAddress(final AddressBlock address) {
-            return new AddressBlock(Math.max(address.getOffset(), 0x8000), 2 * 8, address.getWordSize());
+        protected AddressBlock validateAddress(final AddressBlock memory) {
+            return new AddressBlock(Math.max(memory.getOffset(), 0x8000), 2 * 8, memory.getWordSize());
         }
 
         @Override

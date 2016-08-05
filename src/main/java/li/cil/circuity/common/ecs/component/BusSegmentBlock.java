@@ -43,7 +43,7 @@ public class BusSegmentBlock extends AbstractComponentBusDevice implements Neigh
     // NeighborChangeListener
 
     @Override
-    public void onNeighborChange(@Nullable final BlockPos neighborPos) {
+    public void handleNeighborChange(@Nullable final BlockPos neighborPos) {
         // Remote check here to avoid the neighbor scan; scheduleScan() also
         // does this check, so it's technically not necessary, but avoids some
         // unnecessary overhead on the client.

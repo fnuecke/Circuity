@@ -12,13 +12,13 @@ import javax.annotation.Nullable;
  * This allows other devices to read from and write to the device. A device
  * should usually allow binding to any address (typically configured by the
  * user though a {@link BusController}), but may force binding to a specific
- * address by returning a fixed offset from {@link #getAddress(AddressBlock)}.
+ * address by returning a fixed offset from {@link #getMemory(AddressBlock)}.
  * The actual address the device is getting bound to is passed to the
- * {@link #setAddress(AddressBlock)} method, called by the {@link BusController}
+ * {@link #setMemory(AddressBlock)} method, called by the {@link BusController}
  * when its configuration is valid.
  * <p>
  * <em>Important</em>: a device is responsible for persisting the address it is
- * bound to after {@link #setAddress(AddressBlock)} has been called with a
+ * bound to after {@link #setMemory(AddressBlock)} has been called with a
  * non-<code>null</code> value, until it is called again with a <code>null</code>
  * value. This is necessary for devices to be still bound to the same location
  * after a save and load, because the {@link BusController} does not store the
@@ -33,10 +33,10 @@ public interface Addressable extends BusDevice {
      * bound to a specific address on a bus or not. When not currently bound
      * to an address (the initial state), this is used to validate potential
      * addresses by the {@link BusController}. When bound to an address, i.e.
-     * after {@link #setAddress(AddressBlock)} has been called with a non-
+     * after {@link #setMemory(AddressBlock)} has been called with a non-
      * <code>null</code> value, but before it has been called again with a
      * <code>null</code> falue, this must return the address the device is
-     * bound to (i.e. the address that was passed to {@link #setAddress(AddressBlock)}).
+     * bound to (i.e. the address that was passed to {@link #setMemory(AddressBlock)}).
      * <p>
      * Furthermore, the device <em>is required to persist the address it is
      * currently bound to</em>.
@@ -59,17 +59,17 @@ public interface Addressable extends BusDevice {
      * If the resulting block overlaps with another, it is the users
      * responsibility to resolve any conflicts via the address mapper.
      *
-     * @param address the address range to preferably select a location.
+     * @param memory the address range to preferably select a location.
      * @return the address block at which this device would like to be mapped.
      */
-    AddressBlock getAddress(final AddressBlock address);
+    AddressBlock getMemory(final AddressBlock memory);
 
     /**
      * Set the address for this device.
      * <p>
      * This is called with a non-<code>null</code> value when the {@link BusController}
      * successfully mapped the device in a non-overlapping way. The passed
-     * address block has been validated via {@link #getAddress(AddressBlock)}.
+     * address block has been validated via {@link #getMemory(AddressBlock)}.
      * <p>
      * Alternatively this is called with a <code>null</code> value, to notify
      * the device that it is no longer bound to an address.
@@ -86,15 +86,15 @@ public interface Addressable extends BusDevice {
      * before this method is called.
      * <p>
      * <em>Important</em>: the device must store the passed address and return
-     * it from {@link #getAddress(AddressBlock)} until this is called again
+     * it from {@link #getMemory(AddressBlock)} until this is called again
      * with a <code>null</code> value.
      * <p>
      * This should <em>never</em> be called by anything other than the
      * {@link BusController} of the bus this device is connected to.
      *
-     * @param address the address the device was assigned to.
+     * @param memory the address the device was assigned to.
      */
-    void setAddress(@Nullable final AddressBlock address);
+    void setMemory(@Nullable final AddressBlock memory);
 
     int read(final int address);
 

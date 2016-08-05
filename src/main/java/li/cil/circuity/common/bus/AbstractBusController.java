@@ -135,8 +135,8 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     // Addressable
 
     @Override
-    protected AddressBlock validateAddress(final AddressBlock address) {
-        return new AddressBlock(Math.max(address.getOffset(), 0xC000), (1 + 1 + 2) * 8, address.getWordSize());
+    protected AddressBlock validateAddress(final AddressBlock memory) {
+        return new AddressBlock(Math.max(memory.getOffset(), 0xC000), (1 + 1 + 2) * 8, memory.getWordSize());
     }
 
     @Override
@@ -149,7 +149,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     return selected;
                 case 2: { // High address of selected addressable device.
                     if (selected < 0 || selected >= addressables.size()) {
-                        return 0; // TODO Other magic value?
+                        return 0;
                     } else {
                         final Addressable device = addressables.get(selected);
                         final AddressBlock memory = addressBlocks.get(device);
@@ -158,7 +158,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 }
                 case 3: { // Low address of selected addressable device.
                     if (selected < 0 || selected >= addressables.size()) {
-                        return 0; // TODO Other magic value?
+                        return 0;
                     } else {
                         final Addressable device = addressables.get(selected);
                         final AddressBlock memory = addressBlocks.get(device);
@@ -202,7 +202,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 final int mappedAddress = address - memory.getOffset();
                 device.write(mappedAddress, value);
             } else {
-                // TODO Interrupt?
+                segfault();
             }
         }
     }
@@ -216,7 +216,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 final int mappedAddress = address - memory.getOffset();
                 return device.read(mappedAddress);
             } else {
-                // TODO Interrupt?
+                segfault();
                 return 0;
             }
         }
@@ -229,7 +229,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             if (!doAnyAddressesOverlap()) {
                 Arrays.fill(addresses, null);
                 for (final Addressable addressable : addressables) {
-                    addressable.setAddress(null);
+                    addressable.setMemory(null);
                 }
             }
 
@@ -258,13 +258,13 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             if (!didAnyAddressesOverlap && doAnyAddressesOverlap) {
                 Arrays.fill(addresses, null);
                 for (final Addressable addressable : addressables) {
-                    addressable.setAddress(null);
+                    addressable.setMemory(null);
                 }
             } else if (didAnyAddressesOverlap && !doAnyAddressesOverlap) {
                 for (final Addressable addressable : addressables) {
                     final AddressBlock memory = addressBlocks.get(addressable);
                     setAddressMap(memory, addressable);
-                    addressable.setAddress(memory);
+                    addressable.setMemory(memory);
                 }
             }
         }
@@ -275,6 +275,10 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     protected abstract World getBusWorld();
 
     // --------------------------------------------------------------------- //
+
+    private void segfault() {
+        // TODO Interrupt?
+    }
 
     // Avoids one level of indentation in scan.
     private void scanSynchronized() {
@@ -357,7 +361,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
                         if (!didAnyAddressesOverlap) {
                             setAddressMap(memory, null);
-                            addressable.setAddress(null);
+                            addressable.setMemory(null);
                         }
                     }
 
@@ -423,14 +427,14 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     if (didAnyAddressesOverlap) {
                         setAddressMap(memory, addressable);
                     }
-                    addressable.setAddress(memory);
+                    addressable.setMemory(memory);
                 }
             }
         } else if (!didAnyAddressesOverlap) {
             Arrays.fill(addresses, null);
             for (final Addressable addressable : addressables) {
                 if (!devices.contains(addressable)) {
-                    addressable.setAddress(null);
+                    addressable.setMemory(null);
                 }
             }
         }
@@ -452,7 +456,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 for (final Addressable addressable : addressables) {
                     final AddressBlock memory = addressBlocks.get(addressable);
                     setAddressMap(memory, addressable);
-                    addressable.setAddress(memory);
+                    addressable.setMemory(memory);
                 }
             }
         }
@@ -498,7 +502,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             final int available = memory.getOffset() - address;
             if (available > 0) {
                 final AddressBlock candidate = new AddressBlock(address, available, FULL_ADDRESS_BLOCK.getWordSize());
-                final AddressBlock requested = newAddressable.getAddress(candidate);
+                final AddressBlock requested = newAddressable.getMemory(candidate);
                 if (requested.getOffset() >= candidate.getOffset() && requested.getOffset() + requested.getLength() <= candidate.getOffset() + candidate.getLength()) {
                     return requested;
                 }
@@ -512,6 +516,6 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         // Either we failed to find a gap, or we're at the empty space after the
         // last currently mapped addressable device. Use that space, even if it
         // means overlap.
-        return newAddressable.getAddress(new AddressBlock(address, FULL_ADDRESS_BLOCK.getLength() - address, FULL_ADDRESS_BLOCK.getWordSize()));
+        return newAddressable.getMemory(new AddressBlock(address, FULL_ADDRESS_BLOCK.getLength() - address, FULL_ADDRESS_BLOCK.getWordSize()));
     }
 }

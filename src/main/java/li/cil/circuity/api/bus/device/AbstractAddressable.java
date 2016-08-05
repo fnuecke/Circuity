@@ -9,21 +9,20 @@ import javax.annotation.Nullable;
 @Serializable
 public abstract class AbstractAddressable extends AbstractBusDevice implements Addressable {
     @Serialize
-    protected AddressBlock address;
+    protected AddressBlock memory;
 
-    protected abstract AddressBlock validateAddress(final AddressBlock address);
+    protected abstract AddressBlock validateAddress(final AddressBlock memory);
 
     @Override
-    public AddressBlock getAddress(final AddressBlock address) {
-        if (this.address != null) {
-            return this.address;
+    public AddressBlock getMemory(final AddressBlock memory) {
+        if (this.memory != null) {
+            return this.memory;
         } else {
-            return validateAddress(address);
+            return validateAddress(memory);
         }
     }
 
-    @Override
-    public void setAddress(@Nullable final AddressBlock address) {
-        this.address = address;
+    public void setMemory(@Nullable final AddressBlock memory) {
+        this.memory = memory;
     }
 }
