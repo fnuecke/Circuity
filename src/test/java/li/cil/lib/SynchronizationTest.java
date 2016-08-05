@@ -6,6 +6,7 @@ import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.api.synchronization.SynchronizationManagerServer;
 import li.cil.lib.synchronization.value.SynchronizedArray;
+import li.cil.lib.synchronization.value.SynchronizedBoolean;
 import li.cil.lib.synchronization.value.SynchronizedByte;
 import li.cil.lib.synchronization.value.SynchronizedByteArray;
 import li.cil.lib.synchronization.value.SynchronizedChar;
@@ -115,6 +116,12 @@ public class SynchronizationTest {
     }
 
     @Test
+    public void synchronizeBooleans() {
+        synchronizeBoolean(false);
+        synchronizeBoolean(true);
+    }
+
+    @Test
     public void synchronizeByteArrays() {
         synchronizeByteArray(new byte[]{1, 2, 3, 4}, (byte) 6);
         synchronizeByteArray(new byte[]{5, 6, 7, 8}, (byte) 9);
@@ -158,6 +165,30 @@ public class SynchronizationTest {
             final A other = (A) obj;
             return other.f == f;
         }
+    }
+
+    private static void synchronizeBoolean(final boolean value) {
+        final SynchronizationManagerServer manager = Mockito.mock(SynchronizationManagerServer.class);
+
+        final SynchronizedBoolean i1 = new SynchronizedBoolean(!value);
+        i1.setManager(manager);
+        i1.set(value);
+
+        assertEquals(i1.get(), value);
+
+        verify(manager, times(1)).setDirty(i1, null);
+
+        final ByteBuf buffer = Unpooled.buffer();
+        final PacketBuffer packet = new PacketBuffer(buffer);
+        i1.serialize(packet, null);
+
+        final SynchronizedBoolean i2 = new SynchronizedBoolean(!value);
+
+        assertNotEquals(i2.get(), value);
+
+        i2.deserialize(packet);
+
+        assertEquals(i2.get(), value);
     }
 
     private static void synchronizeByte(final byte value) {
