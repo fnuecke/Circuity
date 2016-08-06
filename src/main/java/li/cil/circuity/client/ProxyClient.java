@@ -7,6 +7,7 @@ import net.minecraft.item.Item;
 import net.minecraftforge.client.model.ModelLoader;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 
+@SuppressWarnings("unused")
 public final class ProxyClient extends ProxyCommon {
     @Override
     public void preInit(final FMLPreInitializationEvent event) {
