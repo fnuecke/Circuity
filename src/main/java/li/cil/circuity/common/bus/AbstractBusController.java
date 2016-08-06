@@ -56,7 +56,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     /**
      * The number of addressable words via this buses address space.
      */
-    public static final int ADDRESS_COUNT = 0xFFFF;
+    public static final int ADDRESS_COUNT = 0xFFFFF;
 
     /**
      * The interval in which to re-scan the bus in case multiple controllers
