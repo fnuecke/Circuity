@@ -36,15 +36,6 @@ public class I8080 extends AbstractBusDevice implements InterruptSink {
 
     final Object interruptLock = new Object();
 
-    /**
-     * Address of the device handling I/O instructions.
-     * <p>
-     * This is expected to be a memory-mapped device handling the serial data
-     * sent to it via IN and OUT instructions of the CPU.
-     */
-    @Serialize
-    int memoryMappedIO = -1;
-
     // Registers
 
     @Serialize
@@ -291,17 +282,11 @@ public class I8080 extends AbstractBusDevice implements InterruptSink {
     // IO
 
     int ioRead(final int port) {
-        if (memoryMappedIO >= 0) {
-            return controller.mapAndRead(memoryMappedIO + port) & 0xFF;
-        } else {
-            return 0;
-        }
+        return controller.mapAndRead(0x10000 + port) & 0xFF;
     }
 
     void ioWrite(final int port, final int data) {
-        if (memoryMappedIO >= 0) {
-            controller.mapAndWrite(memoryMappedIO + port, data);
-        }
+        controller.mapAndWrite(0x10000 + port, data);
     }
 
     // Control
