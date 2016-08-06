@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
@@ -46,6 +47,10 @@ public enum Scheduler implements SchedulerAPI {
                 scheduledCallbacks.forEach(Scheduler::runWorldCallbacksClient);
             }
         }
+    }
+
+    public void handleServerStopped(final FMLServerStoppedEvent event) {
+        scheduledCallbacks.clear();
     }
 
     // --------------------------------------------------------------------- //

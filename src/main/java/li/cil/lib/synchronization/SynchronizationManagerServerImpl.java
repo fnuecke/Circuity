@@ -191,7 +191,7 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
                             // component, if not clean up.
                             if (!info.clients.isEmpty()) {
                                 final EntityComponentManager manager = component.getManager();
-                                final World world = SillyBeeAPI.manager.getWorld(manager);
+                                final World world = SillyBeeAPI.manager.getWorld(manager, false);
 
                                 // Someone is still interested in the change!
                                 final NBTTagCompound valueNbt = buildValueNbt(info.fields.get(value), value, tokens);
@@ -278,7 +278,7 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
 
     @Override
     public void onComponentAdded(final Component component) {
-        final World world = SillyBeeAPI.manager.getWorld(component.getManager());
+        final World world = SillyBeeAPI.manager.getWorld(component.getManager(), false);
         if (world == null) {
             return;
         }

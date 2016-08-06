@@ -307,7 +307,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     }
 
     private boolean isClientSide() {
-        final World world = SillyBeeAPI.manager.getWorld(this);
+        final World world = SillyBeeAPI.manager.getWorld(this, false);
         return world == null || world.isRemote;
     }
 

@@ -136,7 +136,7 @@ public final class SynchronizationManagerClientImpl extends AbstractSynchronizat
 
     @Override
     public void handleEntityAdded(final EntityComponentManager manager, final long entity) {
-        final World world = SillyBeeAPI.manager.getWorld(manager);
+        final World world = SillyBeeAPI.manager.getWorld(manager, true);
         if (world != null) {
             Network.INSTANCE.getWrapper().sendToServer(new MessageSubscribe(world.provider.getDimension(), entity));
         }
@@ -144,7 +144,7 @@ public final class SynchronizationManagerClientImpl extends AbstractSynchronizat
 
     @Override
     public void handleEntityRemoved(final EntityComponentManager manager, final long entity) {
-        final World world = SillyBeeAPI.manager.getWorld(manager);
+        final World world = SillyBeeAPI.manager.getWorld(manager, true);
         if (world != null) {
             Network.INSTANCE.getWrapper().sendToServer(new MessageUnsubscribeEntity(world.provider.getDimension(), entity));
         }

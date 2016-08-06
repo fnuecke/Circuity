@@ -50,6 +50,8 @@ public final class ModSillyBee {
 
     @Mod.EventHandler
     public void serverStopped(final FMLServerStoppedEvent event) {
+        Manager.INSTANCE.handleServerStopped(event);
+        Scheduler.INSTANCE.handleServerStopped(event);
         Storage.INSTANCE.handleServerStopped(event);
     }
 }

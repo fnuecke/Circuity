@@ -26,9 +26,10 @@ public interface ManagerAPI {
      * managers, i.e. managers for which the world no longer exists, but that
      * are still referenced from somewhere else in some way.
      *
-     * @param manager the manager to get the world for.
+     * @param manager   the manager to get the world for.
+     * @param forRemote <code>true</code> if the manager is expected to be client side.
      * @return the world the manager belongs to.
      */
     @Nullable
-    World getWorld(final EntityComponentManager manager);
+    World getWorld(final EntityComponentManager manager, final boolean forRemote);
 }

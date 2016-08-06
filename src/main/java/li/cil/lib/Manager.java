@@ -7,23 +7,34 @@ import li.cil.lib.api.ecs.manager.event.ComponentChangeListener;
 import li.cil.lib.api.ecs.manager.event.EntityChangeListener;
 import li.cil.lib.api.synchronization.SynchronizationManager;
 import li.cil.lib.ecs.manager.EntityComponentManagerImpl;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
+import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.world.WorldEvent;
+import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import javax.annotation.Nullable;
 import java.lang.ref.WeakReference;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.Function;
 
 public enum Manager implements ManagerAPI {
     INSTANCE;
 
     // --------------------------------------------------------------------- //
 
-    private final WeakHashMap<World, EntityComponentManager> managers = new WeakHashMap<>();
-    private final WeakHashMap<EntityComponentManager, WeakReference<World>> worlds = new WeakHashMap<>();
+    private final WeakHashMap<World, EntityComponentManager> managersServer = new WeakHashMap<>();
+    private final WeakHashMap<EntityComponentManager, WeakReference<World>> worldsServer = new WeakHashMap<>();
+    private final Object lockServer = new Object();
+
+    private final WeakHashMap<World, EntityComponentManager> managersClient = new WeakHashMap<>();
+    private final WeakHashMap<EntityComponentManager, WeakReference<World>> worldsClient = new WeakHashMap<>();
+    private final Object lockClient = new Object();
 
     // --------------------------------------------------------------------- //
 
@@ -35,8 +46,8 @@ public enum Manager implements ManagerAPI {
     @SubscribeEvent
     public void handleServerTick(final TickEvent.ServerTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
-            for (final Map.Entry<World, EntityComponentManager> entry : managers.entrySet()) {
-                update(entry.getKey(), false);
+            synchronized (lockServer) {
+                updateAll(managersServer, worldsServer, Manager::getServerWorld);
             }
         }
     }
@@ -44,22 +55,103 @@ public enum Manager implements ManagerAPI {
     @SubscribeEvent
     public void handleClientTick(final TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
-            for (final Map.Entry<World, EntityComponentManager> entry : managers.entrySet()) {
-                update(entry.getKey(), true);
+            synchronized (lockClient) {
+                updateAll(managersClient, worldsClient, Manager::getClientWorld);
             }
         }
+    }
+
+    @SubscribeEvent
+    public void handleWorldUnload(final WorldEvent.Unload event) {
+        final World world = event.getWorld();
+        if (!world.isRemote) {
+            synchronized (lockServer) {
+                worldsServer.remove(managersServer.remove(world));
+            }
+        } else {
+            synchronized (lockClient) {
+                worldsClient.remove(managersClient.remove(world));
+            }
+        }
+    }
+
+    public void handleServerStopped(final FMLServerStoppedEvent event) {
+        managersServer.clear();
+        worldsServer.clear();
+        managersClient.clear();
+        worldsClient.clear();
     }
 
     // --------------------------------------------------------------------- //
 
     @Override
     public EntityComponentManager getManager(final World world) {
-        return managers.computeIfAbsent(world, this::createManagerForWorld);
+        if (!world.isRemote) {
+            synchronized (lockServer) {
+                return managersServer.computeIfAbsent(world, this::createManagerForWorld);
+            }
+        } else {
+            synchronized (lockClient) {
+                return managersClient.computeIfAbsent(world, this::createManagerForWorld);
+            }
+        }
     }
 
     @Nullable
     @Override
-    public World getWorld(final EntityComponentManager manager) {
+    public World getWorld(final EntityComponentManager manager, final boolean forRemote) {
+        if (!forRemote) {
+            synchronized (lockServer) {
+                return tryGetWorld(worldsServer, manager);
+            }
+        } else {
+            synchronized (lockClient) {
+                return tryGetWorld(worldsClient, manager);
+            }
+        }
+    }
+
+    // --------------------------------------------------------------------- //
+
+    private EntityComponentManager createManagerForWorld(final World world) {
+        final EntityComponentManager manager = new EntityComponentManagerImpl();
+
+        final SynchronizationManager synchronizationManager = SillyBeeAPI.synchronization.get(world);
+        if (synchronizationManager instanceof EntityChangeListener) {
+            manager.addEntityChangeListener((EntityChangeListener) synchronizationManager);
+        }
+        if (synchronizationManager instanceof ComponentChangeListener) {
+            manager.addComponentChangeListener((ComponentChangeListener) synchronizationManager);
+        }
+
+        if (world.isRemote) {
+            worldsClient.put(manager, new WeakReference<>(world));
+        } else {
+            worldsServer.put(manager, new WeakReference<>(world));
+        }
+        return manager;
+    }
+
+    private static void updateAll(final WeakHashMap<World, EntityComponentManager> managers, final WeakHashMap<EntityComponentManager, WeakReference<World>> worlds, final Function<World, World> actualWorldGetter) {
+        final Iterator<Map.Entry<World, EntityComponentManager>> iterator = managers.entrySet().iterator();
+        while (iterator.hasNext()) {
+            final Map.Entry<World, EntityComponentManager> entry = iterator.next();
+            final World world = entry.getKey();
+            final EntityComponentManager manager = entry.getValue();
+
+            if (world == actualWorldGetter.apply(world)) {
+                // We need/want to cast here, because we don't want this method in the public API.
+                final EntityComponentManagerImpl managerImpl = (EntityComponentManagerImpl) manager;
+                managerImpl.update();
+            } else {
+                iterator.remove();
+                worlds.remove(entry.getValue());
+            }
+        }
+    }
+
+    @Nullable
+    private static World tryGetWorld(final WeakHashMap<EntityComponentManager, WeakReference<World>> worlds, final EntityComponentManager manager) {
         final WeakReference<World> worldRef = worlds.get(manager);
         if (worldRef != null) {
             final World world = worldRef.get();
@@ -71,30 +163,11 @@ public enum Manager implements ManagerAPI {
         return null;
     }
 
-    // --------------------------------------------------------------------- //
-
-    private EntityComponentManager createManagerForWorld(final World w) {
-        final EntityComponentManager manager = new EntityComponentManagerImpl();
-
-        final SynchronizationManager synchronizationManager = SillyBeeAPI.synchronization.get(w);
-        if (synchronizationManager instanceof EntityChangeListener) {
-            manager.addEntityChangeListener((EntityChangeListener) synchronizationManager);
-        }
-        if (synchronizationManager instanceof ComponentChangeListener) {
-            manager.addComponentChangeListener((ComponentChangeListener) synchronizationManager);
-        }
-
-        worlds.put(manager, new WeakReference<>(w));
-        return manager;
+    private static World getClientWorld(final World world) {
+        return Minecraft.getMinecraft().theWorld;
     }
 
-    private static void update(final World world, final boolean forRemote) {
-        if (world.isRemote != forRemote) {
-            return;
-        }
-
-        // We need/want to cast here, because we don't want this method in the public API.
-        final EntityComponentManagerImpl manager = (EntityComponentManagerImpl) SillyBeeAPI.manager.getManager(world);
-        manager.update();
+    private static World getServerWorld(final World world) {
+        return DimensionManager.getWorld(world.provider.getDimension());
     }
 }
