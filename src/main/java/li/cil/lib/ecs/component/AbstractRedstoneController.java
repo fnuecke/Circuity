@@ -112,7 +112,7 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
     }
 
     private void handleInputComputation() {
-        scheduledNeighborNotification = null;
+        scheduledInputComputation = null;
         final Optional<Location> location = getComponent(Location.class);
         location.ifPresent(this::computeInput);
     }
