@@ -1,6 +1,8 @@
 package li.cil.lib.ecs.component;
 
 import li.cil.circuity.common.capabilities.NoSuchCapabilityException;
+import li.cil.lib.api.ecs.component.Location;
+import li.cil.lib.api.ecs.component.event.ContainerDestructionListener;
 import li.cil.lib.api.ecs.component.event.InventoryChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
@@ -8,8 +10,11 @@ import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.items.ItemHandlerListWrapper;
 import li.cil.lib.items.ItemHandlerProxy;
 import li.cil.lib.synchronization.value.SynchronizedArray;
+import net.minecraft.inventory.InventoryHelper;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityInject;
 import net.minecraftforge.common.capabilities.ICapabilityProvider;
@@ -17,9 +22,10 @@ import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Optional;
 
 @Serializable
-public class InventoryImmutable extends AbstractComponent implements ItemHandlerProxy, ICapabilityProvider {
+public class InventoryImmutable extends AbstractComponent implements ItemHandlerProxy, ContainerDestructionListener, ICapabilityProvider {
     @CapabilityInject(IItemHandler.class)
     public static Capability<IItemHandler> ITEM_HANDLER_CAPABILITY;
 
@@ -94,6 +100,15 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
     }
 
     // --------------------------------------------------------------------- //
+    // ContainerDestructionListener
+
+    @Override
+    public void handleContainerDestruction() {
+        final Optional<Location> location = getComponent(Location.class);
+        location.ifPresent(this::dropInventoryItems);
+    }
+
+    // --------------------------------------------------------------------- //
     // ICapabilityProvider
 
     @Override
@@ -113,5 +128,16 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
 
     private void fireInventoryChanged(final int slot) {
         getComponents(InventoryChangeListener.class).forEach(l -> l.handleInventoryChange(this, slot));
+    }
+
+    private void dropInventoryItems(final Location location) {
+        final World world = location.getWorld();
+        final Vec3d pos = location.getPositionVector();
+        for (int slot = 0; slot < inventory.getSlots(); slot++) {
+            final ItemStack stack = inventory.getStackInSlot(slot);
+            if (stack != null) {
+                InventoryHelper.spawnItemStack(world, pos.xCoord, pos.yCoord, pos.zCoord, stack);
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ package li.cil.lib.block;
 import li.cil.lib.api.ecs.component.Redstone;
 import li.cil.lib.api.ecs.component.event.ActivationListener;
 import li.cil.lib.api.ecs.component.event.ClickListener;
+import li.cil.lib.api.ecs.component.event.ContainerDestructionListener;
 import li.cil.lib.api.ecs.component.event.EntityCollisionListener;
 import li.cil.lib.api.ecs.component.event.EntityWalkListener;
 import li.cil.lib.api.ecs.component.event.NeighborChangeListener;
@@ -92,6 +93,13 @@ public class BlockEntityContainer extends BlockWithTileEntity {
 
     // --------------------------------------------------------------------- //
     // Events
+
+    @Override
+    public void breakBlock(final World world, final BlockPos pos, final IBlockState state) {
+        final Stream<ContainerDestructionListener> listeners = getComponents(world, pos, ContainerDestructionListener.class);
+        listeners.forEach(ContainerDestructionListener::handleContainerDestruction);
+        super.breakBlock(world, pos, state);
+    }
 
     @Override
     public void onNeighborChange(final IBlockAccess world, final BlockPos pos, final BlockPos neighbor) {

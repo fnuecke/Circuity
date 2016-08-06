@@ -1,5 +1,7 @@
 package li.cil.lib.api.ecs.component.event;
 
+import li.cil.lib.api.ecs.component.Component;
+
 /**
  * Used by the default component implementation's {@link li.cil.lib.ecs.component.AbstractComponent#markChanged()}.
  * <p>
@@ -10,6 +12,6 @@ package li.cil.lib.api.ecs.component.event;
  * to worry about this, as a default implementation is automatically added,
  * forwarding a call to this interface to the containing chunk.
  */
-public interface ChangeListener {
+public interface ChangeListener extends Component {
     void markChanged();
 }
