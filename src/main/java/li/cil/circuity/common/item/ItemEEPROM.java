@@ -1,7 +1,7 @@
 package li.cil.circuity.common.item;
 
 import li.cil.circuity.api.item.EEPROM;
-import li.cil.circuity.common.capabilities.CapabilityEEPROM;
+import li.cil.circuity.common.capabilities.eeprom.CapabilityEEPROM;
 import li.cil.circuity.common.capabilities.NoSuchCapabilityException;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;

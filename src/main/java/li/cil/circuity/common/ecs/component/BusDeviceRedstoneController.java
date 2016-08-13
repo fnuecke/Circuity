@@ -4,17 +4,21 @@ import li.cil.circuity.api.bus.AddressBlock;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressHint;
+import li.cil.circuity.api.bus.device.DeviceInfo;
+import li.cil.circuity.api.bus.device.DeviceType;
+import li.cil.circuity.common.Constants;
 import li.cil.lib.api.ecs.component.Redstone;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 
+import javax.annotation.Nullable;
 import java.util.Optional;
 
 /**
  * Provides access to redstone input and output via serial interface.
  * <p>
- * Mapped memory:
+ * Ports:
  * <table>
  * <tr><td>0</td><td>Current redstone signal received by the device. Read-only.</td></tr>
  * <tr><td>1</td><td>Current redstone signal emitted by the device. Read-write.</td></tr>
@@ -41,19 +45,25 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
 
     // --------------------------------------------------------------------- //
 
-    private final class RedstoneControllerImpl extends AbstractAddressable implements AddressHint {
-        private static final int DEVICE_ADDRESS_OFFSET = 0x8000;
+    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE);
 
+    private final class RedstoneControllerImpl extends AbstractAddressable implements AddressHint {
         // --------------------------------------------------------------------- //
         // AbstractAddressable
 
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
-            return memory.take(DEVICE_ADDRESS_OFFSET, 2 * 8);
+            return memory.take(Constants.REDSTONE_CONTROLLER_ADDRESS, 2 * 8);
         }
 
         // --------------------------------------------------------------------- //
         // Addressable
+
+        @Nullable
+        @Override
+        public DeviceInfo getDeviceInfo() {
+            return DEVICE_INFO;
+        }
 
         @Override
         public int read(final int address) {
@@ -86,7 +96,7 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
 
         @Override
         public int getSortHint() {
-            return DEVICE_ADDRESS_OFFSET;
+            return Constants.REDSTONE_CONTROLLER_ADDRESS;
         }
     }
 }

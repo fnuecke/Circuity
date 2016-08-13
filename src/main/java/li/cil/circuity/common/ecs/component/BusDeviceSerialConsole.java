@@ -8,45 +8,19 @@ import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.common.Constants;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
-import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 
 import javax.annotation.Nullable;
 
-@Serializable
-public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevice {
-    private static final byte[] EMPTY = new byte[0];
-
+public class BusDeviceSerialConsole extends AbstractComponentBusDevice {
     @Serialize
-    private final RandomAccessMemoryImpl device = new RandomAccessMemoryImpl();
+    private final SerialConsoleImpl device = new SerialConsoleImpl();
 
-    @Serialize
-    private byte[] memory = EMPTY;
-
-    // --------------------------------------------------------------------- //
-
-    public BusDeviceRandomAccessMemory(final EntityComponentManager manager, final long entity, final long id) {
+    public BusDeviceSerialConsole(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
     }
 
     // --------------------------------------------------------------------- //
-
-    public int getSize() {
-        return memory.length;
-    }
-
-    public void setSize(final int bytes) {
-        final byte[] newMemory = bytes > 0 ? new byte[bytes] : EMPTY;
-        System.arraycopy(memory, 0, newMemory, 0, Math.min(memory.length, newMemory.length));
-        memory = newMemory;
-
-        if (device.getController() != null) {
-            device.getController().scheduleScan();
-        }
-    }
-
-    // --------------------------------------------------------------------- //
-    // AbstractComponentBusDevice
 
     @Override
     protected BusDevice getDevice() {
@@ -55,15 +29,15 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
     // --------------------------------------------------------------------- //
 
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_WRITE_MEMORY);
+    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE);
 
-    private final class RandomAccessMemoryImpl extends AbstractAddressable implements AddressHint {
+    private static final class SerialConsoleImpl extends AbstractAddressable implements AddressHint {
         // --------------------------------------------------------------------- //
         // AbstractAddressable
 
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
-            return memory.take(Constants.MEMORY_ADDRESS, BusDeviceRandomAccessMemory.this.memory.length * 8);
+            return memory.take(Constants.SERIAL_CONSOLE_ADDRESS, 8);
         }
 
         // --------------------------------------------------------------------- //
@@ -77,13 +51,23 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
         @Override
         public int read(final int address) {
-            return BusDeviceRandomAccessMemory.this.memory[address] & 0xFF;
+            switch (address) {
+                case 0: {
+                    return 0;
+                }
+            }
+            return 0;
         }
 
         @Override
         public void write(final int address, final int value) {
-            BusDeviceRandomAccessMemory.this.memory[address] = (byte) value;
-            BusDeviceRandomAccessMemory.this.markChanged();
+            switch (address) {
+                case 0: {
+                    final char ch = (char) value;
+                    System.out.print(ch);
+                    break;
+                }
+            }
         }
 
         // --------------------------------------------------------------------- //
@@ -91,7 +75,7 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
         @Override
         public int getSortHint() {
-            return Constants.MEMORY_ADDRESS;
+            return Constants.SERIAL_CONSOLE_ADDRESS;
         }
     }
 }

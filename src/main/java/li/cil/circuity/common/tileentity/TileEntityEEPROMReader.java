@@ -1,6 +1,6 @@
 package li.cil.circuity.common.tileentity;
 
-import li.cil.circuity.common.capabilities.CapabilityEEPROM;
+import li.cil.circuity.common.capabilities.eeprom.CapabilityEEPROM;
 import li.cil.circuity.common.ecs.component.BusDeviceEEPROMReader;
 import li.cil.lib.ecs.component.InventoryMutable;
 import li.cil.lib.tileentity.TileEntityEntityContainer;

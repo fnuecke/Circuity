@@ -1,8 +1,7 @@
-package li.cil.circuity.common.capabilities;
+package li.cil.circuity.common.capabilities.eeprom;
 
 import li.cil.circuity.api.item.EEPROM;
-import li.cil.circuity.common.capabilities.eeprom.EEPROMImpl;
-import li.cil.circuity.common.capabilities.eeprom.EEPROMStorage;
+import li.cil.circuity.common.capabilities.storage.StorageMediumStorage;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityInject;
 import net.minecraftforge.common.capabilities.CapabilityManager;
@@ -12,6 +11,6 @@ public final class CapabilityEEPROM {
     public static Capability<EEPROM> EEPROM_CAPABILITY;
 
     public static void register() {
-        CapabilityManager.INSTANCE.register(EEPROM.class, new EEPROMStorage(), EEPROMImpl::new);
+        CapabilityManager.INSTANCE.register(EEPROM.class, new StorageMediumStorage<>(), EEPROMImpl::new);
     }
 }

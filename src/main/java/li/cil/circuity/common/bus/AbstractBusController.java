@@ -7,6 +7,9 @@ import li.cil.circuity.api.bus.BusSegment;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
+import li.cil.circuity.api.bus.device.DeviceInfo;
+import li.cil.circuity.api.bus.device.DeviceType;
+import li.cil.circuity.common.Constants;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.scheduler.ScheduledCallback;
 import net.minecraft.world.World;
@@ -44,12 +47,13 @@ import java.util.Set;
  * </li>
  * </ul>
  * <p>
- * Mapped memory:
+ * Ports:
  * <table>
  * <tr><td>0</td><td>Number of mapped devices. Read-only.</td></tr>
  * <tr><td>1</td><td>Selected device. Read-write.</td></tr>
- * <tr><td>2</td><td>High address selected device is mapped to. Read-only.</td></tr>
- * <tr><td>2</td><td>Low address selected device is mapped to. Read-only.</td></tr>
+ * <tr><td>2</td><td>Type identified of the device. Read-only.</td></tr>
+ * <tr><td>3</td><td>High address selected device is mapped to. Read-only.</td></tr>
+ * <tr><td>4</td><td>Low address selected device is mapped to. Read-only.</td></tr>
  * </table>
  */
 public abstract class AbstractBusController extends AbstractAddressable implements BusController, AddressHint {
@@ -70,9 +74,9 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     private static final AddressBlock FULL_ADDRESS_BLOCK = new AddressBlock(0, ADDRESS_COUNT, 8);
 
     /**
-     * Offset after which to map the controller itself.
+     * General device information about this bus controller.
      */
-    private static final int DEVICE_ADDRESS_OFFSET = 0xC000;
+    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.BUS_CONTROLLER);
 
     // --------------------------------------------------------------------- //
 
@@ -143,11 +147,17 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
     @Override
     protected AddressBlock validateAddress(final AddressBlock memory) {
-        return memory.take(DEVICE_ADDRESS_OFFSET, (1 + 1 + 2) * 8);
+        return memory.take(Constants.BUS_CONTROLLER_ADDRESS, (1 + 1 + 2) * 8);
     }
 
     // --------------------------------------------------------------------- //
     // Addressable
+
+    @Nullable
+    @Override
+    public DeviceInfo getDeviceInfo() {
+        return DEVICE_INFO;
+    }
 
     @Override
     public int read(final int address) {
@@ -157,7 +167,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     return addressables.size();
                 case 1: // Select device.
                     return selected;
-                case 2: { // High address of selected addressable device.
+                case 2: { // Type identifier of selected addressable device.
+                    // TODO Add API to allow devices to define their type ID.
+                    return 0;
+                }
+                case 3: { // High address of selected addressable device.
                     if (selected < 0 || selected >= addressables.size()) {
                         return 0;
                     } else {
@@ -166,7 +180,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                         return (memory.getOffset() >> 8) & 0xFF;
                     }
                 }
-                case 3: { // Low address of selected addressable device.
+                case 4: { // Low address of selected addressable device.
                     if (selected < 0 || selected >= addressables.size()) {
                         return 0;
                     } else {
@@ -194,7 +208,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
     @Override
     public int getSortHint() {
-        return DEVICE_ADDRESS_OFFSET;
+        return Constants.BUS_CONTROLLER_ADDRESS;
     }
 
     // --------------------------------------------------------------------- //

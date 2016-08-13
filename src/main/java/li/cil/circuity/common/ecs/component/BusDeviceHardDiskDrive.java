@@ -8,14 +8,13 @@ import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
-import li.cil.circuity.api.item.EEPROM;
+import li.cil.circuity.api.item.HardDiskDrive;
 import li.cil.circuity.common.Constants;
-import li.cil.circuity.common.capabilities.eeprom.CapabilityEEPROM;
+import li.cil.circuity.common.capabilities.hdd.CapabilityHardDiskDrive;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.event.InventoryChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.scheduler.ScheduledCallback;
-import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.ecs.component.InventoryMutable;
 import net.minecraft.item.ItemStack;
@@ -24,35 +23,17 @@ import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
 
-@Serializable
-public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements InventoryChangeListener {
+public class BusDeviceHardDiskDrive extends AbstractComponentBusDevice implements InventoryChangeListener {
     @Serialize
-    private final EEPROMImpl device = new EEPROMImpl();
+    private final HardDiskDriveImpl device = new HardDiskDriveImpl();
 
     private ByteBuf data;
     private ScheduledCallback scheduledDataUpdate;
 
     // --------------------------------------------------------------------- //
 
-    public BusDeviceEEPROMReader(final EntityComponentManager manager, final long entity, final long id) {
+    public BusDeviceHardDiskDrive(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
-    }
-
-    @Override
-    public void onCreate() {
-        super.onCreate();
-
-        scheduleUpdateData();
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-
-        if (scheduledDataUpdate != null) {
-            SillyBeeAPI.scheduler.cancel(getWorld(), scheduledDataUpdate);
-            scheduledDataUpdate = null;
-        }
     }
 
     // --------------------------------------------------------------------- //
@@ -60,15 +41,15 @@ public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements
 
     @Override
     protected BusDevice getDevice() {
-        return device;
+        return null;
     }
 
     // --------------------------------------------------------------------- //
-    // InventoryChangeListener
+    //InventoryChangeListener
 
     @Override
     public void handleInventoryChange(final IItemHandler inventory, final int slot) {
-        scheduleUpdateData();
+
     }
 
     // --------------------------------------------------------------------- //
@@ -89,7 +70,7 @@ public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements
         final IItemHandler inventory = getComponent(InventoryMutable.class).orElseThrow(IllegalStateException::new);
         final ItemStack stack = inventory.getStackInSlot(0);
         if (stack != null) {
-            final EEPROM medium = stack.getCapability(CapabilityEEPROM.EEPROM_CAPABILITY, null);
+            final HardDiskDrive medium = stack.getCapability(CapabilityHardDiskDrive.HARD_DISK_DRIVE_CAPABILITY, null);
             data = medium.getData();
         }
 
@@ -98,17 +79,16 @@ public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements
             controller.scheduleScan();
         }
     }
+    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.HARD_DISK_DRIVE);
 
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_ONLY_MEMORY);
-
-    private final class EEPROMImpl extends AbstractAddressable implements AddressHint {
+    private final class HardDiskDriveImpl extends AbstractAddressable implements AddressHint {
         // --------------------------------------------------------------------- //
         // AbstractAddressable
 
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
             final int size = data != null ? data.capacity() : 0;
-            return memory.take(Constants.EEPROM_ADDRESS, size * 8);
+            return memory.take(Constants.DISK_DRIVE_ADDRESS, size * 8);
         }
 
         // --------------------------------------------------------------------- //
@@ -123,6 +103,11 @@ public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements
         @Override
         public int read(final int address) {
             if (data != null) {
+                switch (address) {
+                    case 0xA0: { //
+                        break;
+                    }
+                }
                 return data.getByte(address);
             } else {
                 return 0;
@@ -131,10 +116,9 @@ public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements
 
         @Override
         public void write(final int address, final int value) {
-            // It's a *reader*... for now, anyway.
-//            if (data != null) {
-//                data.setByte(address, value);
-//            }
+            if (data != null) {
+                data.setByte(address, value);
+            }
         }
 
         // --------------------------------------------------------------------- //
@@ -142,7 +126,7 @@ public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements
 
         @Override
         public int getSortHint() {
-            return Constants.EEPROM_ADDRESS;
+            return Constants.DISK_DRIVE_ADDRESS;
         }
     }
 }

@@ -1,29 +1,16 @@
 package li.cil.circuity.common.capabilities.eeprom;
 
-import io.netty.buffer.ByteBuf;
 import li.cil.circuity.api.item.EEPROM;
-import li.cil.lib.api.SillyBeeAPI;
-import li.cil.lib.api.storage.ExternalData;
+import li.cil.circuity.common.capabilities.storage.AbstractStorageMedium;
 
-import java.util.UUID;
-
-public final class EEPROMImpl implements EEPROM {
+public final class EEPROMImpl extends AbstractStorageMedium implements EEPROM {
     public static final int CAPACITY = 4 * 1024;
 
     // --------------------------------------------------------------------- //
-
-    UUID uuid;
-
-    // --------------------------------------------------------------------- //
-    // EEPROM
+    // AbstractStorageMedium
 
     @Override
-    public ByteBuf getData() {
-        final ExternalData externalData = SillyBeeAPI.storage.getData(uuid);
-        uuid = externalData.getDataId();
-
-        final ByteBuf data = externalData.getData();
-        data.capacity(CAPACITY);
-        return data;
+    protected int getCapacity() {
+        return CAPACITY;
     }
 }

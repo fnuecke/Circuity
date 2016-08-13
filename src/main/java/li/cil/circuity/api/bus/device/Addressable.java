@@ -27,6 +27,23 @@ import javax.annotation.Nullable;
  */
 public interface Addressable extends BusDevice {
     /**
+     * Retrieve meta-information about the device.
+     * <p>
+     * This is used by the {@link BusController} to provide this information
+     * via its serial interface.
+     * <p>
+     * This is optional, but strongly encouraged. Returning <code>null</code>
+     * here will lead to default values being returned by the {@link BusController}
+     * when queried.
+     *
+     * @return the device information for this device.
+     */
+    @Nullable
+    DeviceInfo getDeviceInfo();
+
+    // --------------------------------------------------------------------- //
+
+    /**
      * Get the address block of this device.
      * <p>
      * This method has two behaviors, depending on whether it is currently
