@@ -1,8 +1,0 @@
-{
-    "parent": "block/cube_bottom_top",
-    "textures": {
-        "bottom": "circuity:blocks/processorI8080_bottom",
-        "top": "circuity:blocks/processorI8080_top",
-        "side": "circuity:blocks/processorI8080_side"
-    }
-}

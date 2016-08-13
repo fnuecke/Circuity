@@ -1,8 +1,12 @@
 {
     "forge_marker": 1,
     "defaults": {
-        "textures": {},
-        "model": "circuity:redstoneController"
+        "textures": {
+            "bottom": "circuity:blocks/redstoneController_bottom",
+            "top": "circuity:blocks/redstoneController_top",
+            "side": "circuity:blocks/redstoneController_side"
+        },
+        "model": "cube_bottom_top"
      },
     "variants": {
         "normal": [{}],

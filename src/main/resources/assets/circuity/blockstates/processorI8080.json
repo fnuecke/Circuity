@@ -1,8 +1,12 @@
 {
     "forge_marker": 1,
     "defaults": {
-        "textures": {},
-        "model": "circuity:processorI8080"
+        "textures": {
+            "bottom": "circuity:blocks/processorI8080_bottom",
+            "top": "circuity:blocks/processorI8080_top",
+            "side": "circuity:blocks/processorI8080_side"
+        },
+        "model": "cube_bottom_top"
      },
     "variants": {
         "normal": [{}],

@@ -1,8 +1,10 @@
 {
     "forge_marker": 1,
     "defaults": {
-        "textures": {},
-        "model": "circuity:busCable"
+        "textures": {
+            "all": "circuity:blocks/busCable"
+        },
+        "model": "cube_all"
      },
     "variants": {
         "normal": [{}],

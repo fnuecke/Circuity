@@ -1,8 +1,0 @@
-{
-    "parent": "block/cube_bottom_top",
-    "textures": {
-        "bottom": "circuity:blocks/randomAccessMemory_bottom",
-        "top": "circuity:blocks/randomAccessMemory_top",
-        "side": "circuity:blocks/randomAccessMemory_side"
-    }
-}
