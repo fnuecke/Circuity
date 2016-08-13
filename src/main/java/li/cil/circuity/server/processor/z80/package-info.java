@@ -1,6 +1,6 @@
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-package li.cil.circuity.server.processor.i8080;
+package li.cil.circuity.server.processor.z80;
 
 import mcp.MethodsReturnNonnullByDefault;
 
