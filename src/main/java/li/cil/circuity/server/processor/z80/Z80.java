@@ -151,8 +151,6 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     // --------------------------------------------------------------------- //
 
-    // Encoded flags.
-
     // 16-bit register accessors.
 
     private short BC() {
@@ -226,6 +224,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         A2 = (byte) (value >>> 8);
         F2 = (byte) value;
     }
+
+    // Flags accessors.
 
     private boolean FLAG_C() {
         return (F & FLAG_MASK_C) != 0;
@@ -513,7 +513,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     private byte rr(final byte value) {
         final int a = value & 0xFF;
-        final byte carry = (byte) (a & FLAG_MASK_C);
+        final byte carry = (byte) (a & 1);
         final int result = (a >>> 1) | ((F & FLAG_MASK_C) << 7);
 
         byte f = carry;
@@ -527,7 +527,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     private byte rrc(final byte value) {
         final int a = value & 0xFF;
-        final byte carry = (byte) (a & FLAG_MASK_C);
+        final byte carry = (byte) (a & 1);
         final int result = (a >>> 1) | (carry << 7);
 
         byte f = carry;
@@ -568,44 +568,59 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private byte sla(final byte value) {
-//        final int a = value & 0xFF;
-//        int c;
-//
-//        c = (x) >> 7;
-//        (x) <<= 1;
-//        F = SZYXP_FLAGS_TABLE[(x) & 0xff] | c;
+        final int u = value & 0xFF;
+        final byte carry = (byte) (u >>> 7);
+        final int result = u << 1;
 
-        return value; // TODO
-    }
+        byte f = carry;
+        f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
+        F = f;
 
-    private byte sra(final byte value) {
-//        int c;
-//
-//        c = (x) & 0x01;
-//        (x) = ((char) (x)) >> 1;
-//        F = SZYXP_FLAGS_TABLE[(x) & 0xff] | c;
-
-        return value; // TODO
+        return (byte) result;
     }
 
     private byte sll(final byte value) {
-//        int c;
-//
-//        c = (x) >> 7;
-//        (x) = ((x) << 1) | 0x01;
-//        F = SZYXP_FLAGS_TABLE[(x) & 0xff] | c;
+        final int u = value & 0xFF;
+        final byte carry = (byte) (u >>> 7);
+        final int result = (u << 1) | 1;
 
-        return value; // TODO
+        byte f = carry;
+        f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
+        F = f;
+
+        return (byte) result;
+    }
+
+    private byte sra(final byte value) {
+        final int u = value & 0xFF;
+        final byte carry = (byte) (u & 1);
+        final int result = u >> 1;
+
+        byte f = carry;
+        f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
+        F = f;
+
+        return (byte) result;
     }
 
     private byte srl(final byte value) {
-//        int c;
-//
-//        c = (x) & 0x01;
-//        (x) >>= 1;
-//        F = SZYXP_FLAGS_TABLE[(x) & 0xff] | c;
+        final int u = value & 0xFF;
+        final byte carry = (byte) (u & 1);
+        final int result = u >>> 1;
 
-        return value; // TODO
+        byte f = carry;
+        f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
+        F = f;
+
+        return (byte) result;
     }
 
     private void rld() {
@@ -988,10 +1003,10 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                     }
                                 }
                                 case 2: // OUT (n),A
-                                    ioWrite(read8(), A);
+                                    ioWrite((short) (read8() & 0xFF), A);
                                     return 11;
                                 case 3: // IN A,(n)
-                                    A = ioRead(read8());
+                                    A = ioRead((short) (read8() & 0xFF));
                                     return 11;
                                 case 4: { // EX (SP), HL
                                     final short t = HL();
