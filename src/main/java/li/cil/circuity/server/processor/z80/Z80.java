@@ -38,46 +38,45 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     // --------------------------------------------------------------------- //
 
-    // Registers
+    @Serialize
+    private boolean halted = false;
 
     @Serialize
     private byte B, C, D, E, H, L, A, F;
     @Serialize
     private byte B2, C2, D2, E2, H2, L2, A2, F2;
     @Serialize
-    private short IX, IY;
+    private byte IXH, IXL, IYH, IYL;
     @Serialize
     private short SP;
     @Serialize
     private byte I, R;
     @Serialize
     private short PC;
-
-    // Interrupts
-
     @Serialize
-    private boolean irqEnabled = false;
-
+    private boolean IFF1, IFF2;
     @Serialize
-    private boolean irqRequested = false;
-
-    @Serialize
-    private byte irqOpcode = 0;
-
-    // Timing / Execution
+    private InterruptMode IM;
 
     @Serialize
     private int cycles = 0;
-
     @Serialize
-    private long totalCycles = 0L;
-
-    @Serialize
-    private boolean halted = false;
+    private boolean parsingDD, parsingFD;
 
     // --------------------------------------------------------------------- //
 
     protected final Object interruptLock = new Object();
+
+    public Z80() {
+        for (int i = 0; i < res.length; i++) {
+            final int y = i;
+            res[i] = (byte v) -> res(y, v);
+        }
+        for (int i = 0; i < set.length; i++) {
+            final int y = i;
+            set[i] = (byte v) -> set(y, v);
+        }
+    }
 
     // --------------------------------------------------------------------- //
     // InterruptSink
@@ -94,13 +93,12 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     @Override
     public void interrupt(final int interrupt) {
         synchronized (interruptLock) {
-            if (irqEnabled) {
-                irqRequested = true;
+            if (IFF1) {
                 // TODO THIS IS BULLSHIT
                 // No seriously, it's just for testing. Should replace with
                 // providing multiple interrupts, then getting the index of
                 // the one that's triggered and providing that.
-                irqOpcode = (byte) interrupt;
+                irq((byte) interrupt);
             }
         }
     }
@@ -111,14 +109,14 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     @Override
     public String toString() {
         return String.format(
-                "%02X %02X %02X %02X %02X %02X %02X %02X | %04X %04X %04X %04X | ",
-                B, C, D, E, H, L, A, F, BC(), DE(), HL(), AF()) +
+                "%02X %02X %02X %02X %02X %02X %02X %02X | %04X %04X %04X %04X %04X %04X %04X %04X | {",
+                B, C, D, E, H, L, A, F, BC(), DE(), HL(), AF(), SP, IX(), IY(), PC) +
                 (FLAG_M() ? " S" : "") +
                 (FLAG_Z() ? " Z" : "") +
                 (FLAG_H() ? " H" : "") +
                 (FLAG_PE() ? " P" : "") +
                 (FLAG_N() ? " N" : "") +
-                (FLAG_C() ? " C" : "");
+                (FLAG_C() ? " C" : "") + "}";
     }
 
     // --------------------------------------------------------------------- //
@@ -129,27 +127,208 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     public void run(final int cycles) {
         if (!halted) {
-            this.cycles += cycles;
-            this.totalCycles += cycles;
-            while (this.cycles > 0) step();
+            this.cycles = this.cycles + cycles;
+            while (!halted && this.cycles > 0) {
+                R = (byte) ((R & 0b10000000) | ((R + 1) & 0b01111111));
+                this.cycles -= execute(read8());
+            }
+        }
+    }
+
+    public boolean irq(final byte data) {
+        synchronized (interruptLock) {
+            halted = false;
+            if (!IFF1 || parsingDD || parsingFD) return false;
+
+            IFF1 = IFF2 = false;
+            R = (byte) ((R & 0b1000000) | ((R + 1) & 0b01111111));
+            switch (IM) {
+                case MODE_0:
+                    cycles -= 2 + execute(data); // 2 + tOP
+                    break;
+                case MODE_1:
+                    push(PC);
+                    PC = 0x0038;
+                    cycles -= 2 + 11; // 2 + tRST
+                    break;
+                case MODE_2: {
+                    push(PC);
+                    final int h = (I & 0xFF) << 8;
+                    final int l = data & 0xFE;
+                    PC = (short) (h | l);
+                    cycles -= 19;
+                    break;
+                }
+                default:
+                    throw new IllegalStateException();
+            }
+        }
+        return true;
+    }
+
+    public void nmi() {
+        synchronized (interruptLock) {
+            halted = false;
+            if (parsingDD || parsingFD) return;
+
+//            IFF2 = IFF1;
+            IFF1 = false;
+            R = (byte) ((R & 0b1000000) | ((R + 1) & 0b01111111));
+
+            push(PC);
+            PC = 0x0066;
+
+            cycles -= 11;
         }
     }
 
     public void reset() {
-        B = C = D = E = H = L = A = F = 0;
-        IX = IY = SP = 0;
-        PC = 0;
-        cycles = 0;
-        totalCycles = 0L;
-        irqEnabled = false;
-        irqRequested = false;
-        irqOpcode = 0;
         halted = false;
-
-        //Unsafe.getUnsafe()
+        B = C = D = E = H = L = A = F = 0;
+        IXH = IXL = IYH = IYL = 0;
+        SP = 0;
+        PC = 0;
+        IFF1 = IFF2 = false;
+        IM = InterruptMode.MODE_0;
+        cycles = 0;
+        parsingDD = parsingFD = false;
     }
 
     // --------------------------------------------------------------------- //
+
+    // 8-bit register accessors.
+
+    private byte B() {
+        return B;
+    }
+
+    private void B(final byte value) {
+        B = value;
+    }
+
+    private void B(final Transform transform) {
+        B = transform.apply(B);
+    }
+
+    private byte C() {
+        return C;
+    }
+
+    private void C(final byte value) {
+        C = value;
+    }
+
+    private void C(final Transform transform) {
+        C = transform.apply(C);
+    }
+
+    private byte D() {
+        return D;
+    }
+
+    private void D(final byte value) {
+        D = value;
+    }
+
+    private void D(final Transform transform) {
+        D = transform.apply(D);
+    }
+
+    private byte E() {
+        return E;
+    }
+
+    private void E(final byte value) {
+        E = value;
+    }
+
+    private void E(final Transform transform) {
+        E = transform.apply(E);
+    }
+
+    private byte H() {
+        return H;
+    }
+
+    private void H(final byte value) {
+        H = value;
+    }
+
+    private void H(final Transform transform) {
+        H = transform.apply(H);
+    }
+
+    private byte L() {
+        return L;
+    }
+
+    private void L(final byte value) {
+        L = value;
+    }
+
+    private void L(final Transform transform) {
+        L = transform.apply(L);
+    }
+
+    private byte A() {
+        return A;
+    }
+
+    private void A(final byte value) {
+        A = value;
+    }
+
+    private void A(final Transform transform) {
+        A = transform.apply(A);
+    }
+
+    private byte IXH() {
+        return IXH;
+    }
+
+    private void IXH(final byte value) {
+        IXH = value;
+    }
+
+    private void IXH(final Transform transform) {
+        IXH = transform.apply(IXH);
+    }
+
+    private byte IXL() {
+        return IXL;
+    }
+
+    private void IXL(final byte value) {
+        IXL = value;
+    }
+
+    private void IXL(final Transform transform) {
+        IXL = transform.apply(IXL);
+    }
+
+    private byte IYH() {
+        return IYH;
+    }
+
+    private void IYH(final byte value) {
+        IYH = value;
+    }
+
+    private void IYH(final Transform transform) {
+        IYH = transform.apply(IYH);
+    }
+
+    private byte IYL() {
+        return IYL;
+    }
+
+    private void IYL(final byte value) {
+        IYL = value;
+    }
+
+    private void IYL(final Transform transform) {
+        IYL = transform.apply(IYL);
+    }
 
     // 16-bit register accessors.
 
@@ -189,40 +368,30 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         F = (byte) value;
     }
 
-    private short BC2() {
-        return (short) ((B2 << 8) | (C2 & 0xFF));
+    private short IX() {
+        return (short) ((IXH << 8) | (IXL & 0xFF));
     }
 
-    private void BC2(final short value) {
-        B2 = (byte) (value >>> 8);
-        C2 = (byte) value;
+    private void IX(final short value) {
+        IXH = (byte) (value >>> 8);
+        IXL = (byte) value;
     }
 
-    private short DE2() {
-        return (short) ((D2 << 8) | (E2 & 0xFF));
+    private short IY() {
+        return (short) ((IYH << 8) | (IYL & 0xFF));
     }
 
-    private void DE2(final short value) {
-        D2 = (byte) (value >>> 8);
-        E2 = (byte) value;
+    private void IY(final short value) {
+        IYH = (byte) (value >>> 8);
+        IYL = (byte) value;
     }
 
-    private short HL2() {
-        return (short) ((H2 << 8) | (L2 & 0xFF));
+    private short SP() {
+        return SP;
     }
 
-    private void HL2(final short value) {
-        H2 = (byte) (value >>> 8);
-        L2 = (byte) value;
-    }
-
-    private short AF2() {
-        return (short) ((A2 << 8) | (F2 & 0xFF));
-    }
-
-    private void AF2(final short value) {
-        A2 = (byte) (value >>> 8);
-        F2 = (byte) value;
+    private void SP(final short value) {
+        SP = value;
     }
 
     // Flags accessors.
@@ -303,6 +472,51 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final short result = peek16(PC);
         PC += 2;
         return result;
+    }
+
+    private byte peekHL() {
+        return peek8(HL());
+    }
+
+    private void pokeHL(final byte value) {
+        poke8(HL(), value);
+    }
+
+    private void indirectHL(final Transform transform) {
+        final short hl = HL();
+        poke8(hl, transform.apply(peek8(hl)));
+    }
+
+    private byte peekIXd() {
+        final byte d = read8();
+        return peek8((short) (IX() + d));
+    }
+
+    private void pokeIXd(final byte value) {
+        final byte d = read8();
+        poke8((short) (IX() + d), value);
+    }
+
+    private void indirectIXd(final Transform transform) {
+        final byte d = read8();
+        final short a = (short) (IX() + d);
+        poke8(a, transform.apply(peek8(a)));
+    }
+
+    private byte peekIYd() {
+        final byte d = read8();
+        return peek8((short) (IY() + d));
+    }
+
+    private void pokeIYd(final byte value) {
+        final byte d = read8();
+        poke8((short) (IY() + d), value);
+    }
+
+    private void indirectIYd(final Transform transform) {
+        final byte d = read8();
+        final short a = (short) (IY() + d);
+        poke8(a, transform.apply(peek8(a)));
     }
 
     // IO
@@ -693,62 +907,20 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     // --------------------------------------------------------------------- //
 
-    private void step() {
-        processCode();
-        processInterrupts();
-    }
-
-    private void processCode() {
-        cycles -= execute(read8());
-    }
-
-    private void processInterrupts() {
-        synchronized (this) {
-            if (irqEnabled && irqRequested) {
-                irqEnabled = false;
-                cycles -= execute(irqOpcode);
-                irqRequested = false;
-            }
+    private int execute(byte opcode) {
+        RegisterAccess r;
+        if (parsingDD) {
+            r = registersDD;
+        } else if (parsingFD) {
+            r = registersFD;
+        } else {
+            r = registers;
         }
-    }
 
-    int execute(final byte opcode) {
-        switch (opcode) {
-            case (byte) 0xDD:
-                return evaluateDD(read8());
-            case (byte) 0xFD:
-                return evaluateFD(read8());
-            default:
-                return evaluate(opcode);
-        }
-    }
-
-    private int evaluateDD(final byte opcode) {
-        final int x = (opcode & 0b11000000) >>> 6;
-        final int y = (opcode & 0b00111000) >>> 3;
-        final int z = (opcode & 0b00000111);
-        final int p = y >>> 1;
-        final int q = y & 1;
-
-        return 0;
-    }
-
-    private int evaluateFD(final byte opcode) {
-        final int x = (opcode & 0b11000000) >>> 6;
-        final int y = (opcode & 0b00111000) >>> 3;
-        final int z = (opcode & 0b00000111);
-        final int p = y >>> 1;
-        final int q = y & 1;
-
-        return 0;
-    }
-
-    private int evaluate(byte opcode) {
-//        if (DASM[opcode & 0xFF] != null)
-//            System.out.println(DASM[opcode & 0xFF]);
-//        else
-//            System.out.println(String.format("%02X", opcode));
         for (; ; ) {
+            if (halted || cycles <= 0) return 0;
+            parsingDD = parsingFD = false;
+
             int x = (opcode & 0b11000000) >>> 6;
             int y = (opcode & 0b00111000) >>> 3;
             int z = (opcode & 0b00000111);
@@ -763,9 +935,16 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                 case 0: // NOP
                                     return 4;
                                 case 1: { // EX AF,AF'
-                                    final short t = AF2();
-                                    AF2(AF());
-                                    AF(t);
+                                    {
+                                        final byte t = A;
+                                        A = A2;
+                                        A2 = t;
+                                    }
+                                    {
+                                        final byte t = F;
+                                        F = F2;
+                                        F2 = t;
+                                    }
                                     return 4;
                                 }
                                 case 2: { // DJNZ e
@@ -798,10 +977,10 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                         case 1: // 16-bit load immediate/add
                             switch (q) {
                                 case 0: // LD rp[p],nn
-                                    rpw[p].apply(read16());
+                                    r.w16[p].apply(read16());
                                     return 10;
                                 case 1: // ADD HL,rp[p]
-                                    add16(rpr[p].apply());
+                                    add16(r.r16[p].apply());
                                     return 11;
                                 default:
                                     throw new IllegalStateException();
@@ -848,22 +1027,22 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                         case 3: // 16-bit INC/DEC
                             switch (q) {
                                 case 0: // INC rp[p]
-                                    rpw[p].apply((short) (rpr[p].apply() + 1));
+                                    r.w16[p].apply((short) (r.r16[p].apply() + 1));
                                     return 6;
                                 case 1: // DEC rp[p]
-                                    rpw[p].apply((short) (rpr[p].apply() - 1));
+                                    r.w16[p].apply((short) (r.r16[p].apply() - 1));
                                     return 6;
                                 default:
                                     throw new IllegalStateException();
                             }
                         case 4: // 8-bit INC: INC r[y]
-                            rw[y].apply(inc(rr[y].apply()));
+                            r.rw8[y].apply(this::inc);
                             return INC_DEC_T[y];
                         case 5: // 8-bit DEC: DEC r[y]
-                            rw[y].apply(dec(rr[y].apply()));
+                            r.rw8[y].apply(this::dec);
                             return INC_DEC_T[y];
                         case 6: // 8-bit load immediate: LD r[y],n
-                            rw[y].apply(read8());
+                            r.w8[y].apply(read8());
                             return LD_R_N_T[y];
                         case 7: // Assorted operations or accumulator/flags
                             switch (y) {
@@ -906,16 +1085,16 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                 case 1:
                     if (z == 6 && y == 6) { // Exception (replaces LD (HL),(HL)): HALT
                         halted = true;
-                        cycles = 4;
+                        PC -= 1;
                         return 4;
                     } else { // 8-bit loading: LD r[y],r[z]
-                        rw[y].apply(rr[z].apply());
+                        r.w8[y].apply(r.r8[z].apply());
                         final int t1 = LD_R_R_T[y];
                         final int t2 = LD_R_R_T[z];
                         return t1 > t2 ? t1 : t2;
                     }
                 case 2: // Operator on accumulator and register/memory location: alu[y] r[z]
-                    alu[y].apply(rr[z].apply());
+                    alu[y].apply(r.r8[z].apply());
                     return ALU_T[y];
                 case 3:
                     switch (z) {
@@ -929,7 +1108,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                         case 1: // POP & various ops
                             switch (q) {
                                 case 0: // POP rp2[p]
-                                    rp2w[p].apply(pop());
+                                    r.w216[p].apply(pop());
                                     return 10;
                                 case 1:
                                     switch (p) {
@@ -938,19 +1117,34 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                             return 10;
                                         case 1: { // EXX
                                             {
-                                                final short t = BC2();
-                                                BC2(BC());
-                                                BC(t);
+                                                final byte t = B;
+                                                B = B2;
+                                                B2 = t;
                                             }
                                             {
-                                                final short t = DE2();
-                                                DE2(DE());
-                                                DE(t);
+                                                final byte t = C;
+                                                C = C2;
+                                                C2 = t;
                                             }
                                             {
-                                                final short t = HL2();
-                                                HL2(HL());
-                                                HL(t);
+                                                final byte t = D;
+                                                D = D2;
+                                                D2 = t;
+                                            }
+                                            {
+                                                final byte t = E;
+                                                E = E2;
+                                                E2 = t;
+                                            }
+                                            {
+                                                final byte t = H;
+                                                H = H2;
+                                                H2 = t;
+                                            }
+                                            {
+                                                final byte t = L;
+                                                L = L2;
+                                                L2 = t;
                                             }
                                             return 4;
                                         }
@@ -986,16 +1180,16 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
                                     switch (x) {
                                         case 0: // Roll/shift register or memory location: rot[y] r[z]
-                                            rw[z].apply(rot[y].apply(rr[z].apply()));
+                                            r.rw8[z].apply(rot[y]);
                                             return ROT_T[z];
                                         case 1: // Test bit: BIT y,r[z]
-                                            bit(y, rr[z].apply());
+                                            bit(y, r.r8[z].apply());
                                             return BIT_T[z];
                                         case 2: // Reset bit: RES y,r[z]
-                                            rw[z].apply(res(y, rr[z].apply()));
+                                            r.rw8[z].apply(res[y]);
                                             return RES_T[z];
                                         case 3: // Set bit: SET y,r[z]
-                                            rw[z].apply(set(y, rr[z].apply()));
+                                            r.rw8[z].apply(set[y]);
                                             return SET_T[z];
                                         default:
                                             // "NOP"
@@ -1022,12 +1216,12 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                 }
                                 case 6: // DI
                                     synchronized (interruptLock) {
-                                        irqEnabled = false;
+                                        IFF1 = IFF2 = false;
                                     }
                                     return 4;
                                 case 7: // EI
                                     synchronized (interruptLock) {
-                                        irqEnabled = true;
+                                        IFF1 = IFF2 = true;
                                     }
                                     return 4;
                                 default:
@@ -1046,7 +1240,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                         case 5: // PUSH & various ops
                             switch (q) {
                                 case 0: // PUSH rp2[p]
-                                    push(rp2r[p].apply());
+                                    push(r.r216[p].apply());
                                     return 11;
                                 case 1:
                                     switch (p) {
@@ -1056,7 +1250,13 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                             PC = nn;
                                             return 17;
                                         }
-                                        case 1: // (DD prefix); Handled in other method.
+                                        case 1: { // (DD prefix)
+                                            parsingDD = true;
+                                            opcode = read8();
+                                            r = registersDD;
+                                            cycles -= 4;
+                                            continue;
+                                        }
                                         case 2: { // (ED prefix)
                                             opcode = read8();
                                             x = (opcode & 0b11000000) >>> 6;
@@ -1077,10 +1277,10 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                                         case 2: // 16-bit add/subtract with carry
                                                             switch (q) {
                                                                 case 0: // SBC HL,rp[p]
-                                                                    sbc16(rpr[p].apply());
+                                                                    sbc16(r.r16[p].apply());
                                                                     return 15;
                                                                 case 1: // ADC HL,rp[p]
-                                                                    adc16(rpr[p].apply());
+                                                                    adc16(r.r16[p].apply());
                                                                     return 15;
                                                                 default:
                                                                     throw new IllegalStateException();
@@ -1094,11 +1294,16 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                                         case 5: // Return from interrupt
                                                             switch (y) {
                                                                 case 1: // RETI
-                                                                    // TODO
-                                                                    return 14;
+                                                                    synchronized (interruptLock) {
+                                                                        PC = pop();
+                                                                        return 14;
+                                                                    }
                                                                 default: // RETN
-                                                                    // TODO
-                                                                    return 14;
+                                                                    synchronized (interruptLock) {
+                                                                        PC = pop();
+                                                                        IFF1 = IFF2;
+                                                                        return 14;
+                                                                    }
                                                             }
                                                         case 6: // Set interrupt mode: IM im[y]
                                                             // TODO
@@ -1112,11 +1317,29 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                                                     R = A;
                                                                     return 9;
                                                                 case 2: // LD A,I
-                                                                    A = I;
-                                                                    return 9;
+                                                                    synchronized (interruptLock) {
+                                                                        A = I;
+
+                                                                        byte f = (byte) (F & FLAG_MASK_C);
+                                                                        f |= A & FLAG_MASK_S;
+                                                                        if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
+                                                                        if (IFF2) f |= FLAG_MASK_PV;
+                                                                        F = f;
+
+                                                                        return 9;
+                                                                    }
                                                                 case 3: // LD A,R
-                                                                    A = R;
-                                                                    return 9;
+                                                                    synchronized (interruptLock) {
+                                                                        A = R;
+
+                                                                        byte f = (byte) (F & FLAG_MASK_C);
+                                                                        f |= A & FLAG_MASK_S;
+                                                                        if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
+                                                                        if (IFF2) f |= FLAG_MASK_PV;
+                                                                        F = f;
+
+                                                                        return 9;
+                                                                    }
                                                                 case 4: // RRD
                                                                     rrd();
                                                                     return 18;
@@ -1129,8 +1352,9 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                                                 default:
                                                                     throw new IllegalStateException();
                                                             }
+                                                        default:
+                                                            throw new IllegalStateException();
                                                     }
-                                                    return 0;
                                                 case 2:
                                                     switch (z) {
                                                         case 0:
@@ -1139,16 +1363,22 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                                         case 3: // Block instruction: bli[y,z]
                                                             // TODO
                                                             return 0;
-                                                        default: // "NOP
+                                                        default: // NONI + NOP
                                                             return 4;
                                                     }
                                                 case 0:
-                                                case 3: // "NOP"
+                                                case 3: // NONI + NOP
                                                     return 4;
+                                                default:
+                                                    throw new IllegalStateException();
                                             }
-                                            return 4;
                                         }
-                                        case 3: // (FD prefix); Handled in other method.
+                                        case 3: // (FD prefix)
+                                            parsingFD = true;
+                                            opcode = read8();
+                                            r = registersFD;
+                                            cycles -= 4;
+                                            continue;
                                         default:
                                             throw new IllegalStateException();
                                     }
@@ -1174,24 +1404,43 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     // --------------------------------------------------------------------- //
     // Glorious lookup tables.
 
-    // 8-bit registers (read)
-    private final ReadAccess8[] rr = {() -> B, () -> C, () -> D, () -> E, () -> H, () -> L, () -> peek8(HL()), () -> A};
-    // 8-bit registers (write)
-    private final WriteAccess8[] rw = {x -> B = x, x -> C = x, x -> D = x, x -> E = x, x -> H = x, x -> L = x, x -> poke8(HL(), x), x -> A = x};
-    // Register pairs featuring SP (read)
-    private final ReadAccess16[] rpr = {this::BC, this::DE, this::HL, () -> SP};
-    // Register pairs featuring SP (write)
-    private final WriteAccess16[] rpw = {this::BC, this::DE, this::HL, x -> SP = x};
-    // Register pairs featuring AF (read)
-    private final ReadAccess16[] rp2r = {this::BC, this::DE, this::HL, this::AF};
-    // Register pairs featuring AF (write)
-    private final WriteAccess16[] rp2w = {this::BC, this::DE, this::HL, this::AF};
+    private final RegisterAccess registers = new RegisterAccess(
+            new ReadAccess8[]{this::B, this::C, this::D, this::E, this::H, this::L, this::peekHL, this::A},
+            new WriteAccess8[]{this::B, this::C, this::D, this::E, this::H, this::L, this::pokeHL, this::A},
+            new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::H, this::L, this::indirectHL, this::A},
+            new ReadAccess16[]{this::BC, this::DE, this::HL, this::SP},
+            new WriteAccess16[]{this::BC, this::DE, this::HL, this::SP},
+            new ReadAccess16[]{this::BC, this::DE, this::HL, this::AF},
+            new WriteAccess16[]{this::BC, this::DE, this::HL, this::AF});
+
+    private final RegisterAccess registersDD = new RegisterAccess(
+            new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::peekIXd, this::A},
+            new WriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::pokeIXd, this::A},
+            new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::indirectIXd, this::A},
+            new ReadAccess16[]{this::BC, this::DE, this::IX, this::SP},
+            new WriteAccess16[]{this::BC, this::DE, this::IX, this::SP},
+            new ReadAccess16[]{this::BC, this::DE, this::IX, this::AF},
+            new WriteAccess16[]{this::BC, this::DE, this::IX, this::AF});
+
+    private final RegisterAccess registersFD = new RegisterAccess(
+            new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::peekIYd, this::A},
+            new WriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::pokeIYd, this::A},
+            new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::indirectIYd, this::A},
+            new ReadAccess16[]{this::BC, this::DE, this::IY, this::SP},
+            new WriteAccess16[]{this::BC, this::DE, this::IY, this::SP},
+            new ReadAccess16[]{this::BC, this::DE, this::IY, this::AF},
+            new WriteAccess16[]{this::BC, this::DE, this::IY, this::AF});
+
     // Conditions
     private final Condition[] cc = {this::FLAG_NZ, this::FLAG_Z, this::FLAG_NC, this::FLAG_C, this::FLAG_PO, this::FLAG_PE, this::FLAG_P, this::FLAG_M};
     // Arithmetic/logic operations
     private final WriteAccess8[] alu = {this::add, this::adc, this::sub, this::sbc, this::and, this::xor, this::or, this::cp};
     // Rotation/shift operations
-    private final Rotation[] rot = {this::rlc, this::rrc, this::rl, this::rr, this::sla, this::sra, this::sll, this::srl};
+    private final Transform[] rot = {this::rlc, this::rrc, this::rl, this::rr, this::sla, this::sra, this::sll, this::srl};
+    // Bit reset
+    private final Transform[] res = new Transform[8];
+    // Bit set
+    private final Transform[] set = new Transform[8];
 
     // Timings for incrementing/decrementing 16-bit registers/memory.
     private static final int[] INC_DEC_T = {4, 4, 4, 4, 4, 4, 11, 4};
@@ -1217,284 +1466,65 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     // Functional interfaces for lookup tables.
 
     @FunctionalInterface
-    interface ReadAccess8 {
+    private interface ReadAccess8 {
         byte apply();
     }
 
     @FunctionalInterface
-    interface ReadAccess16 {
+    private interface ReadAccess16 {
         short apply();
     }
 
     @FunctionalInterface
-    interface WriteAccess8 {
+    private interface WriteAccess8 {
         void apply(final byte value);
     }
 
     @FunctionalInterface
-    interface WriteAccess16 {
+    private interface WriteAccess16 {
         void apply(final short value);
     }
 
     @FunctionalInterface
-    interface Condition {
+    private interface ReadWriteAccess8 {
+        void apply(final Transform transform);
+    }
+
+    @FunctionalInterface
+    private interface Condition {
         boolean apply();
     }
 
     @FunctionalInterface
-    interface Rotation {
+    private interface Transform {
         byte apply(final byte value);
     }
 
     // --------------------------------------------------------------------- //
-    // Mapping of opcodes to mnemonics for debugging readability.
 
-    private static final String[] DASM = new String[0x100];
+    private static final class RegisterAccess {
+        final ReadAccess8[] r8; // 8-bit registers (read)
+        final WriteAccess8[] w8; // 8-bit registers (write)
+        final ReadWriteAccess8[] rw8; // 8-bit registers (read-write)
+        final ReadAccess16[] r16; // Register pairs featuring SP (read)
+        final WriteAccess16[] w16; // Register pairs featuring SP (write)
+        final ReadAccess16[] r216; // Register pairs featuring AF (read)
+        final WriteAccess16[] w216; // Register pairs featuring AF (write)
 
-    static {
-        DASM[0x7F] = "MOV A,A";
-        DASM[0x78] = "MOV A,B";
-        DASM[0x79] = "MOV A,C";
-        DASM[0x7A] = "MOV A,D";
-        DASM[0x7B] = "MOV A,E";
-        DASM[0x7C] = "MOV A,H";
-        DASM[0x7D] = "MOV A,L";
-        DASM[0x7E] = "MOV A,M";
-        DASM[0x0A] = "LDAX B";
-        DASM[0x1A] = "LDAX D";
-        DASM[0x3A] = "LDA nn";
-        DASM[0x47] = "MOV B,A";
-        DASM[0x40] = "MOV B,B";
-        DASM[0x41] = "MOV B,C";
-        DASM[0x42] = "MOV B,D";
-        DASM[0x43] = "MOV B,E";
-        DASM[0x44] = "MOV B,H";
-        DASM[0x45] = "MOV B,L";
-        DASM[0x46] = "MOV B,M";
-        DASM[0x4F] = "MOV C,A";
-        DASM[0x48] = "MOV C,B";
-        DASM[0x49] = "MOV C,C";
-        DASM[0x4A] = "MOV C,D";
-        DASM[0x4B] = "MOV C,E";
-        DASM[0x4C] = "MOV C,H";
-        DASM[0x4D] = "MOV C,L";
-        DASM[0x4E] = "MOV C,M";
-        DASM[0x57] = "MOV D,A";
-        DASM[0x50] = "MOV D,B";
-        DASM[0x51] = "MOV D,C";
-        DASM[0x52] = "MOV D,D";
-        DASM[0x53] = "MOV D,E";
-        DASM[0x54] = "MOV D,H";
-        DASM[0x55] = "MOV D,L";
-        DASM[0x56] = "MOV D,M";
-        DASM[0x5F] = "MOV E,A";
-        DASM[0x58] = "MOV E,B";
-        DASM[0x59] = "MOV E,C";
-        DASM[0x5A] = "MOV E,D";
-        DASM[0x5B] = "MOV E,E";
-        DASM[0x5C] = "MOV E,H";
-        DASM[0x5D] = "MOV E,L";
-        DASM[0x5E] = "MOV E,M";
-        DASM[0x67] = "MOV H,A";
-        DASM[0x60] = "MOV H,B";
-        DASM[0x61] = "MOV H,C";
-        DASM[0x62] = "MOV H,D";
-        DASM[0x63] = "MOV H,E";
-        DASM[0x64] = "MOV H,H";
-        DASM[0x65] = "MOV H,L";
-        DASM[0x66] = "MOV H,M";
-        DASM[0x6F] = "MOV L,A";
-        DASM[0x68] = "MOV L,B";
-        DASM[0x69] = "MOV L,C";
-        DASM[0x6A] = "MOV L,D";
-        DASM[0x6B] = "MOV L,E";
-        DASM[0x6C] = "MOV L,H";
-        DASM[0x6D] = "MOV L,L";
-        DASM[0x6E] = "MOV L,M";
-        DASM[0x77] = "MOV M,A";
-        DASM[0x70] = "MOV M,B";
-        DASM[0x71] = "MOV M,C";
-        DASM[0x72] = "MOV M,D";
-        DASM[0x73] = "MOV M,E";
-        DASM[0x74] = "MOV M,H";
-        DASM[0x75] = "MOV M,L";
-        DASM[0x3E] = "MVI A,n";
-        DASM[0x06] = "MVI B,n";
-        DASM[0x0E] = "MVI C,n";
-        DASM[0x16] = "MVI D,n";
-        DASM[0x1E] = "MVI E,n";
-        DASM[0x26] = "MVI H,n";
-        DASM[0x2E] = "MVI L,n";
-        DASM[0x36] = "MVI M,n";
-        DASM[0x02] = "STAX B";
-        DASM[0x12] = "STAX D";
-        DASM[0x32] = "STA nn";
-        DASM[0x01] = "LXI B,nn";
-        DASM[0x11] = "LXI D,nn";
-        DASM[0x21] = "LXI H,nn";
-        DASM[0x31] = "LXI SP,nn";
-        DASM[0x2A] = "LHLD nn";
-        DASM[0x22] = "SHLD nn";
-        DASM[0xF9] = "SPHL";
-        DASM[0xEB] = "XCHG";
-        DASM[0xE3] = "XTHL";
-        DASM[0x87] = "ADD A";
-        DASM[0x80] = "ADD B";
-        DASM[0x81] = "ADD C";
-        DASM[0x82] = "ADD D";
-        DASM[0x83] = "ADD E";
-        DASM[0x84] = "ADD H";
-        DASM[0x85] = "ADD L";
-        DASM[0x86] = "ADD M";
-        DASM[0xC6] = "ADI n";
-        DASM[0x8F] = "ADC A";
-        DASM[0x88] = "ADC B";
-        DASM[0x89] = "ADC C";
-        DASM[0x8A] = "ADC D";
-        DASM[0x8B] = "ADC E";
-        DASM[0x8C] = "ADC H";
-        DASM[0x8D] = "ADC L";
-        DASM[0x8E] = "ADC M";
-        DASM[0xCE] = "ACI n";
-        DASM[0x97] = "SUB A";
-        DASM[0x90] = "SUB B";
-        DASM[0x91] = "SUB C";
-        DASM[0x92] = "SUB D";
-        DASM[0x93] = "SUB E";
-        DASM[0x94] = "SUB H";
-        DASM[0x95] = "SUB L";
-        DASM[0x96] = "SUB M";
-        DASM[0xD6] = "SUI n";
-        DASM[0x9F] = "SBB A";
-        DASM[0x98] = "SBB B";
-        DASM[0x99] = "SBB C";
-        DASM[0x9A] = "SBB D";
-        DASM[0x9B] = "SBB E";
-        DASM[0x9C] = "SBB H";
-        DASM[0x9D] = "SBB L";
-        DASM[0x9E] = "SBB M";
-        DASM[0xDE] = "SBI n";
-        DASM[0x09] = "DAD B";
-        DASM[0x19] = "DAD D";
-        DASM[0x29] = "DAD H";
-        DASM[0x39] = "DAD SP";
-        DASM[0xF3] = "DI";
-        DASM[0xFB] = "EI";
-        DASM[0x00] = "NOP";
-        DASM[0x76] = "HLT";
-        DASM[0x3C] = "INR A";
-        DASM[0x04] = "INR B";
-        DASM[0x0C] = "INR C";
-        DASM[0x14] = "INR D";
-        DASM[0x1C] = "INR E";
-        DASM[0x24] = "INR H";
-        DASM[0x2C] = "INR L";
-        DASM[0x34] = "INR M";
-        DASM[0x3D] = "DCR A";
-        DASM[0x05] = "DCR B";
-        DASM[0x0D] = "DCR C";
-        DASM[0x15] = "DCR D";
-        DASM[0x1D] = "DCR E";
-        DASM[0x25] = "DCR H";
-        DASM[0x2D] = "DCR L";
-        DASM[0x35] = "DCR M";
-        DASM[0x03] = "INX B";
-        DASM[0x13] = "INX D";
-        DASM[0x23] = "INX H";
-        DASM[0x33] = "INX SP";
-        DASM[0x0B] = "DCX B";
-        DASM[0x1B] = "DCX D";
-        DASM[0x2B] = "DCX H";
-        DASM[0x3B] = "DCX SP";
-        DASM[0x27] = "DAA";
-        DASM[0x2F] = "CMA";
-        DASM[0x37] = "STC";
-        DASM[0x3F] = "CMC";
-        DASM[0x07] = "RLC";
-        DASM[0x0F] = "RRC";
-        DASM[0x17] = "RAL";
-        DASM[0x1F] = "RAR";
-        DASM[0xA7] = "ANA A";
-        DASM[0xA0] = "ANA B";
-        DASM[0xA1] = "ANA C";
-        DASM[0xA2] = "ANA D";
-        DASM[0xA3] = "ANA E";
-        DASM[0xA4] = "ANA H";
-        DASM[0xA5] = "ANA L";
-        DASM[0xA6] = "ANA M";
-        DASM[0xE6] = "ANI n";
-        DASM[0xAF] = "XRA A";
-        DASM[0xA8] = "XRA B";
-        DASM[0xA9] = "XRA C";
-        DASM[0xAA] = "XRA D";
-        DASM[0xAB] = "XRA E";
-        DASM[0xAC] = "XRA H";
-        DASM[0xAD] = "XRA L";
-        DASM[0xAE] = "XRA M";
-        DASM[0xEE] = "XRI n";
-        DASM[0xB7] = "ORA A";
-        DASM[0xB0] = "ORA B";
-        DASM[0xB1] = "ORA C";
-        DASM[0xB2] = "ORA D";
-        DASM[0xB3] = "ORA E";
-        DASM[0xB4] = "ORA H";
-        DASM[0xB5] = "ORA L";
-        DASM[0xB6] = "ORA M";
-        DASM[0xF6] = "ORI n";
-        DASM[0xBF] = "CMP A";
-        DASM[0xB8] = "CMP B";
-        DASM[0xB9] = "CMP C";
-        DASM[0xBA] = "CMP D";
-        DASM[0xBB] = "CMP E";
-        DASM[0xBC] = "CMP H";
-        DASM[0xBD] = "CMP L";
-        DASM[0xBE] = "CMP M";
-        DASM[0xFE] = "CPI n";
-        DASM[0xC3] = "JMP aa";
-        DASM[0xC2] = "JNZ aa";
-        DASM[0xCA] = "JZ aa";
-        DASM[0xD2] = "JNC aa";
-        DASM[0xDA] = "JC aa";
-        DASM[0xE2] = "JPO aa";
-        DASM[0xEA] = "JPE aa";
-        DASM[0xF2] = "JP aa";
-        DASM[0xFA] = "JM aa";
-        DASM[0xE9] = "PCHL";
-        DASM[0xCD] = "CALL aa";
-        DASM[0xC4] = "CNZ aa";
-        DASM[0xCC] = "CZ aa";
-        DASM[0xD4] = "CNC aa";
-        DASM[0xDC] = "CC aa";
-        DASM[0xE4] = "CPO aa";
-        DASM[0xEC] = "CPE aa";
-        DASM[0xF4] = "CP aa";
-        DASM[0xFC] = "CM aa";
-        DASM[0xC9] = "RET";
-        DASM[0xC0] = "RNZ";
-        DASM[0xC8] = "RZ";
-        DASM[0xD0] = "RNC";
-        DASM[0xD8] = "RC";
-        DASM[0xE0] = "RPO";
-        DASM[0xE8] = "RPE";
-        DASM[0xF0] = "RP";
-        DASM[0xF8] = "RM";
-        DASM[0xC7] = "RST 0";
-        DASM[0xCF] = "RST 1";
-        DASM[0xD7] = "RST 2";
-        DASM[0xDF] = "RST 3";
-        DASM[0xE7] = "RST 4";
-        DASM[0xEF] = "RST 5";
-        DASM[0xF7] = "RST 6";
-        DASM[0xFF] = "RST 7";
-        DASM[0xC5] = "PUSH B";
-        DASM[0xD5] = "PUSH D";
-        DASM[0xE5] = "PUSH H";
-        DASM[0xF5] = "PUSH PSW";
-        DASM[0xC1] = "POP B";
-        DASM[0xD1] = "POP D";
-        DASM[0xE1] = "POP H";
-        DASM[0xF1] = "POP PSW";
-        DASM[0xDB] = "IN n";
-        DASM[0xD3] = "OUT n";
+        private RegisterAccess(final ReadAccess8[] r8, final WriteAccess8[] w8, final ReadWriteAccess8[] rw8, final ReadAccess16[] r16, final WriteAccess16[] w16, final ReadAccess16[] r216, final WriteAccess16[] w216) {
+            this.r8 = r8;
+            this.w8 = w8;
+            this.rw8 = rw8;
+            this.r16 = r16;
+            this.w16 = w16;
+            this.r216 = r216;
+            this.w216 = w216;
+        }
+    }
+
+    private enum InterruptMode {
+        MODE_0,
+        MODE_1,
+        MODE_2
     }
 }
