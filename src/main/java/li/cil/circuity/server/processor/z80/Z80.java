@@ -11,9 +11,7 @@ import javax.annotation.Nullable;
 // Flag computation based on https://github.com/anotherlin/z80emu/
 
 @Serializable
-public class Z80 extends AbstractBusDevice implements InterruptSink {
-    public static final int CYCLES_1MHZ = 320;
-
+public final class Z80 extends AbstractBusDevice implements InterruptSink {
     private static final int FLAG_SHIFT_C = 0;
     private static final int FLAG_SHIFT_N = 1;
     private static final int FLAG_SHIFT_PV = 2;
@@ -886,11 +884,29 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void rld() {
-        // TODO
+        final int uhl = peek8(HL()) & 0xFF, ua = A & 0xFF; // 0bHHHHLLLL, 0bAAAAaaaa
+        final int uahl = ((ua & 0xF0) << 8) | (uhl << 4) | (ua & 0x0F); // 0bAAAAHHHHLLLLaaaa
+        pokeHL((byte) uahl);
+        A = (byte) (uahl >>> 8);
+
+        byte f = (byte) (F & FLAG_MASK_C);
+        if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= A & FLAG_MASK_S;
+        f |= computeParity(A) << FLAG_SHIFT_PV;
+        F = f;
     }
 
     private void rrd() {
-        // TODO
+        final int uhl = peek8(HL()) & 0xFF, ua = A & 0xFF; // 0bHHHHLLLL, 0bAAAAaaaa
+        final int uahl = ((ua & 0xF0) << 8) | ((uhl & 0x0F) << 8) | ((A & 0x0F) << 4) | (uhl >> 4); // 0bAAAALLLLaaaaHHHH
+        pokeHL((byte) uahl);
+        A = (byte) (uahl >>> 8);
+
+        byte f = (byte) (F & FLAG_MASK_C);
+        if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= A & FLAG_MASK_S;
+        f |= computeParity(A) << FLAG_SHIFT_PV;
+        F = f;
     }
 
     private void daa() {
