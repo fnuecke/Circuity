@@ -19,6 +19,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     private static final int FLAG_SHIFT_Z = 6;
     private static final int FLAG_SHIFT_S = 7;
 
+    @SuppressWarnings("PointlessBitwiseExpression")
     private static final int FLAG_MASK_C = 1 << FLAG_SHIFT_C;
     private static final int FLAG_MASK_N = 1 << FLAG_SHIFT_N;
     private static final int FLAG_MASK_PV = 1 << FLAG_SHIFT_PV;
@@ -963,6 +964,72 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return 1 - (p & 1);
     }
 
+    // Block instructions
+
+    private void ldi() {
+        // TODO
+    }
+
+    private void ldd() {
+        // TODO
+    }
+
+    private void cpi() {
+        // TODO
+    }
+
+    private void ini() {
+        // TODO
+    }
+
+    private void outi() {
+        // TODO
+    }
+
+    private void cpd() {
+        // TODO
+    }
+
+    private void ind() {
+        // TODO
+    }
+
+    private void outd() {
+        // TODO
+    }
+
+    private void ldir() {
+        // TODO
+    }
+
+    private void cpir() {
+        // TODO
+    }
+
+    private void inir() {
+        // TODO
+    }
+
+    private void otir() {
+        // TODO
+    }
+
+    private void lddr() {
+        // TODO
+    }
+
+    private void cpdr() {
+        // TODO
+    }
+
+    private void indr() {
+        // TODO
+    }
+
+    private void otdr() {
+        // TODO
+    }
+
     // --------------------------------------------------------------------- //
 
     private void execute(byte opcode) {
@@ -1444,18 +1511,14 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                                             throw new IllegalStateException();
                                                     }
                                                 case 2:
-                                                    switch (z) {
-                                                        case 0:
-                                                        case 1:
-                                                        case 2:
-                                                        case 3: // Block instruction: bli[y,z]
-                                                            // TODO
-                                                            return;
-                                                        default: // NONI + NOP
-                                                            return;
-                                                    }
+                                                    if (z <= 3) { // Block instruction: bli[y,z]
+                                                        if (y > 3) {
+                                                            bli[y >>> 4][z].apply();
+                                                        }
+                                                    } // else: NOP
+                                                    return;
                                                 case 0:
-                                                case 3: // NONI + NOP
+                                                case 3: // NOP
                                                     return;
                                                 default:
                                                     throw new IllegalStateException();
@@ -1539,6 +1602,13 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     private final Transform[] set = new Transform[8];
     // Interrupt modes
     private final InterruptMode[] im = {InterruptMode.MODE_0, InterruptMode.MODE_0, InterruptMode.MODE_1, InterruptMode.MODE_2, InterruptMode.MODE_0, InterruptMode.MODE_0, InterruptMode.MODE_1, InterruptMode.MODE_2};
+    // Block instructions
+    private final Action[][] bli = {
+            {this::ldi, this::cpi, this::ini, this::outi},
+            {this::ldd, this::cpd, this::ind, this::outd},
+            {this::ldir, this::cpir, this::inir, this::otir},
+            {this::lddr, this::cpdr, this::indr, this::otdr}
+    };
 
     // There is an overflow if the xor of the carry out and the carry of the
     // most significant bit is not zero.
@@ -1580,6 +1650,11 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     @FunctionalInterface
     private interface Transform {
         byte apply(final byte value);
+    }
+
+    @FunctionalInterface // Yes, there's Runnable, but I don't like using it for non-threaded use-cases.
+    private interface Action {
+        void apply();
     }
 
     // --------------------------------------------------------------------- //
