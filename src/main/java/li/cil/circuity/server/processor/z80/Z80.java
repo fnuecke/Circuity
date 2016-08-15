@@ -975,7 +975,16 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void ldx(final int d) {
-        // TODO
+        poke8(DE(), peek8(HL()));
+        DE((short) (DE() + d));
+        HL((short) (HL() + d));
+        BC((short) (BC() - 1));
+
+        byte f = (byte) (F & FLAG_MASK_SZPV);
+        if (BC() != 0) f |= FLAG_MASK_PV;
+        F = f;
+
+        cycleBudget -= 2;
     }
 
     private void cpi() {
