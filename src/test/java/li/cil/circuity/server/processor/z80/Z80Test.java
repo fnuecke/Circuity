@@ -59,11 +59,12 @@ public class Z80Test {
             controller.mapAndWrite(address, biosRom[address - biosOffset] & 0xFF);
         }
 
-        final int runFor = 10;
-        final int ips = 640; // 2mhz
+        final int mhz = 2_000_000;
         final int tps = 20;
+        final int cps = mhz / tps;
+        final int runFor = 10; // in seconds
         for (int tick = 0, end = runFor * tps; tick < end; ++tick) {
-            cpu.run(ips / tps);
+            cpu.run(cps);
         }
 
         assertTrue(controller.serialConsole.toString().trim().equals("CPU IS OPERATIONAL"));

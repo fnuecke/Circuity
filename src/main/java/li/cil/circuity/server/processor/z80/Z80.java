@@ -7,16 +7,9 @@ import li.cil.lib.api.serialization.Serialize;
 
 import javax.annotation.Nullable;
 
-// 2MHz CPU: 10msec == 20'000 cycles
-//  400 ~ 1.25MHz
-//  640 ~ 2.00MHz
-// 1280 ~ 4.00MHz
-// 2560 ~ 8.00MHz
-
 // Opcode decoding based on http://www.z80.info/decoding.htm
 // Flag computation based on https://github.com/anotherlin/z80emu/
 
-//@SuppressWarnings("Duplicates") // Prefer inlining over method calls for performance.
 @Serializable
 public class Z80 extends AbstractBusDevice implements InterruptSink {
     public static final int CYCLES_1MHZ = 320;
@@ -39,7 +32,9 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     // --------------------------------------------------------------------- //
 
     @Serialize
-    private boolean halted = false;
+    private Status status;
+    @Serialize
+    private int cycleBudget = 0;
 
     @Serialize
     private byte B, C, D, E, H, L, A, F;
@@ -57,11 +52,6 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     private boolean IFF1, IFF2;
     @Serialize
     private InterruptMode IM;
-
-    @Serialize
-    private int cycleBudget = 0;
-    @Serialize
-    private boolean parsingDD, parsingFD;
 
     // --------------------------------------------------------------------- //
 
@@ -96,7 +86,11 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         // No seriously, it's just for testing. Should replace with
         // providing multiple interrupts, then getting the index of
         // the one that's triggered and providing that.
-        irq((byte) interrupt);
+        if (interrupt < 0) {
+            nmi();
+        } else {
+            irq((byte) interrupt);
+        }
     }
 
     // --------------------------------------------------------------------- //
@@ -132,6 +126,24 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     /**
+     * Reset the CPU.
+     * <p>
+     * This will restore all registers to their initial values.
+     */
+    public void reset() {
+        synchronized (lock) {
+            status = Status.RUNNING;
+            B = C = D = E = H = L = A = F = 0;
+            IXH = IXL = IYH = IYL = 0;
+            SP = 0;
+            PC = 0;
+            IFF1 = IFF2 = false;
+            IM = InterruptMode.MODE_0;
+            cycleBudget = 0;
+        }
+    }
+
+    /**
      * Run the CPU for the specified number of cycles.
      * <p>
      * This will continue execution of the CPU's state simulation until the
@@ -142,13 +154,13 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     public void run(final int cycles) {
         synchronized (lock) {
             // Don't allow saving up cycles.
-            if (halted) return;
+            if (status == Status.HALTED) return;
             cycleBudget += cycles;
         }
         for (; ; ) {
             // Lock each iteration individually to allow interrupts to... interrupt.
             synchronized (lock) {
-                if (halted || cycleBudget <= 0) return;
+                if (status == Status.HALTED || cycleBudget <= 0) return;
                 R = (byte) ((R & 0b10000000) | ((R + 1) & 0b01111111));
                 final byte opcode = read8();
                 cycleBudget -= 1;
@@ -157,10 +169,25 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         }
     }
 
+    /**
+     * Request interrupt given the specified data.
+     * <p>
+     * If interrupts are currently enabled and the CPU is not currently in the
+     * process of parsing a prefixed opcode, this will immediately process the
+     * interrupt (i.e. push the current PC and adjust the PC based on the
+     * current interrupt mode and specified data).
+     * <p>
+     * This method is threadsafe. It is legal to call this from any thread at
+     * any time. Internal locking ensures this will be processed between two
+     * operations.
+     *
+     * @param data the data for the interrupt.
+     * @return <code>true</code> if the interrupt was successful; <code>false</code> otherwise.
+     */
     public boolean irq(final byte data) {
         synchronized (lock) {
-            halted = false;
-            if (!IFF1 || parsingDD || parsingFD) return false;
+            if (!IFF1 || status == Status.PARSING_DD || status == Status.PARSING_FD) return false;
+            status = Status.RUNNING;
 
             IFF1 = IFF2 = false;
             R = (byte) ((R & 0b1000000) | ((R + 1) & 0b01111111));
@@ -189,10 +216,20 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         return true;
     }
 
+    /**
+     * Perform an non-maskable interrupt.
+     * <p>
+     * This will immediately process the interrupt (i.e. push the current PC
+     * and adjust the PC to the NMI address <code>0x0066</code>).
+     * <p>
+     * This method is threadsafe. It is legal to call this from any thread at
+     * any time. Internal locking ensures this will be processed between two
+     * operations.
+     */
     public void nmi() {
         synchronized (lock) {
-            halted = false;
-            if (parsingDD || parsingFD) return;
+            if (status == Status.PARSING_DD || status == Status.PARSING_FD) return;
+            status = Status.RUNNING;
 
 //            IFF2 = IFF1;
             IFF1 = false;
@@ -202,20 +239,6 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
             PC = 0x0066;
 
             cycleBudget -= 11;
-        }
-    }
-
-    public void reset() {
-        synchronized (lock) {
-            halted = false;
-            B = C = D = E = H = L = A = F = 0;
-            IXH = IXL = IYH = IYL = 0;
-            SP = 0;
-            PC = 0;
-            IFF1 = IFF2 = false;
-            IM = InterruptMode.MODE_0;
-            cycleBudget = 0;
-            parsingDD = parsingFD = false;
         }
     }
 
@@ -952,16 +975,20 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     private void execute(byte opcode) {
         RegisterAccess r;
-        if (parsingDD) {
-            r = registersDD;
-        } else if (parsingFD) {
-            r = registersFD;
-        } else {
-            r = registers;
+        switch (status) {
+            case PARSING_DD:
+                r = registersDD;
+                break;
+            case PARSING_FD:
+                r = registersFD;
+                break;
+            default:
+                r = registers;
+                break;
         }
 
         for (; ; ) {
-            parsingDD = parsingFD = false;
+            status = Status.RUNNING;
 
             int x = (opcode & 0b11000000) >>> 6;
             int y = (opcode & 0b00111000) >>> 3;
@@ -1129,7 +1156,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                     }
                 case 1:
                     if (z == 6 && y == 6) { // Exception (replaces LD (HL),(HL)): HALT
-                        halted = true;
+                        status = Status.HALTED;
                         PC -= 1;
                     } else { // 8-bit loading: LD r[y],r[z]
                         r.w8[y].apply(r.r8[z].apply());
@@ -1293,7 +1320,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                             return;
                                         }
                                         case 1: { // (DD prefix)
-                                            parsingDD = true;
+                                            status = Status.PARSING_DD;
                                             opcode = read8();
                                             cycleBudget -= 1;
                                             if (cycleBudget <= 0) return;
@@ -1410,7 +1437,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                             }
                                         }
                                         case 3: // (FD prefix)
-                                            parsingFD = true;
+                                            status = Status.PARSING_FD;
                                             opcode = read8();
                                             cycleBudget -= 1;
                                             if (cycleBudget <= 0) return;
@@ -1532,6 +1559,11 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     // --------------------------------------------------------------------- //
 
+    /**
+     * Indirection layer for accessing registers. This is used to allow a more
+     * generic implementation that handles both regular opcodes as well as DD
+     * and FD prefixed opcodes.
+     */
     private static final class RegisterAccess {
         final ReadAccess8[] r8; // 8-bit registers (read)
         final WriteAccess8[] w8; // 8-bit registers (write)
@@ -1550,6 +1582,13 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
             this.r216 = r216;
             this.w216 = w216;
         }
+    }
+
+    private enum Status {
+        RUNNING,
+        HALTED,
+        PARSING_DD,
+        PARSING_FD
     }
 
     private enum InterruptMode {
