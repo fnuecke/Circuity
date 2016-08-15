@@ -568,10 +568,12 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     // IO
 
     private byte ioRead(final short port) {
+        cycleBudget -= 4;
         return (byte) controller.mapAndRead(0x10000 + (port & 0xFFFF));
     }
 
     private void ioWrite(final short port, final byte data) {
+        cycleBudget -= 4;
         controller.mapAndWrite(0x10000 + (port & 0xFFFF), data & 0xFF);
     }
 
@@ -1257,11 +1259,9 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                 }
                                 case 2: // OUT (n),A
                                     ioWrite((short) (read8() & 0xFF), A);
-                                    cycleBudget -= 4;
                                     return;
                                 case 3: // IN A,(n)
                                     A = ioRead((short) (read8() & 0xFF));
-                                    cycleBudget -= 4;
                                     return;
                                 case 4: { // EX (SP), HL
                                     final short t = r.r16[IDX_HL_IX_IY].apply();
@@ -1319,6 +1319,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                         }
                                         case 2: { // (ED prefix)
                                             opcode = read8();
+                                            cycleBudget -= 1;
                                             x = (opcode & 0b11000000) >>> 6;
                                             y = (opcode & 0b00111000) >>> 3;
                                             z = (opcode & 0b00000111);
@@ -1328,21 +1329,36 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                             switch (x) {
                                                 case 1:
                                                     switch (z) {
-                                                        case 0: // Input from port with 16-bit address
-                                                            // TODO
+                                                        case 0: { // Input from port with 16-bit address
+                                                            if (y != 6) { // IN r[y],(C)
+                                                                r.w8[y].apply(ioRead(BC()));
+                                                            } else { // IN (C)
+                                                                ioRead(BC());
+                                                            }
+
+                                                            byte f = (byte) (F & FLAG_MASK_C);
+                                                            if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
+                                                            else f |= A & FLAG_MASK_S;
+                                                            f |= computeParity(A) << FLAG_SHIFT_PV;
+                                                            F = f;
                                                             return;
+                                                        }
                                                         case 1: // Output to port with 16-bit address
-                                                            // TODO
+                                                            if (y != 6) { // OUT(C),r[y]
+                                                                ioWrite(BC(), r.r8[y].apply());
+                                                            } else { // OUT(C),0
+                                                                ioWrite(BC(), (byte) 0);
+                                                            }
                                                             return;
                                                         case 2: // 16-bit add/subtract with carry
                                                             switch (q) {
                                                                 case 0: // SBC HL,rp[p]
                                                                     r.w16[IDX_HL_IX_IY].apply(sbc16(r.r16[IDX_HL_IX_IY].apply(), r.r16[p].apply()));
-                                                                    cycleBudget -= 11;
+                                                                    cycleBudget -= 7;
                                                                     return;
                                                                 case 1: // ADC HL,rp[p]
                                                                     r.w16[IDX_HL_IX_IY].apply(adc16(r.r16[IDX_HL_IX_IY].apply(), r.r16[p].apply()));
-                                                                    cycleBudget -= 11;
+                                                                    cycleBudget -= 7;
                                                                     return;
                                                                 default:
                                                                     throw new IllegalStateException();
