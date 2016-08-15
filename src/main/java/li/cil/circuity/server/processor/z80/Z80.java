@@ -973,7 +973,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void ldx(final int d) {
-        poke8(DE(), peek8(HL()));
+        poke8(DE(), peekHL());
         DE((short) (DE() + d));
         HL((short) (HL() + d));
         BC((short) (BC() - 1));
@@ -994,7 +994,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void cpx(final int d) {
-        final int ul = A & 0xFF, ur = peek8(HL()) & 0xFF;
+        final int ul = A & 0xFF, ur = peekHL() & 0xFF;
         final int result = ul - ur;
         final int carry = ul ^ ur ^ result;
 
@@ -1543,7 +1543,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                                                 }
                                                                 case 4: // RRD
                                                                 case 5: { // RLD
-                                                                    final int uhl = peek8(HL()) & 0xFF, ua = A & 0xFF; // 0bHHHHLLLL, 0bAAAAaaaa
+                                                                    final int uhl = peekHL() & 0xFF, ua = A & 0xFF; // 0bHHHHLLLL, 0bAAAAaaaa
                                                                     final int uahl;
                                                                     if (y == 4) {
                                                                         uahl = ((ua & 0xF0) << 8) | ((uhl & 0x0F) << 8) | ((A & 0x0F) << 4) | (uhl >> 4); // 0bAAAALLLLaaaaHHHH
