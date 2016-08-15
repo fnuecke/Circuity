@@ -1023,14 +1023,14 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
 
     private void inx(final int d) {
         pokeHL(ioRead(BC()));
-        B--;
         HL((short) (HL() + d));
+        B--;
+
+        cycleBudget -= 1;
 
         byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
         if (B == 0) f |= FLAG_MASK_Z;
         F = f;
-
-        cycleBudget -= 1;
     }
 
     private void outi() {
@@ -1043,14 +1043,14 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
 
     private void outx(final int d) {
         ioWrite(BC(), peekHL());
-        B--;
         HL((short) (HL() + d));
+        B--;
+
+        cycleBudget -= 1;
 
         byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
         if (B == 0) f |= FLAG_MASK_Z;
         F = f;
-
-        cycleBudget -= 1;
     }
 
     private void ldir() {
@@ -1119,7 +1119,20 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void inxr(final int d) {
-        // TODO
+        pokeHL(ioRead(BC()));
+        HL((short) (HL() + d));
+        B--;
+
+        cycleBudget -= 1;
+
+        byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
+        if (B == 0) f |= FLAG_MASK_Z;
+        F = f;
+
+        if (B != 0) {
+            PC -= 2;
+            cycleBudget -= 5;
+        }
     }
 
     private void otir() {
@@ -1131,7 +1144,20 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void otxr(final int d) {
-        // TODO
+        ioWrite(BC(), peekHL());
+        HL((short) (HL() + d));
+        B--;
+
+        cycleBudget -= 1;
+
+        byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
+        if (B == 0) f |= FLAG_MASK_Z;
+        F = f;
+
+        if (B != 0) {
+            PC -= 2;
+            cycleBudget -= 5;
+        }
     }
 
     // --------------------------------------------------------------------- //
