@@ -13,9 +13,10 @@ import javax.annotation.Nullable;
 // 1280 ~ 4.00MHz
 // 2560 ~ 8.00MHz
 
-// Operation decoding based on http://www.z80.info/decoding.htm
+// Opcode decoding based on http://www.z80.info/decoding.htm
 // Flag computation based on https://github.com/anotherlin/z80emu/
 
+//@SuppressWarnings("Duplicates") // Prefer inlining over method calls for performance.
 @Serializable
 public class Z80 extends AbstractBusDevice implements InterruptSink {
     public static final int CYCLES_1MHZ = 320;
@@ -33,8 +34,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     private static final int FLAG_MASK_H = 1 << FLAG_SHIFT_H;
     private static final int FLAG_MASK_Z = 1 << FLAG_SHIFT_Z;
     private static final int FLAG_MASK_S = 1 << FLAG_SHIFT_S;
-
-    private static final int FLAG_MASK_HNC = FLAG_MASK_H | FLAG_MASK_N | FLAG_MASK_C;
+    private static final int FLAG_MASK_SZPV = FLAG_MASK_S | FLAG_MASK_Z | FLAG_MASK_PV;
 
     // --------------------------------------------------------------------- //
 
@@ -59,13 +59,13 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     private InterruptMode IM;
 
     @Serialize
-    private int cycles = 0;
+    private int cycleBudget = 0;
     @Serialize
     private boolean parsingDD, parsingFD;
 
     // --------------------------------------------------------------------- //
 
-    protected final Object interruptLock = new Object();
+    protected final Object lock = new Object();
 
     public Z80() {
         for (int i = 0; i < res.length; i++) {
@@ -92,15 +92,11 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     @Override
     public void interrupt(final int interrupt) {
-        synchronized (interruptLock) {
-            if (IFF1) {
-                // TODO THIS IS BULLSHIT
-                // No seriously, it's just for testing. Should replace with
-                // providing multiple interrupts, then getting the index of
-                // the one that's triggered and providing that.
-                irq((byte) interrupt);
-            }
-        }
+        // TODO THIS IS BULLSHIT
+        // No seriously, it's just for testing. Should replace with
+        // providing multiple interrupts, then getting the index of
+        // the one that's triggered and providing that.
+        irq((byte) interrupt);
     }
 
     // --------------------------------------------------------------------- //
@@ -121,22 +117,48 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     // --------------------------------------------------------------------- //
 
-    public void setPC(final int PC) {
-        this.PC = (short) PC;
+    /**
+     * Set the value of the CPU's program counter.
+     * <p>
+     * Intended to allow setting the starting offset after resetting the CPU.
+     * Note that it will be truncated to a short automatically.
+     *
+     * @param value the value to set the program counter to.
+     */
+    public void setPC(final int value) {
+        synchronized (lock) {
+            this.PC = (short) value;
+        }
     }
 
+    /**
+     * Run the CPU for the specified number of cycles.
+     * <p>
+     * This will continue execution of the CPU's state simulation until the
+     * specified number of cycles have passed.
+     *
+     * @param cycles the number of cycles to emulate.
+     */
     public void run(final int cycles) {
-        if (!halted) {
-            this.cycles = this.cycles + cycles;
-            while (!halted && this.cycles > 0) {
+        synchronized (lock) {
+            // Don't allow saving up cycles.
+            if (halted) return;
+            cycleBudget += cycles;
+        }
+        for (; ; ) {
+            // Lock each iteration individually to allow interrupts to... interrupt.
+            synchronized (lock) {
+                if (halted || cycleBudget <= 0) return;
                 R = (byte) ((R & 0b10000000) | ((R + 1) & 0b01111111));
-                this.cycles -= execute(read8());
+                final byte opcode = read8();
+                cycleBudget -= 1;
+                execute(opcode);
             }
         }
     }
 
     public boolean irq(final byte data) {
-        synchronized (interruptLock) {
+        synchronized (lock) {
             halted = false;
             if (!IFF1 || parsingDD || parsingFD) return false;
 
@@ -144,19 +166,20 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
             R = (byte) ((R & 0b1000000) | ((R + 1) & 0b01111111));
             switch (IM) {
                 case MODE_0:
-                    cycles -= 2 + execute(data); // 2 + tOP
+                    execute(data);
+                    cycleBudget -= 2;
                     break;
                 case MODE_1:
                     push(PC);
                     PC = 0x0038;
-                    cycles -= 2 + 11; // 2 + tRST
+                    cycleBudget -= 7;
                     break;
                 case MODE_2: {
                     push(PC);
                     final int h = (I & 0xFF) << 8;
                     final int l = data & 0xFE;
                     PC = (short) (h | l);
-                    cycles -= 19;
+                    cycleBudget -= 13;
                     break;
                 }
                 default:
@@ -167,7 +190,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     public void nmi() {
-        synchronized (interruptLock) {
+        synchronized (lock) {
             halted = false;
             if (parsingDD || parsingFD) return;
 
@@ -178,20 +201,22 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
             push(PC);
             PC = 0x0066;
 
-            cycles -= 11;
+            cycleBudget -= 11;
         }
     }
 
     public void reset() {
-        halted = false;
-        B = C = D = E = H = L = A = F = 0;
-        IXH = IXL = IYH = IYL = 0;
-        SP = 0;
-        PC = 0;
-        IFF1 = IFF2 = false;
-        IM = InterruptMode.MODE_0;
-        cycles = 0;
-        parsingDD = parsingFD = false;
+        synchronized (lock) {
+            halted = false;
+            B = C = D = E = H = L = A = F = 0;
+            IXH = IXL = IYH = IYL = 0;
+            SP = 0;
+            PC = 0;
+            IFF1 = IFF2 = false;
+            IM = InterruptMode.MODE_0;
+            cycleBudget = 0;
+            parsingDD = parsingFD = false;
+        }
     }
 
     // --------------------------------------------------------------------- //
@@ -404,11 +429,6 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         return (F & FLAG_MASK_C) == 0;
     }
 
-    private void FLAG_C(final boolean value) {
-        if (value) F = (byte) (F | FLAG_MASK_C);
-        else F = (byte) (F & ~FLAG_MASK_C);
-    }
-
     private boolean FLAG_N() {
         return (F & FLAG_MASK_N) != 0;
     }
@@ -444,10 +464,12 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     // Memory
 
     private byte peek8(final short address) {
+        cycleBudget -= 3;
         return (byte) controller.mapAndRead(address & 0xFFFF);
     }
 
     private void poke8(final short address, final byte value) {
+        cycleBudget -= 3;
         controller.mapAndWrite(address & 0xFFFF, value & 0xFF);
     }
 
@@ -484,6 +506,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     private void indirectHL(final Transform transform) {
         final short hl = HL();
+        cycleBudget -= 1;
         poke8(hl, transform.apply(peek8(hl)));
     }
 
@@ -500,6 +523,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     private void indirectIXd(final Transform transform) {
         final byte d = read8();
         final short a = (short) (IX() + d);
+        cycleBudget -= 5;
         poke8(a, transform.apply(peek8(a)));
     }
 
@@ -516,6 +540,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     private void indirectIYd(final Transform transform) {
         final byte d = read8();
         final short a = (short) (IY() + d);
+        cycleBudget -= 5;
         poke8(a, transform.apply(peek8(a)));
     }
 
@@ -567,8 +592,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int carry = u ^ result;
 
         byte f = (byte) (F & FLAG_MASK_C);
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= carry & FLAG_MASK_H;
         f |= OVERFLOW_TABLE[(carry >>> 7) & 0b11];
 
@@ -582,8 +607,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int carry = u ^ result;
 
         byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= carry & FLAG_MASK_H;
         f |= OVERFLOW_TABLE[(carry >>> 7) & 0b11];
 
@@ -597,8 +622,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int carry = ul ^ ur ^ result;
 
         byte f = 0;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= carry & FLAG_MASK_H;
         f |= OVERFLOW_TABLE[carry >>> 7];
         f |= result >>> (8 - FLAG_SHIFT_C);
@@ -618,8 +643,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int carry = ul ^ ur ^ result;
 
         byte f = 0;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= carry & FLAG_MASK_H;
         f |= OVERFLOW_TABLE[carry >>> 7];
         f |= result >>> (8 - FLAG_SHIFT_C);
@@ -634,8 +659,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         int carry = ul ^ ur ^ result;
 
         byte f = FLAG_MASK_N;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= carry & FLAG_MASK_H;
         carry &= 0b1_10000000;
         f |= OVERFLOW_TABLE[carry >>> 7];
@@ -651,8 +676,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         int carry = ul ^ ur ^ result;
 
         byte f = FLAG_MASK_N;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= carry & FLAG_MASK_H;
         carry &= 0b1_10000000;
         f |= OVERFLOW_TABLE[carry >>> 7];
@@ -666,8 +691,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         A &= rhs;
 
         byte f = FLAG_MASK_H;
-        f |= A & FLAG_MASK_S;
         if (A == 0) f |= FLAG_MASK_Z;
+        else f |= A & FLAG_MASK_S;
         f |= computeParity(A) << FLAG_SHIFT_PV;
         F = f;
     }
@@ -676,8 +701,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         A |= rhs;
 
         byte f = 0;
-        f |= A & FLAG_MASK_S;
         if (A == 0) f |= FLAG_MASK_Z;
+        else f |= A & FLAG_MASK_S;
         f |= computeParity(A) << FLAG_SHIFT_PV;
         F = f;
     }
@@ -686,8 +711,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         A ^= rhs;
 
         byte f = 0;
-        f |= A & FLAG_MASK_S;
         if (A == 0) f |= FLAG_MASK_Z;
+        else f |= A & FLAG_MASK_S;
         f |= computeParity(A) << FLAG_SHIFT_PV;
         F = f;
     }
@@ -698,8 +723,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         int carry = ul ^ ur ^ result;
 
         byte f = FLAG_MASK_N;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= carry & FLAG_MASK_H;
         carry &= 0b1_10000000;
         f |= OVERFLOW_TABLE[carry >>> 7];
@@ -714,8 +739,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         int carry = u ^ result;
 
         byte f = FLAG_MASK_N;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= carry & FLAG_MASK_H;
         carry &= 0b1_10000000;
         f |= OVERFLOW_TABLE[carry >>> 7];
@@ -731,8 +756,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int result = (a >>> 1) | ((F & FLAG_MASK_C) << 7);
 
         byte f = carry;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
         F = f;
 
@@ -745,8 +770,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int result = (a >>> 1) | (carry << 7);
 
         byte f = carry;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
         F = f;
 
@@ -759,8 +784,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int result = (a << 1) | (F & FLAG_MASK_C);
 
         byte f = carry;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
         F = f;
 
@@ -773,8 +798,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int result = (a << 1) | carry;
 
         byte f = carry;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
         F = f;
 
@@ -787,8 +812,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int result = u << 1;
 
         byte f = carry;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
         F = f;
 
@@ -801,8 +826,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int result = (u << 1) | 1;
 
         byte f = carry;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
         F = f;
 
@@ -815,8 +840,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int result = u >> 1;
 
         byte f = carry;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
         F = f;
 
@@ -829,8 +854,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         final int result = u >>> 1;
 
         byte f = carry;
-        f |= result & FLAG_MASK_S;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
         F = f;
 
@@ -861,8 +886,8 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         A += FLAG_N() ? -d : +d;
 
         byte f = 0;
-        f |= A & FLAG_MASK_S;
         if (A == 0) f |= FLAG_MASK_Z;
+        else f |= A & FLAG_MASK_S;
         f |= computeParity(A) << FLAG_SHIFT_PV;
         f |= ((A ^ a) & FLAG_MASK_H);
         f |= (F & FLAG_MASK_N);
@@ -870,32 +895,50 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         F = f;
     }
 
-    private void add16(final int rhs) {
-        final short hl = HL();
-        final short result = (short) (hl + (rhs & 0xFFFF));
-        final int carry = hl ^ rhs ^ result;
+    private short add16(final short value, final int rhs) {
+        final int ul = value & 0xFFFF, ur = rhs & 0xFFFF;
+        final int result = ul + ur;
+        final int carry = ul ^ ur ^ result;
 
-        byte f = F;
-        f &= ~FLAG_MASK_HNC;
-        f |= carry & 0b00001000_00000000;
-        if ((carry & 0b10000000_00000000) != 0) f |= FLAG_MASK_C;
+        byte f = (byte) (F & FLAG_MASK_SZPV);
+        f |= (carry >>> 8) & FLAG_MASK_H;
+        f |= carry >>> (16 - FLAG_SHIFT_C);
         F = f;
 
-        HL(result);
+        return (short) result;
     }
 
-    private void adc16(final short rhs) {
-        // TODO Flags
-        final int result = (HL() & 0xFFFF) + (rhs & 0xFFFF) + (FLAG_C() ? 1 : 0);
-        FLAG_C((result & 0xFFFF) != result);
-        HL((short) result);
+    private short adc16(final short value, final short rhs) {
+        final int ul = value & 0xFFFF, ur = rhs & 0xFFFF;
+        final int result = ul + ur + (F & FLAG_MASK_C);
+        final int carry = ul ^ ur ^ result;
+
+        byte f = 0;
+        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
+        f |= (carry >>> 8) & FLAG_MASK_H;
+        f |= OVERFLOW_TABLE[carry >>> 15];
+        f |= result >>> (16 - FLAG_SHIFT_C);
+        F = f;
+
+        return (short) result;
     }
 
-    private void sbc16(final short rhs) {
-        // TODO Flags
-        final int result = (HL() & 0xFFFF) - (rhs & 0xFFFF) - (FLAG_C() ? 1 : 0);
-        FLAG_C((result & 0xFFFF) != result);
-        HL((short) result);
+    private short sbc16(final short value, final short rhs) {
+        final int ul = value & 0xFFFF, ur = rhs & 0xFFFF;
+        final int result = ul - ur - (F & FLAG_MASK_C);
+        int carry = ul ^ ur ^ result;
+
+        byte f = FLAG_MASK_N;
+        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
+        f |= (carry >>> 8) & FLAG_MASK_H;
+        carry &= 0b1_10000000_00000000;
+        f |= OVERFLOW_TABLE[carry >>> 15];
+        f |= carry >>> (16 - FLAG_SHIFT_C);
+        F = f;
+
+        return (short) result;
     }
 
     private static int computeParity(final byte value) {
@@ -907,7 +950,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
 
     // --------------------------------------------------------------------- //
 
-    private int execute(byte opcode) {
+    private void execute(byte opcode) {
         RegisterAccess r;
         if (parsingDD) {
             r = registersDD;
@@ -918,7 +961,6 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
         }
 
         for (; ; ) {
-            if (halted || cycles <= 0) return 0;
             parsingDD = parsingFD = false;
 
             int x = (opcode & 0b11000000) >>> 6;
@@ -933,7 +975,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                         case 0: // Relative jumps and assorted ops
                             switch (y) {
                                 case 0: // NOP
-                                    return 4;
+                                    return;
                                 case 1: { // EX AF,AF'
                                     {
                                         final byte t = A;
@@ -945,20 +987,21 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                         F = F2;
                                         F2 = t;
                                     }
-                                    return 4;
+                                    return;
                                 }
                                 case 2: { // DJNZ e
                                     final byte e = read8();
+                                    cycleBudget -= 1;
                                     if (--B != 0) {
                                         PC += e;
-                                        return 13;
-                                    } else {
-                                        return 8;
+                                        cycleBudget -= 5;
                                     }
+                                    return;
                                 }
                                 case 3: // JR e
                                     PC += read8();
-                                    return 12;
+                                    cycleBudget -= 5;
+                                    return;
                                 case 4:
                                 case 5:
                                 case 6:
@@ -966,10 +1009,9 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                     final byte e = read8();
                                     if (cc[y - 4].apply()) {
                                         PC += e;
-                                        return 12;
-                                    } else {
-                                        return 7;
+                                        cycleBudget -= 5;
                                     }
+                                    return;
                                 }
                                 default:
                                     throw new IllegalStateException();
@@ -978,10 +1020,11 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                             switch (q) {
                                 case 0: // LD rp[p],nn
                                     r.w16[p].apply(read16());
-                                    return 10;
+                                    return;
                                 case 1: // ADD HL,rp[p]
-                                    add16(r.r16[p].apply());
-                                    return 11;
+                                    r.w16[IDX_HL_IX_IY].apply(add16(r.r16[IDX_HL_IX_IY].apply(), r.r16[p].apply()));
+                                    cycleBudget -= 7;
+                                    return;
                                 default:
                                     throw new IllegalStateException();
                             }
@@ -991,16 +1034,16 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                     switch (p) {
                                         case 0: // LD (BC),A
                                             poke8(BC(), A);
-                                            return 7;
+                                            return;
                                         case 1: // LD (DE),A
                                             poke8(DE(), A);
-                                            return 7;
+                                            return;
                                         case 2: // LD (nn),HL
-                                            poke16(read16(), HL());
-                                            return 16;
+                                            poke16(read16(), r.r16[IDX_HL_IX_IY].apply());
+                                            return;
                                         case 3: // LD (nn),A
                                             poke8(read16(), A);
-                                            return 13;
+                                            return;
                                         default:
                                             throw new IllegalStateException();
                                     }
@@ -1008,16 +1051,16 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                     switch (p) {
                                         case 0: // LD A,(BC)
                                             A = peek8(BC());
-                                            return 7;
+                                            return;
                                         case 1: // LD A,(DE)
                                             A = peek8(DE());
-                                            return 7;
+                                            return;
                                         case 2: // LD HL,(nn)
-                                            HL(peek16(read16()));
-                                            return 16;
+                                            r.w16[IDX_HL_IX_IY].apply(peek16(read16()));
+                                            return;
                                         case 3: // LD A,(nn)
                                             A = peek8(read16());
-                                            return 13;
+                                            return;
                                         default:
                                             throw new IllegalStateException();
                                     }
@@ -1028,53 +1071,55 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                             switch (q) {
                                 case 0: // INC rp[p]
                                     r.w16[p].apply((short) (r.r16[p].apply() + 1));
-                                    return 6;
+                                    cycleBudget -= 2;
+                                    return;
                                 case 1: // DEC rp[p]
                                     r.w16[p].apply((short) (r.r16[p].apply() - 1));
-                                    return 6;
+                                    cycleBudget -= 2;
+                                    return;
                                 default:
                                     throw new IllegalStateException();
                             }
                         case 4: // 8-bit INC: INC r[y]
                             r.rw8[y].apply(this::inc);
-                            return INC_DEC_T[y];
+                            return;
                         case 5: // 8-bit DEC: DEC r[y]
                             r.rw8[y].apply(this::dec);
-                            return INC_DEC_T[y];
+                            return;
                         case 6: // 8-bit load immediate: LD r[y],n
                             r.w8[y].apply(read8());
-                            return LD_R_N_T[y];
+                            return;
                         case 7: // Assorted operations or accumulator/flags
                             switch (y) {
                                 case 0: // RLCA
                                     A = rlc(A);
-                                    return 4;
+                                    return;
                                 case 1: // RRCA
                                     A = rrc(A);
-                                    return 4;
+                                    return;
                                 case 2: // RLA
                                     A = rl(A);
-                                    return 4;
+                                    return;
                                 case 3: // RRA
                                     A = rr(A);
-                                    return 4;
+                                    return;
                                 case 4: // DAA
                                     daa();
-                                    return 4;
+                                    return;
                                 case 5: // CPL
                                     A = (byte) ~A;
                                     F |= FLAG_MASK_H | FLAG_MASK_N;
-                                    return 4;
+                                    return;
                                 case 6: // SCF
                                     F &= ~FLAG_MASK_H & ~FLAG_MASK_N;
                                     F |= FLAG_MASK_C;
-                                    return 4;
+                                    return;
                                 case 7: { // CCF
                                     final int carry = F & FLAG_MASK_C;
                                     F &= ~FLAG_MASK_H & ~FLAG_MASK_C;
                                     F |= carry << FLAG_SHIFT_H;
                                     F |= carry ^ FLAG_MASK_C;
-                                    return 4;
+                                    return;
                                 }
                                 default:
                                     throw new IllegalStateException();
@@ -1086,35 +1131,31 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                     if (z == 6 && y == 6) { // Exception (replaces LD (HL),(HL)): HALT
                         halted = true;
                         PC -= 1;
-                        return 4;
                     } else { // 8-bit loading: LD r[y],r[z]
                         r.w8[y].apply(r.r8[z].apply());
-                        final int t1 = LD_R_R_T[y];
-                        final int t2 = LD_R_R_T[z];
-                        return t1 > t2 ? t1 : t2;
                     }
+                    return;
                 case 2: // Operator on accumulator and register/memory location: alu[y] r[z]
                     alu[y].apply(r.r8[z].apply());
-                    return ALU_T[y];
+                    return;
                 case 3:
                     switch (z) {
                         case 0: // Conditional return: RET cc[y]
                             if (cc[y].apply()) {
                                 PC = pop();
-                                return 11;
-                            } else {
-                                return 5;
                             }
+                            cycleBudget -= 1;
+                            return;
                         case 1: // POP & various ops
                             switch (q) {
                                 case 0: // POP rp2[p]
                                     r.w216[p].apply(pop());
-                                    return 10;
+                                    return;
                                 case 1:
                                     switch (p) {
                                         case 0: // RET
                                             PC = pop();
-                                            return 10;
+                                            return;
                                         case 1: { // EXX
                                             {
                                                 final byte t = B;
@@ -1146,14 +1187,15 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                                 L = L2;
                                                 L2 = t;
                                             }
-                                            return 4;
+                                            return;
                                         }
                                         case 2: // JP (HL)
-                                            PC = HL();
-                                            return 4;
+                                            PC = r.r16[IDX_HL_IX_IY].apply();
+                                            return;
                                         case 3: // LD SP,HL
-                                            SP = HL();
-                                            return 6;
+                                            SP = r.r16[IDX_HL_IX_IY].apply();
+                                            cycleBudget -= 2;
+                                            return;
                                         default:
                                             throw new IllegalStateException();
                                     }
@@ -1165,15 +1207,16 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                             if (cc[y].apply()) {
                                 PC = nn;
                             }
-                            return 10;
+                            return;
                         }
                         case 3: // Assorted operations
                             switch (y) {
                                 case 0: // JP nn
                                     PC = read16();
-                                    return 10;
+                                    return;
                                 case 1: { // (CB prefix)
                                     opcode = read8();
+                                    cycleBudget -= 1;
                                     x = (opcode & 0b11000000) >>> 6;
                                     y = (opcode & 0b00111000) >>> 3;
                                     z = (opcode & 0b00000111);
@@ -1181,49 +1224,47 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                     switch (x) {
                                         case 0: // Roll/shift register or memory location: rot[y] r[z]
                                             r.rw8[z].apply(rot[y]);
-                                            return ROT_T[z];
+                                            return;
                                         case 1: // Test bit: BIT y,r[z]
                                             bit(y, r.r8[z].apply());
-                                            return BIT_T[z];
+                                            return;
                                         case 2: // Reset bit: RES y,r[z]
                                             r.rw8[z].apply(res[y]);
-                                            return RES_T[z];
+                                            return;
                                         case 3: // Set bit: SET y,r[z]
                                             r.rw8[z].apply(set[y]);
-                                            return SET_T[z];
+                                            return;
                                         default:
-                                            // "NOP"
-                                            return 4;
+                                            throw new IllegalStateException();
                                     }
                                 }
                                 case 2: // OUT (n),A
                                     ioWrite((short) (read8() & 0xFF), A);
-                                    return 11;
+                                    cycleBudget -= 4;
+                                    return;
                                 case 3: // IN A,(n)
                                     A = ioRead((short) (read8() & 0xFF));
-                                    return 11;
+                                    cycleBudget -= 4;
+                                    return;
                                 case 4: { // EX (SP), HL
-                                    final short t = HL();
-                                    HL(peek16(SP));
+                                    final short t = r.r16[IDX_HL_IX_IY].apply();
+                                    r.w16[IDX_HL_IX_IY].apply(peek16(SP));
                                     poke16(SP, t);
-                                    return 19;
+                                    cycleBudget -= 3;
+                                    return;
                                 }
                                 case 5: { // EX DE,HL
                                     final short t = DE();
                                     DE(HL());
                                     HL(t);
-                                    return 4;
+                                    return;
                                 }
                                 case 6: // DI
-                                    synchronized (interruptLock) {
-                                        IFF1 = IFF2 = false;
-                                    }
-                                    return 4;
+                                    IFF1 = IFF2 = false;
+                                    return;
                                 case 7: // EI
-                                    synchronized (interruptLock) {
-                                        IFF1 = IFF2 = true;
-                                    }
-                                    return 4;
+                                    IFF1 = IFF2 = true;
+                                    return;
                                 default:
                                     throw new IllegalStateException();
                             }
@@ -1232,29 +1273,31 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                             if (cc[y].apply()) {
                                 push(PC);
                                 PC = nn;
-                                return 17;
-                            } else {
-                                return 10;
+                                cycleBudget -= 1;
                             }
+                            return;
                         }
                         case 5: // PUSH & various ops
                             switch (q) {
                                 case 0: // PUSH rp2[p]
                                     push(r.r216[p].apply());
-                                    return 11;
+                                    cycleBudget -= 1;
+                                    return;
                                 case 1:
                                     switch (p) {
                                         case 0: { // CALL nn
                                             final short nn = read16();
                                             push(PC);
                                             PC = nn;
-                                            return 17;
+                                            cycleBudget -= 1;
+                                            return;
                                         }
                                         case 1: { // (DD prefix)
                                             parsingDD = true;
                                             opcode = read8();
+                                            cycleBudget -= 1;
+                                            if (cycleBudget <= 0) return;
                                             r = registersDD;
-                                            cycles -= 4;
                                             continue;
                                         }
                                         case 2: { // (ED prefix)
@@ -1270,85 +1313,78 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                                     switch (z) {
                                                         case 0: // Input from port with 16-bit address
                                                             // TODO
-                                                            return 0;
+                                                            return;
                                                         case 1: // Output to port with 16-bit address
                                                             // TODO
-                                                            return 0;
+                                                            return;
                                                         case 2: // 16-bit add/subtract with carry
                                                             switch (q) {
                                                                 case 0: // SBC HL,rp[p]
-                                                                    sbc16(r.r16[p].apply());
-                                                                    return 15;
+                                                                    r.w16[IDX_HL_IX_IY].apply(sbc16(r.r16[IDX_HL_IX_IY].apply(), r.r16[p].apply()));
+                                                                    cycleBudget -= 11;
+                                                                    return;
                                                                 case 1: // ADC HL,rp[p]
-                                                                    adc16(r.r16[p].apply());
-                                                                    return 15;
+                                                                    r.w16[IDX_HL_IX_IY].apply(adc16(r.r16[IDX_HL_IX_IY].apply(), r.r16[p].apply()));
+                                                                    cycleBudget -= 11;
+                                                                    return;
                                                                 default:
                                                                     throw new IllegalStateException();
                                                             }
                                                         case 3: // Retrieve/store register pair from/to immediate address
                                                             // TODO
-                                                            return 0;
+                                                            return;
                                                         case 4: // Negate accumulator
                                                             neg();
-                                                            return 8;
+                                                            return;
                                                         case 5: // Return from interrupt
                                                             switch (y) {
                                                                 case 1: // RETI
-                                                                    synchronized (interruptLock) {
-                                                                        PC = pop();
-                                                                        return 14;
-                                                                    }
+                                                                    PC = pop();
+                                                                    return;
                                                                 default: // RETN
-                                                                    synchronized (interruptLock) {
-                                                                        PC = pop();
-                                                                        IFF1 = IFF2;
-                                                                        return 14;
-                                                                    }
+                                                                    PC = pop();
+                                                                    IFF1 = IFF2;
+                                                                    return;
                                                             }
                                                         case 6: // Set interrupt mode: IM im[y]
-                                                            // TODO
-                                                            return 8;
+                                                            IM = im[y];
+                                                            return;
                                                         case 7: // Assorted ops
                                                             switch (y) {
                                                                 case 0: // LD I,A
                                                                     I = A;
-                                                                    return 9;
+                                                                    cycleBudget -= 1;
+                                                                    return;
                                                                 case 1: // LD R,A
                                                                     R = A;
-                                                                    return 9;
-                                                                case 2: // LD A,I
-                                                                    synchronized (interruptLock) {
-                                                                        A = I;
+                                                                    cycleBudget -= 1;
+                                                                    return;
+                                                                case 2:
+                                                                case 3: {
+                                                                    if (y == 2) A = I; // LD A,I
+                                                                    else A = R; // LD A,R
 
-                                                                        byte f = (byte) (F & FLAG_MASK_C);
-                                                                        f |= A & FLAG_MASK_S;
-                                                                        if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
-                                                                        if (IFF2) f |= FLAG_MASK_PV;
-                                                                        F = f;
+                                                                    byte f = (byte) (F & FLAG_MASK_C);
+                                                                    if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
+                                                                    else f |= A & FLAG_MASK_S;
+                                                                    if (IFF2) f |= FLAG_MASK_PV;
+                                                                    F = f;
 
-                                                                        return 9;
-                                                                    }
-                                                                case 3: // LD A,R
-                                                                    synchronized (interruptLock) {
-                                                                        A = R;
+                                                                    cycleBudget -= 1;
 
-                                                                        byte f = (byte) (F & FLAG_MASK_C);
-                                                                        f |= A & FLAG_MASK_S;
-                                                                        if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
-                                                                        if (IFF2) f |= FLAG_MASK_PV;
-                                                                        F = f;
-
-                                                                        return 9;
-                                                                    }
+                                                                    return;
+                                                                }
                                                                 case 4: // RRD
                                                                     rrd();
-                                                                    return 18;
+                                                                    cycleBudget -= 4;
+                                                                    return;
                                                                 case 5: // RLD
                                                                     rld();
-                                                                    return 18;
+                                                                    cycleBudget -= 4;
+                                                                    return;
                                                                 case 6:
                                                                 case 7: // NOP
-                                                                    return 4;
+                                                                    return;
                                                                 default:
                                                                     throw new IllegalStateException();
                                                             }
@@ -1362,13 +1398,13 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                                         case 2:
                                                         case 3: // Block instruction: bli[y,z]
                                                             // TODO
-                                                            return 0;
+                                                            return;
                                                         default: // NONI + NOP
-                                                            return 4;
+                                                            return;
                                                     }
                                                 case 0:
                                                 case 3: // NONI + NOP
-                                                    return 4;
+                                                    return;
                                                 default:
                                                     throw new IllegalStateException();
                                             }
@@ -1376,8 +1412,9 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                                         case 3: // (FD prefix)
                                             parsingFD = true;
                                             opcode = read8();
+                                            cycleBudget -= 1;
+                                            if (cycleBudget <= 0) return;
                                             r = registersFD;
-                                            cycles -= 4;
                                             continue;
                                         default:
                                             throw new IllegalStateException();
@@ -1387,11 +1424,12 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
                             }
                         case 6: // Operate on accumulator and immediate operand: alu[y] n
                             alu[y].apply(read8());
-                            return 7;
+                            return;
                         case 7: // Restart: RST y*8
                             push(PC);
                             PC = (short) (y * 8);
-                            return 11;
+                            cycleBudget -= 1;
+                            return;
                         default:
                             throw new IllegalStateException();
                     }
@@ -1404,6 +1442,10 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     // --------------------------------------------------------------------- //
     // Glorious lookup tables.
 
+    // Index of HL/IX/IY in 16-bit access tables.
+    private static final int IDX_HL_IX_IY = 2;
+
+    // Standard register access.
     private final RegisterAccess registers = new RegisterAccess(
             new ReadAccess8[]{this::B, this::C, this::D, this::E, this::H, this::L, this::peekHL, this::A},
             new WriteAccess8[]{this::B, this::C, this::D, this::E, this::H, this::L, this::pokeHL, this::A},
@@ -1413,6 +1455,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
             new ReadAccess16[]{this::BC, this::DE, this::HL, this::AF},
             new WriteAccess16[]{this::BC, this::DE, this::HL, this::AF});
 
+    // DD-prefixed register access.
     private final RegisterAccess registersDD = new RegisterAccess(
             new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::peekIXd, this::A},
             new WriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::pokeIXd, this::A},
@@ -1422,6 +1465,7 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
             new ReadAccess16[]{this::BC, this::DE, this::IX, this::AF},
             new WriteAccess16[]{this::BC, this::DE, this::IX, this::AF});
 
+    // FD-prefixed register access.
     private final RegisterAccess registersFD = new RegisterAccess(
             new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::peekIYd, this::A},
             new WriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::pokeIYd, this::A},
@@ -1441,23 +1485,9 @@ public class Z80 extends AbstractBusDevice implements InterruptSink {
     private final Transform[] res = new Transform[8];
     // Bit set
     private final Transform[] set = new Transform[8];
+    // Interrupt modes
+    private final InterruptMode[] im = {InterruptMode.MODE_0, InterruptMode.MODE_0, InterruptMode.MODE_1, InterruptMode.MODE_2, InterruptMode.MODE_0, InterruptMode.MODE_0, InterruptMode.MODE_1, InterruptMode.MODE_2};
 
-    // Timings for incrementing/decrementing 16-bit registers/memory.
-    private static final int[] INC_DEC_T = {4, 4, 4, 4, 4, 4, 11, 4};
-    // Timings for loading data into registers/memory.
-    private static final int[] LD_R_N_T = {7, 7, 7, 7, 7, 7, 10, 7};
-    // Timings for ALU operations based on register index.
-    private static final int[] ALU_T = {4, 4, 4, 4, 4, 4, 7, 4};
-    // Timings for copying data between registers/memory.
-    private static final int[] LD_R_R_T = ALU_T;
-    // Timings for bit set operations based on register index.
-    private static final int[] ROT_T = {8, 8, 8, 8, 8, 8, 15, 8};
-    // Timings for bit get operations based on register index.
-    private static final int[] BIT_T = {8, 8, 8, 8, 8, 8, 12, 8};
-    // Timings for bit reset operations based on register index.
-    private static final int[] RES_T = {8, 8, 8, 8, 8, 8, 15, 8};
-    // Timings for bit set operations based on register index.
-    private static final int[] SET_T = RES_T;
     // There is an overflow if the xor of the carry out and the carry of the
     // most significant bit is not zero.
     private static final int[] OVERFLOW_TABLE = {0, FLAG_MASK_PV, FLAG_MASK_PV, 0};
