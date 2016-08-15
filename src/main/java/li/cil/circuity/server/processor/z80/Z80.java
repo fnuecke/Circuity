@@ -883,32 +883,6 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return (byte) result;
     }
 
-    private void rld() {
-        final int uhl = peek8(HL()) & 0xFF, ua = A & 0xFF; // 0bHHHHLLLL, 0bAAAAaaaa
-        final int uahl = ((ua & 0xF0) << 8) | (uhl << 4) | (ua & 0x0F); // 0bAAAAHHHHLLLLaaaa
-        pokeHL((byte) uahl);
-        A = (byte) (uahl >>> 8);
-
-        byte f = (byte) (F & FLAG_MASK_C);
-        if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= A & FLAG_MASK_S;
-        f |= computeParity(A) << FLAG_SHIFT_PV;
-        F = f;
-    }
-
-    private void rrd() {
-        final int uhl = peek8(HL()) & 0xFF, ua = A & 0xFF; // 0bHHHHLLLL, 0bAAAAaaaa
-        final int uahl = ((ua & 0xF0) << 8) | ((uhl & 0x0F) << 8) | ((A & 0x0F) << 4) | (uhl >> 4); // 0bAAAALLLLaaaaHHHH
-        pokeHL((byte) uahl);
-        A = (byte) (uahl >>> 8);
-
-        byte f = (byte) (F & FLAG_MASK_C);
-        if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= A & FLAG_MASK_S;
-        f |= computeParity(A) << FLAG_SHIFT_PV;
-        F = f;
-    }
-
     private void daa() {
         // The following algorithm is from comp.sys.sinclair's FAQ.
         final int a = A & 0xFF;
@@ -1402,29 +1376,40 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                                                     R = A;
                                                                     cycleBudget -= 1;
                                                                     return;
-                                                                case 2:
-                                                                case 3: {
-                                                                    if (y == 2) A = I; // LD A,I
-                                                                    else A = R; // LD A,R
+                                                                case 2: // LD A,I
+                                                                case 3: { // LD A,R
+                                                                    if (y == 2) A = I;
+                                                                    else A = R;
+                                                                    cycleBudget -= 1;
 
                                                                     byte f = (byte) (F & FLAG_MASK_C);
                                                                     if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
                                                                     else f |= A & FLAG_MASK_S;
                                                                     if (IFF2) f |= FLAG_MASK_PV;
                                                                     F = f;
-
-                                                                    cycleBudget -= 1;
-
                                                                     return;
                                                                 }
                                                                 case 4: // RRD
-                                                                    rrd();
+                                                                case 5: { // RLD
+                                                                    final int uhl = peek8(HL()) & 0xFF, ua = A & 0xFF; // 0bHHHHLLLL, 0bAAAAaaaa
+                                                                    final int uahl;
+                                                                    if (y == 4) {
+                                                                        uahl = ((ua & 0xF0) << 8) | ((uhl & 0x0F) << 8) | ((A & 0x0F) << 4) | (uhl >> 4); // 0bAAAALLLLaaaaHHHH
+                                                                    } else {
+                                                                        uahl = ((ua & 0xF0) << 8) | (uhl << 4) | (ua & 0x0F); // 0bAAAAHHHHLLLLaaaa
+                                                                    }
                                                                     cycleBudget -= 4;
+
+                                                                    pokeHL((byte) uahl);
+                                                                    A = (byte) (uahl >>> 8);
+
+                                                                    byte f = (byte) (F & FLAG_MASK_C);
+                                                                    if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
+                                                                    else f |= A & FLAG_MASK_S;
+                                                                    f |= computeParity(A) << FLAG_SHIFT_PV;
+                                                                    F = f;
                                                                     return;
-                                                                case 5: // RLD
-                                                                    rld();
-                                                                    cycleBudget -= 4;
-                                                                    return;
+                                                                }
                                                                 case 6:
                                                                 case 7: // NOP
                                                                     return;
