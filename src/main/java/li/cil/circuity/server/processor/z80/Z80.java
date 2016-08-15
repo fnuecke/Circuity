@@ -753,7 +753,6 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         carry &= 0b1_10000000;
         f |= OVERFLOW_TABLE[carry >>> 7];
         f |= carry >>> (8 - FLAG_SHIFT_C);
-
         F = f;
     }
 
@@ -797,8 +796,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
         else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-        F = f;
 
+        F = f;
         return (byte) result;
     }
 
@@ -811,8 +810,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
         else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-        F = f;
 
+        F = f;
         return (byte) result;
     }
 
@@ -825,8 +824,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
         else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-        F = f;
 
+        F = f;
         return (byte) result;
     }
 
@@ -839,8 +838,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
         else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-        F = f;
 
+        F = f;
         return (byte) result;
     }
 
@@ -853,8 +852,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
         else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-        F = f;
 
+        F = f;
         return (byte) result;
     }
 
@@ -867,8 +866,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
         else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-        F = f;
 
+        F = f;
         return (byte) result;
     }
 
@@ -881,13 +880,12 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
         else f |= result & FLAG_MASK_S;
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-        F = f;
 
+        F = f;
         return (byte) result;
     }
 
     private void daa() {
-        // The following algorithm is from comp.sys.sinclair's FAQ.
         final int a = A & 0xFF;
         final int c;
         int d;
@@ -919,8 +917,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         byte f = (byte) (F & FLAG_MASK_SZPV);
         f |= (carry >>> 8) & FLAG_MASK_H;
         f |= carry >>> (16 - FLAG_SHIFT_C);
-        F = f;
 
+        F = f;
         return (short) result;
     }
 
@@ -935,8 +933,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         f |= (carry >>> 8) & FLAG_MASK_H;
         f |= OVERFLOW_TABLE[carry >>> 15];
         f |= result >>> (16 - FLAG_SHIFT_C);
-        F = f;
 
+        F = f;
         return (short) result;
     }
 
@@ -952,8 +950,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         carry &= 0b1_10000000_00000000;
         f |= OVERFLOW_TABLE[carry >>> 15];
         f |= carry >>> (16 - FLAG_SHIFT_C);
-        F = f;
 
+        F = f;
         return (short) result;
     }
 
@@ -996,7 +994,21 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void cpx(final int d) {
-        // TODO
+        final int ul = A & 0xFF, ur = peek8(HL()) & 0xFF;
+        final int result = ul - ur;
+        final int carry = ul ^ ur ^ result;
+
+        HL((short) (HL() + d));
+        BC((short) (BC() - 1));
+
+        byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
+        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
+        f |= carry & FLAG_MASK_H;
+        if (BC() != 0) f |= FLAG_MASK_PV;
+        F = f;
+
+        cycleBudget -= 5;
     }
 
     private void ini() {
