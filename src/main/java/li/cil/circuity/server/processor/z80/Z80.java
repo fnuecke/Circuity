@@ -7,6 +7,7 @@ import li.cil.lib.api.serialization.Serialize;
 
 import javax.annotation.Nullable;
 
+// http://www.zilog.com/manage_directlink.php?filepath=docs/z80/um0080
 // Opcode decoding based on http://www.z80.info/decoding.htm
 // Flag computation based on https://github.com/anotherlin/z80emu/
 
@@ -1040,7 +1041,15 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void outx(final int d) {
-        // TODO
+        ioWrite(BC(), peekHL());
+        B--;
+        HL((short) (HL() + d));
+
+        byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
+        if (B == 0) f |= FLAG_MASK_Z;
+        F = f;
+
+        cycleBudget -= 1;
     }
 
     private void ldir() {
