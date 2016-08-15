@@ -28,6 +28,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     private static final int FLAG_MASK_Z = 1 << FLAG_SHIFT_Z;
     private static final int FLAG_MASK_S = 1 << FLAG_SHIFT_S;
     private static final int FLAG_MASK_SZPV = FLAG_MASK_S | FLAG_MASK_Z | FLAG_MASK_PV;
+    private static final int FLAG_MASK_SZC = FLAG_MASK_S | FLAG_MASK_Z | FLAG_MASK_C;
 
     // --------------------------------------------------------------------- //
 
@@ -979,11 +980,11 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         HL((short) (HL() + d));
         BC((short) (BC() - 1));
 
+        cycleBudget -= 2;
+
         byte f = (byte) (F & FLAG_MASK_SZPV);
         if (BC() != 0) f |= FLAG_MASK_PV;
         F = f;
-
-        cycleBudget -= 2;
     }
 
     private void cpi() {
@@ -1061,7 +1062,19 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void ldxr(final int d) {
-        // TODO
+        poke8(DE(), peekHL());
+        DE((short) (DE() + d));
+        HL((short) (HL() + d));
+        BC((short) (BC() - 1));
+
+        cycleBudget -= 2;
+
+        F &= FLAG_MASK_SZC;
+
+        if (BC() != 0) {
+            PC -= 2;
+            cycleBudget -= 5;
+        }
     }
 
     private void cpir() {
@@ -1073,7 +1086,28 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void cpxr(final int d) {
-        // TODO
+        final int ul = A & 0xFF, ur = peekHL() & 0xFF;
+        final int result = ul - ur;
+        final int carry = ul ^ ur ^ result;
+
+        HL((short) (HL() + d));
+        BC((short) (BC() - 1));
+
+        final boolean bcNonZero = BC() != 0;
+        final boolean areEqual = (result & 0xFF) == 0;
+        byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
+        if (areEqual) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
+        f |= carry & FLAG_MASK_H;
+        if (bcNonZero) f |= FLAG_MASK_PV;
+        F = f;
+
+        cycleBudget -= 5;
+
+        if (bcNonZero && !areEqual) {
+            PC -= 2;
+            cycleBudget -= 5;
+        }
     }
 
     private void inir() {
