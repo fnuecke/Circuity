@@ -1348,8 +1348,16 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                                                     throw new IllegalStateException();
                                                             }
                                                         case 3: // Retrieve/store register pair from/to immediate address
-                                                            // TODO
-                                                            return;
+                                                            switch (q) {
+                                                                case 0: // LD (nn),rp[p]
+                                                                    poke16(read16(), r.r16[p].apply());
+                                                                    return;
+                                                                case 1: // LD rp[p],(nn)
+                                                                    r.w16[p].apply(peek16(read16()));
+                                                                    return;
+                                                                default:
+                                                                    throw new IllegalStateException();
+                                                            }
                                                         case 4: // Negate accumulator
                                                             neg();
                                                             return;
