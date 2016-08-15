@@ -967,66 +967,98 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     // Block instructions
 
     private void ldi() {
-        // TODO
+        ldx(1);
     }
 
     private void ldd() {
+        ldx(-1);
+    }
+
+    private void ldx(final int d) {
         // TODO
     }
 
     private void cpi() {
+        cpx(1);
+    }
+
+    private void cpd() {
+        cpx(-1);
+    }
+
+    private void cpx(final int d) {
         // TODO
     }
 
     private void ini() {
+        inx(1);
+    }
+
+    private void ind() {
+        inx(-1);
+    }
+
+    private void inx(final int d) {
         // TODO
     }
 
     private void outi() {
-        // TODO
-    }
-
-    private void cpd() {
-        // TODO
-    }
-
-    private void ind() {
-        // TODO
+        outx(1);
     }
 
     private void outd() {
+        outx(-1);
+    }
+
+    private void outx(final int d) {
         // TODO
     }
 
     private void ldir() {
+        ldxr(1);
+    }
+
+    private void lddr() {
+        ldxr(-1);
+    }
+
+    private void ldxr(final int d) {
         // TODO
     }
 
     private void cpir() {
+        cpxr(1);
+    }
+
+    private void cpdr() {
+        cpxr(-1);
+    }
+
+    private void cpxr(final int d) {
         // TODO
     }
 
     private void inir() {
+        inxr(1);
+    }
+
+    private void indr() {
+        inxr(-1);
+    }
+
+    private void inxr(final int d) {
         // TODO
     }
 
     private void otir() {
-        // TODO
-    }
-
-    private void lddr() {
-        // TODO
-    }
-
-    private void cpdr() {
-        // TODO
-    }
-
-    private void indr() {
-        // TODO
+        otxr(1);
     }
 
     private void otdr() {
+        otxr(-1);
+    }
+
+    private void otxr(final int d) {
         // TODO
     }
 
