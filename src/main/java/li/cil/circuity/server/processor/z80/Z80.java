@@ -6,6 +6,7 @@ import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Array;
 
 // http://www.zilog.com/manage_directlink.php?filepath=docs/z80/um0080
 // Opcode decoding based on http://www.z80.info/decoding.htm
@@ -131,16 +132,13 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
             // Don't allow saving up cycles.
             if (status == Status.HALTED) return false;
             cycleBudget += cycles;
-        }
-        for (; ; ) {
-            // Lock each iteration individually to allow interrupts to... interrupt.
-            synchronized (lock) {
-                if (status == Status.HALTED) return false;
-                if (cycleBudget <= 0) return true;
+            for (; ; ) {
                 R = (byte) ((R & 0b10000000) | ((R + 1) & 0b01111111));
                 final byte opcode = read8();
                 cycleBudget -= 1;
                 execute(opcode);
+                if (status == Status.HALTED) return false;
+                if (cycleBudget <= 0) return true;
             }
         }
     }
@@ -1749,29 +1747,29 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
 
     // DD-prefixed register access.
     private final RegisterAccess registersDD = new RegisterAccess(
-            new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::peekIXd, this::A},
-            new IndirectWriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::pokeIXd, this::A},
-            new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::indirectIXd, this::A},
-            new ReadAccess16[]{this::BC, this::DE, this::IX, this::SP},
-            new WriteAccess16[]{this::BC, this::DE, this::IX, this::SP},
-            new ReadAccess16[]{this::BC, this::DE, this::IX, this::AF},
-            new WriteAccess16[]{this::BC, this::DE, this::IX, this::AF});
+            withReplacements8(ReadAccess8.class, registers.r8, this::IXH, this::IXL, this::peekIXd),
+            withReplacements8(IndirectWriteAccess8.class, registers.w8, this::IXH, this::IXL, this::pokeIXd),
+            withReplacements8(ReadWriteAccess8.class, registers.rw8, this::IXH, this::IXL, this::indirectIXd),
+            withReplacements16(ReadAccess16.class, registers.r16, this::IX),
+            withReplacements16(WriteAccess16.class, registers.w16, this::IX),
+            withReplacements16(ReadAccess16.class, registers.r216, this::IX),
+            withReplacements16(WriteAccess16.class, registers.w216, this::IX));
 
     // FD-prefixed register access.
     private final RegisterAccess registersFD = new RegisterAccess(
-            new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::peekIYd, this::A},
-            new IndirectWriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::pokeIYd, this::A},
-            new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::indirectIYd, this::A},
-            new ReadAccess16[]{this::BC, this::DE, this::IY, this::SP},
-            new WriteAccess16[]{this::BC, this::DE, this::IY, this::SP},
-            new ReadAccess16[]{this::BC, this::DE, this::IY, this::AF},
-            new WriteAccess16[]{this::BC, this::DE, this::IY, this::AF});
+            withReplacements8(ReadAccess8.class, registers.r8, this::IYH, this::IYL, this::peekIYd),
+            withReplacements8(IndirectWriteAccess8.class, registers.w8, this::IYH, this::IYL, this::pokeIYd),
+            withReplacements8(ReadWriteAccess8.class, registers.rw8, this::IYH, this::IYL, this::indirectIYd),
+            withReplacements16(ReadAccess16.class, registers.r16, this::IY),
+            withReplacements16(WriteAccess16.class, registers.w16, this::IY),
+            withReplacements16(ReadAccess16.class, registers.r216, this::IY),
+            withReplacements16(WriteAccess16.class, registers.w216, this::IY));
 
     // DDCB-prefixed register access.
     private final RegisterAccess registersDDCB = new RegisterAccess(
-            new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::peekIXdCB, this::A},
-            new IndirectWriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::pokeIXdCB, this::A},
-            new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::indirectIXdCB, this::A},
+            withReplacements8(ReadAccess8.class, registersDD.r8, this::peekIXdCB),
+            withReplacements8(IndirectWriteAccess8.class, registersDD.w8, this::pokeIXdCB),
+            withReplacements8(ReadWriteAccess8.class, registersDD.rw8, this::indirectIXdCB),
             registersDD.r16,
             registersDD.w16,
             registersDD.r216,
@@ -1779,9 +1777,9 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
 
     // FDCB-prefixed register access.
     private final RegisterAccess registersFDCB = new RegisterAccess(
-            new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::peekIYdCB, this::A},
-            new IndirectWriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::pokeIYdCB, this::A},
-            new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::indirectIYdCB, this::A},
+            withReplacements8(ReadAccess8.class, registersFD.r8, this::peekIYdCB),
+            withReplacements8(IndirectWriteAccess8.class, registersFD.w8, this::pokeIYdCB),
+            withReplacements8(ReadWriteAccess8.class, registersFD.rw8, this::indirectIYdCB),
             registersFD.r16,
             registersFD.w16,
             registersFD.r216,
@@ -1810,6 +1808,35 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     // There is an overflow if the xor of the carry out and the carry of the
     // most significant bit is not zero.
     private static final int[] OVERFLOW_TABLE = {0, FLAG_MASK_PV, FLAG_MASK_PV, 0};
+
+    // --------------------------------------------------------------------- //
+    // Helpers for constructing register access tables reusing lambdas.
+
+    @SuppressWarnings("unchecked")
+    private static <T> T[] withReplacements8(final Class<T> clazz, final T[] source, final T h, final T l, final T indirectHL) {
+        final T[] result = (T[]) Array.newInstance(clazz, source.length);
+        System.arraycopy(source, 0, result, 0, source.length);
+        result[4] = h;
+        result[5] = l;
+        result[6] = indirectHL;
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T[] withReplacements8(final Class<T> clazz, final T[] source, final T indirectHL) {
+        final T[] result = (T[]) Array.newInstance(clazz, source.length);
+        System.arraycopy(source, 0, result, 0, source.length);
+        result[6] = indirectHL;
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T> T[] withReplacements16(final Class<T> clazz, final T[] source, final T hl) {
+        final T[] result = (T[]) Array.newInstance(clazz, source.length);
+        System.arraycopy(source, 0, result, 0, source.length);
+        result[2] = hl;
+        return result;
+    }
 
     // --------------------------------------------------------------------- //
     // Functional interfaces for lookup tables.
