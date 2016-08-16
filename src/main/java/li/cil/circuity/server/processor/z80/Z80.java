@@ -14,6 +14,9 @@ import java.lang.reflect.Array;
 
 @Serializable
 public final class Z80 extends AbstractBusDevice implements InterruptSink {
+    // --------------------------------------------------------------------- //
+    // Flag register bit indices and masks
+
     private static final int FLAG_SHIFT_C = 0;
     private static final int FLAG_SHIFT_N = 1;
     private static final int FLAG_SHIFT_PV = 2;
@@ -33,10 +36,24 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
 
     // --------------------------------------------------------------------- //
 
+    /**
+     * Current CPU status.
+     * <p>
+     * Most notably, this indicates whether the CPU is currently halted, which
+     * makes the halted state more efficient (by not busy idling). But this also
+     * tracks current internal state during regular operations, such as when
+     * parsing multi-byte opcodes (during which no interrupts may occur).
+     */
     @Serialize
     private Status status;
+
+    /**
+     * The number of cycles the CPU may still use up before it has to yield.
+     * In particular, this is allowed to underflow, which will be compensated
+     * in the next call to {@link #run(int)}.
+     */
     @Serialize
-    private int cycleBudget = 0;
+    private int cycleBudget;
 
     @Serialize
     private byte B, C, D, E, H, L, A, F;
@@ -160,7 +177,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
      */
     public boolean irq(final byte data) {
         synchronized (lock) {
-            if (!IFF1 || status == Status.PARSING_DD || status == Status.PARSING_FD) return false;
+            if (!IFF1 || !status.allowInterrupts) return false;
             status = Status.RUNNING;
 
             IFF1 = IFF2 = false;
@@ -202,7 +219,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
      */
     public void nmi() {
         synchronized (lock) {
-            if (status == Status.PARSING_DD || status == Status.PARSING_FD) return;
+            if (!status.allowInterrupts) return;
             status = Status.RUNNING;
 
 //            IFF2 = IFF1;
@@ -900,30 +917,6 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return (byte) result;
     }
 
-    private void daa() {
-        final int a = A & 0xFF;
-        final int c;
-        int d;
-        if (a > 0x99 || FLAG_C()) {
-            c = FLAG_MASK_C;
-            d = 0x60;
-        } else
-            c = d = 0;
-
-        if ((a & 0x0f) > 0x09 || FLAG_H())
-            d += 0x06;
-        A += FLAG_N() ? -d : +d;
-
-        byte f = 0;
-        if (A == 0) f |= FLAG_MASK_Z;
-        else f |= A & FLAG_MASK_S;
-        f |= computeParity(A) << FLAG_SHIFT_PV;
-        f |= ((A ^ a) & FLAG_MASK_H);
-        f |= (F & FLAG_MASK_N);
-        f |= c;
-        F = f;
-    }
-
     private short add16(final short value, final int rhs) {
         final int ul = value & 0xFFFF, ur = rhs & 0xFFFF;
         final int result = ul + ur;
@@ -1206,16 +1199,12 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                 case 0: // NOP
                                     return;
                                 case 1: { // EX AF,AF'
-                                    {
-                                        final byte t = A;
-                                        A = A2;
-                                        A2 = t;
-                                    }
-                                    {
-                                        final byte t = F;
-                                        F = F2;
-                                        F2 = t;
-                                    }
+                                    byte t = A;
+                                    A = A2;
+                                    A2 = t;
+                                    t = F;
+                                    F = F2;
+                                    F2 = t;
                                     return;
                                 }
                                 case 2: { // DJNZ e
@@ -1348,9 +1337,31 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                     F = (byte) ((F & FLAG_MASK_SZPV) | carry);
                                     return;
                                 }
-                                case 4: // DAA
-                                    daa();
+                                case 4: { // DAA
+                                    final int a = A & 0xFF;
+                                    final int c;
+                                    int d;
+                                    if (a > 0x99 || FLAG_C()) {
+                                        c = FLAG_MASK_C;
+                                        d = 0x60;
+                                    } else {
+                                        c = d = 0;
+                                    }
+
+                                    if ((a & 0x0f) > 0x09 || FLAG_H())
+                                        d += 0x06;
+                                    A += FLAG_N() ? -d : +d;
+
+                                    byte f = 0;
+                                    if (A == 0) f |= FLAG_MASK_Z;
+                                    else f |= A & FLAG_MASK_S;
+                                    f |= computeParity(A) << FLAG_SHIFT_PV;
+                                    f |= ((A ^ a) & FLAG_MASK_H);
+                                    f |= (F & FLAG_MASK_N);
+                                    f |= c;
+                                    F = f;
                                     return;
+                                }
                                 case 5: // CPL
                                     A = (byte) ~A;
                                     F |= FLAG_MASK_H | FLAG_MASK_N;
@@ -1406,36 +1417,24 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                             PC = pop();
                                             return;
                                         case 1: { // EXX
-                                            {
-                                                final byte t = B;
-                                                B = B2;
-                                                B2 = t;
-                                            }
-                                            {
-                                                final byte t = C;
-                                                C = C2;
-                                                C2 = t;
-                                            }
-                                            {
-                                                final byte t = D;
-                                                D = D2;
-                                                D2 = t;
-                                            }
-                                            {
-                                                final byte t = E;
-                                                E = E2;
-                                                E2 = t;
-                                            }
-                                            {
-                                                final byte t = H;
-                                                H = H2;
-                                                H2 = t;
-                                            }
-                                            {
-                                                final byte t = L;
-                                                L = L2;
-                                                L2 = t;
-                                            }
+                                            byte t = B;
+                                            B = B2;
+                                            B2 = t;
+                                            t = C;
+                                            C = C2;
+                                            C2 = t;
+                                            t = D;
+                                            D = D2;
+                                            D2 = t;
+                                            t = E;
+                                            E = E2;
+                                            E2 = t;
+                                            t = H;
+                                            H = H2;
+                                            H2 = t;
+                                            t = L;
+                                            L = L2;
+                                            L2 = t;
                                             return;
                                         }
                                         case 2: // JP (HL)
@@ -1516,9 +1515,11 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                 }
                                 case 6: // DI
                                     IFF1 = IFF2 = false;
+                                    status = Status.AFTER_EI_DI;
                                     return;
                                 case 7: // EI
                                     IFF1 = IFF2 = true;
+                                    status = Status.AFTER_EI_DI;
                                     return;
                                 default:
                                     throw new IllegalStateException();
@@ -1914,10 +1915,39 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private enum Status {
-        RUNNING,
-        HALTED,
-        PARSING_DD,
-        PARSING_FD
+        /**
+         * CPU is running and operating regularly.
+         */
+        RUNNING(true),
+
+        /**
+         * CPU is halted, i.e. run() does nothing and simply returns.
+         */
+        HALTED(true),
+
+        /**
+         * Currently parsing a DD-prefixed instruction.
+         */
+        PARSING_DD(false),
+
+        /**
+         * Currently parsing a FD-prefixed instruction.
+         */
+        PARSING_FD(false),
+
+        /**
+         * Last instruction processed was EI or DI.
+         */
+        AFTER_EI_DI(false);
+
+        /**
+         * Whether interrupts are accepted in the current state.
+         */
+        public final boolean allowInterrupts;
+
+        Status(final boolean allowInterrupts) {
+            this.allowInterrupts = allowInterrupts;
+        }
     }
 
     private enum InterruptMode {
