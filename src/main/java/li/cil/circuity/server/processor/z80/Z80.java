@@ -238,8 +238,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return B;
     }
 
-    private void B(final byte value) {
-        B = value;
+    private void B(final ReadAccess8 value) {
+        B = value.apply();
     }
 
     private void B(final Transform transform) {
@@ -250,8 +250,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return C;
     }
 
-    private void C(final byte value) {
-        C = value;
+    private void C(final ReadAccess8 value) {
+        C = value.apply();
     }
 
     private void C(final Transform transform) {
@@ -262,8 +262,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return D;
     }
 
-    private void D(final byte value) {
-        D = value;
+    private void D(final ReadAccess8 value) {
+        D = value.apply();
     }
 
     private void D(final Transform transform) {
@@ -274,8 +274,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return E;
     }
 
-    private void E(final byte value) {
-        E = value;
+    private void E(final ReadAccess8 value) {
+        E = value.apply();
     }
 
     private void E(final Transform transform) {
@@ -286,8 +286,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return H;
     }
 
-    private void H(final byte value) {
-        H = value;
+    private void H(final ReadAccess8 value) {
+        H = value.apply();
     }
 
     private void H(final Transform transform) {
@@ -298,8 +298,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return L;
     }
 
-    private void L(final byte value) {
-        L = value;
+    private void L(final ReadAccess8 value) {
+        L = value.apply();
     }
 
     private void L(final Transform transform) {
@@ -310,8 +310,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return A;
     }
 
-    private void A(final byte value) {
-        A = value;
+    private void A(final ReadAccess8 value) {
+        A = value.apply();
     }
 
     private void A(final Transform transform) {
@@ -322,8 +322,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return IXH;
     }
 
-    private void IXH(final byte value) {
-        IXH = value;
+    private void IXH(final ReadAccess8 value) {
+        IXH = value.apply();
     }
 
     private void IXH(final Transform transform) {
@@ -334,8 +334,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return IXL;
     }
 
-    private void IXL(final byte value) {
-        IXL = value;
+    private void IXL(final ReadAccess8 value) {
+        IXL = value.apply();
     }
 
     private void IXL(final Transform transform) {
@@ -346,8 +346,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return IYH;
     }
 
-    private void IYH(final byte value) {
-        IYH = value;
+    private void IYH(final ReadAccess8 value) {
+        IYH = value.apply();
     }
 
     private void IYH(final Transform transform) {
@@ -358,8 +358,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return IYL;
     }
 
-    private void IYL(final byte value) {
-        IYL = value;
+    private void IYL(final ReadAccess8 value) {
+        IYL = value.apply();
     }
 
     private void IYL(final Transform transform) {
@@ -511,8 +511,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         return peek8(HL());
     }
 
-    private void pokeHL(final byte value) {
-        poke8(HL(), value);
+    private void pokeHL(final ReadAccess8 value) {
+        poke8(HL(), value.apply());
     }
 
     private void indirectHL(final Transform transform) {
@@ -522,36 +522,78 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private byte peekIXd() {
-        final byte d = read8();
-        return peek8((short) (IX() + d));
+        final int uix = IX() & 0xFFFF, ud = read8() & 0xFFFF;
+        cycleBudget -= 5;
+        return peek8((short) (uix + ud));
     }
 
-    private void pokeIXd(final byte value) {
-        final byte d = read8();
-        poke8((short) (IX() + d), value);
+    private void pokeIXd(final ReadAccess8 value) {
+        final int uix = IX() & 0xFFFF, ud = read8() & 0xFFFF;
+        cycleBudget -= 5;
+        poke8((short) (uix + ud), value.apply());
     }
 
     private void indirectIXd(final Transform transform) {
-        final byte d = read8();
-        final short a = (short) (IX() + d);
+        final int uix = IX() & 0xFFFF, ud = read8() & 0xFFFF;
+        final short a = (short) (uix + ud);
         cycleBudget -= 5;
         poke8(a, transform.apply(peek8(a)));
     }
 
     private byte peekIYd() {
-        final byte d = read8();
-        return peek8((short) (IY() + d));
+        final int uiy = IY() & 0xFFFF, ud = read8() & 0xFFFF;
+        cycleBudget -= 5;
+        return peek8((short) (uiy + ud));
     }
 
-    private void pokeIYd(final byte value) {
-        final byte d = read8();
-        poke8((short) (IY() + d), value);
+    private void pokeIYd(final ReadAccess8 value) {
+        final int uiy = IY() & 0xFFFF, ud = read8() & 0xFFFF;
+        cycleBudget -= 5;
+        poke8((short) (uiy + ud), value.apply());
     }
 
     private void indirectIYd(final Transform transform) {
-        final byte d = read8();
-        final short a = (short) (IY() + d);
+        final int uiy = IY() & 0xFFFF, ud = read8() & 0xFFFF;
+        final short a = (short) (uiy + ud);
         cycleBudget -= 5;
+        poke8(a, transform.apply(peek8(a)));
+    }
+
+    private byte peekIXdCB() {
+        final int uix = IX() & 0xFFFF, ud = peek8((short) (PC - 2)) & 0xFFFF;
+        cycleBudget -= 2;
+        return peek8((short) (uix + ud));
+    }
+
+    private void pokeIXdCB(final ReadAccess8 value) {
+        final int uix = IX() & 0xFFFF, ud = peek8((short) (PC - 2)) & 0xFFFF;
+        cycleBudget -= 2;
+        poke8((short) (uix + ud), value.apply());
+    }
+
+    private void indirectIXdCB(final Transform transform) {
+        final int uix = IX() & 0xFFFF, ud = peek8((short) (PC - 2)) & 0xFFFF;
+        final short a = (short) (uix + ud);
+        cycleBudget -= 2;
+        poke8(a, transform.apply(peek8(a)));
+    }
+
+    private byte peekIYdCB() {
+        final int uiy = IY() & 0xFFFF, ud = peek8((short) (PC - 2)) & 0xFFFF;
+        cycleBudget -= 2;
+        return peek8((short) (uiy + ud));
+    }
+
+    private void pokeIYdCB(final ReadAccess8 value) {
+        final int uiy = IY() & 0xFFFF, ud = peek8((short) (PC - 2)) & 0xFFFF;
+        cycleBudget -= 2;
+        poke8((short) (uiy + ud), value.apply());
+    }
+
+    private void indirectIYdCB(final Transform transform) {
+        final int uiy = IY() & 0xFFFF, ud = peek8((short) (PC - 2)) & 0xFFFF;
+        final short a = (short) (uiy + ud);
+        cycleBudget -= 2;
         poke8(a, transform.apply(peek8(a)));
     }
 
@@ -565,6 +607,10 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     private void ioWrite(final short port, final byte data) {
         cycleBudget -= 4;
         controller.mapAndWrite(0x10000 + (port & 0xFFFF), data & 0xFF);
+    }
+
+    private byte ioRead() {
+        return ioRead(BC());
     }
 
     // Control
@@ -584,9 +630,9 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
 
     private void bit(final int bit, final byte value) {
         final int u = value & 0xFF;
-        final int s = (u >>> bit) & 1;
-        F &= ~FLAG_MASK_Z;
-        F |= s << FLAG_SHIFT_Z;
+        final int z = 1 - ((u >>> bit) & 1);
+        F = (byte) (FLAG_MASK_H | (F & FLAG_MASK_C));
+        F |= z << FLAG_SHIFT_Z;
     }
 
     private static byte res(final int bit, final byte value) {
@@ -762,7 +808,12 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         final byte carry = (byte) (a & 1);
         final int result = (a >>> 1) | ((F & FLAG_MASK_C) << 7);
 
-        F = (byte) ((F & FLAG_MASK_SZPV) | carry);
+        byte f = carry;
+        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
+        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
+
+        F = f;
         return (byte) result;
     }
 
@@ -771,7 +822,12 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         final byte carry = (byte) (a & 1);
         final int result = (a >>> 1) | (carry << 7);
 
-        F = (byte) ((F & FLAG_MASK_SZPV) | carry);
+        byte f = carry;
+        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
+        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
+
+        F = f;
         return (byte) result;
     }
 
@@ -780,7 +836,12 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         final byte carry = (byte) (a >>> 7);
         final int result = (a << 1) | (F & FLAG_MASK_C);
 
-        F = (byte) ((F & FLAG_MASK_SZPV) | carry);
+        byte f = carry;
+        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
+        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
+
+        F = f;
         return (byte) result;
     }
 
@@ -789,7 +850,12 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         final byte carry = (byte) (a >>> 7);
         final int result = (a << 1) | carry;
 
-        F = (byte) ((F & FLAG_MASK_SZPV) | carry);
+        byte f = carry;
+        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
+        else f |= result & FLAG_MASK_S;
+        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
+
+        F = f;
         return (byte) result;
     }
 
@@ -822,9 +888,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private byte sra(final byte value) {
-        final int u = value & 0xFF;
-        final byte carry = (byte) (u & 1);
-        final int result = u >> 1;
+        final byte carry = (byte) (value & 1);
+        final int result = value >> 1;
 
         byte f = carry;
         if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
@@ -944,7 +1009,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
 
         cycleBudget -= 2;
 
-        byte f = (byte) (F & FLAG_MASK_SZPV);
+        byte f = (byte) (F & FLAG_MASK_SZC);
         if (BC() != 0) f |= FLAG_MASK_PV;
         F = f;
     }
@@ -984,7 +1049,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void inx(final int d) {
-        pokeHL(ioRead(BC()));
+        pokeHL(this::ioRead);
         HL((short) (HL() + d));
         B--;
 
@@ -1081,7 +1146,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     private void inxr(final int d) {
-        pokeHL(ioRead(BC()));
+        pokeHL(this::ioRead);
         HL((short) (HL() + d));
         B--;
 
@@ -1265,22 +1330,38 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                             r.rw8[y].apply(this::dec);
                             return;
                         case 6: // 8-bit load immediate: LD r[y],n
-                            r.w8[y].apply(read8());
+                            r.w8[y].apply(this::read8);
                             return;
                         case 7: // Assorted operations or accumulator/flags
                             switch (y) {
-                                case 0: // RLCA
-                                    A = rlc(A);
+                                case 0: { // RLCA
+                                    final int ua = A & 0xFF;
+                                    final byte carry = (byte) (ua >>> 7);
+                                    A = (byte) ((ua << 1) | carry);
+                                    F = (byte) ((F & FLAG_MASK_SZPV) | carry);
                                     return;
-                                case 1: // RRCA
-                                    A = rrc(A);
+                                }
+                                case 1: { // RRCA
+                                    final int ua = A & 0xFF;
+                                    final byte carry = (byte) (ua & 1);
+                                    A = (byte) ((ua >>> 1) | (carry << 7));
+                                    F = (byte) ((F & FLAG_MASK_SZPV) | carry);
                                     return;
-                                case 2: // RLA
-                                    A = rl(A);
+                                }
+                                case 2: { // RLA
+                                    final int ua = A & 0xFF;
+                                    final byte carry = (byte) (ua >>> 7);
+                                    A = (byte) ((ua << 1) | (F & FLAG_MASK_C));
+                                    F = (byte) ((F & FLAG_MASK_SZPV) | carry);
                                     return;
-                                case 3: // RRA
-                                    A = rr(A);
+                                }
+                                case 3: { // RRA
+                                    final int ua = A & 0xFF;
+                                    final byte carry = (byte) (ua & 1);
+                                    A = (byte) ((ua >>> 1) | ((F & FLAG_MASK_C) << 7));
+                                    F = (byte) ((F & FLAG_MASK_SZPV) | carry);
                                     return;
+                                }
                                 case 4: // DAA
                                     daa();
                                     return;
@@ -1294,7 +1375,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                     return;
                                 case 7: { // CCF
                                     final int carry = F & FLAG_MASK_C;
-                                    F &= ~FLAG_MASK_H & ~FLAG_MASK_C;
+                                    F &= FLAG_MASK_SZPV;
                                     F |= carry << FLAG_SHIFT_H;
                                     F |= carry ^ FLAG_MASK_C;
                                     return;
@@ -1309,8 +1390,12 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                     if (z == 6 && y == 6) { // Exception (replaces LD (HL),(HL)): HALT
                         status = Status.HALTED;
                         PC -= 1;
+                    } else if (y == 6) { // 8-bit loading: LD (HL),r[z]
+                        r.w8[y].apply(registers.r8[z]);
+                    } else if (z == 6) { // 8-bit loading: LD r[y],(HL)
+                        registers.w8[y].apply(r.r8[z]);
                     } else { // 8-bit loading: LD r[y],r[z]
-                        r.w8[y].apply(r.r8[z].apply());
+                        r.w8[y].apply(r.r8[z]);
                     }
                     return;
                 case 2: // Operator on accumulator and register/memory location: alu[y] r[z]
@@ -1393,6 +1478,14 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                     PC = read16();
                                     return;
                                 case 1: { // (CB prefix)
+                                    if (r == registersDD) {
+                                        PC += 1;
+                                        r = registersDDCB;
+                                    } else if (r == registersFD) {
+                                        PC += 1;
+                                        r = registersFDCB;
+                                    }
+
                                     opcode = read8();
                                     cycleBudget -= 1;
                                     x = (opcode & 0b11000000) >>> 6;
@@ -1477,6 +1570,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                             continue;
                                         }
                                         case 2: { // (ED prefix)
+                                            r = registers;
                                             opcode = read8();
                                             cycleBudget -= 1;
                                             x = (opcode & 0b11000000) >>> 6;
@@ -1489,10 +1583,14 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                                 case 1:
                                                     switch (z) {
                                                         case 0: { // Input from port with 16-bit address
-                                                            final byte value = ioRead(BC());
+                                                            final byte value;
                                                             if (y != 6) { // IN r[y],(C)
-                                                                r.w8[y].apply(value);
-                                                            } // else: IN (C)
+                                                                r.w8[y].apply(this::ioRead);
+                                                                value = r.r8[y].apply();
+                                                            } else { // IN (C)
+                                                                ioRead();
+                                                                value = 0;
+                                                            }
 
                                                             byte f = (byte) (F & FLAG_MASK_C);
                                                             if ((value & 0xFF) == 0) f |= FLAG_MASK_Z;
@@ -1511,11 +1609,11 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                                         case 2: // 16-bit add/subtract with carry
                                                             switch (q) {
                                                                 case 0: // SBC HL,rp[p]
-                                                                    r.w16[IDX_HL_IX_IY].apply(sbc16(r.r16[IDX_HL_IX_IY].apply(), r.r16[p].apply()));
+                                                                    HL(sbc16(HL(), r.r16[p].apply()));
                                                                     cycleBudget -= 7;
                                                                     return;
                                                                 case 1: // ADC HL,rp[p]
-                                                                    r.w16[IDX_HL_IX_IY].apply(adc16(r.r16[IDX_HL_IX_IY].apply(), r.r16[p].apply()));
+                                                                    HL(adc16(HL(), r.r16[p].apply()));
                                                                     cycleBudget -= 7;
                                                                     return;
                                                                 default:
@@ -1582,7 +1680,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                                                     }
                                                                     cycleBudget -= 4;
 
-                                                                    pokeHL((byte) uahl);
+                                                                    poke8(HL(), (byte) uahl);
                                                                     A = (byte) (uahl >>> 8);
 
                                                                     byte f = (byte) (F & FLAG_MASK_C);
@@ -1654,7 +1752,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     // Standard register access.
     private final RegisterAccess registers = new RegisterAccess(
             new ReadAccess8[]{this::B, this::C, this::D, this::E, this::H, this::L, this::peekHL, this::A},
-            new WriteAccess8[]{this::B, this::C, this::D, this::E, this::H, this::L, this::pokeHL, this::A},
+            new IndirectWriteAccess8[]{this::B, this::C, this::D, this::E, this::H, this::L, this::pokeHL, this::A},
             new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::H, this::L, this::indirectHL, this::A},
             new ReadAccess16[]{this::BC, this::DE, this::HL, this::SP},
             new WriteAccess16[]{this::BC, this::DE, this::HL, this::SP},
@@ -1664,7 +1762,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     // DD-prefixed register access.
     private final RegisterAccess registersDD = new RegisterAccess(
             new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::peekIXd, this::A},
-            new WriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::pokeIXd, this::A},
+            new IndirectWriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::pokeIXd, this::A},
             new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::indirectIXd, this::A},
             new ReadAccess16[]{this::BC, this::DE, this::IX, this::SP},
             new WriteAccess16[]{this::BC, this::DE, this::IX, this::SP},
@@ -1674,12 +1772,32 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     // FD-prefixed register access.
     private final RegisterAccess registersFD = new RegisterAccess(
             new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::peekIYd, this::A},
-            new WriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::pokeIYd, this::A},
+            new IndirectWriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::pokeIYd, this::A},
             new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::indirectIYd, this::A},
             new ReadAccess16[]{this::BC, this::DE, this::IY, this::SP},
             new WriteAccess16[]{this::BC, this::DE, this::IY, this::SP},
             new ReadAccess16[]{this::BC, this::DE, this::IY, this::AF},
             new WriteAccess16[]{this::BC, this::DE, this::IY, this::AF});
+
+    // DDCB-prefixed register access.
+    private final RegisterAccess registersDDCB = new RegisterAccess(
+            new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::peekIXdCB, this::A},
+            new IndirectWriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::pokeIXdCB, this::A},
+            new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::IXH, this::IXL, this::indirectIXdCB, this::A},
+            registersDD.r16,
+            registersDD.w16,
+            registersDD.r216,
+            registersDD.w216);
+
+    // FDCB-prefixed register access.
+    private final RegisterAccess registersFDCB = new RegisterAccess(
+            new ReadAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::peekIYdCB, this::A},
+            new IndirectWriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::pokeIYdCB, this::A},
+            new ReadWriteAccess8[]{this::B, this::C, this::D, this::E, this::IYH, this::IYL, this::indirectIYdCB, this::A},
+            registersFD.r16,
+            registersFD.w16,
+            registersFD.r216,
+            registersFD.w216);
 
     // Conditions
     private final Condition[] cc = {this::FLAG_NZ, this::FLAG_Z, this::FLAG_NC, this::FLAG_C, this::FLAG_PO, this::FLAG_PE, this::FLAG_P, this::FLAG_M};
@@ -1724,6 +1842,11 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     @FunctionalInterface
+    private interface IndirectWriteAccess8 {
+        void apply(final ReadAccess8 value);
+    }
+
+    @FunctionalInterface
     private interface WriteAccess16 {
         void apply(final short value);
     }
@@ -1757,14 +1880,14 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
      */
     private static final class RegisterAccess {
         final ReadAccess8[] r8; // 8-bit registers (read)
-        final WriteAccess8[] w8; // 8-bit registers (write)
+        final IndirectWriteAccess8[] w8; // 8-bit registers (write)
         final ReadWriteAccess8[] rw8; // 8-bit registers (read-write)
         final ReadAccess16[] r16; // Register pairs featuring SP (read)
         final WriteAccess16[] w16; // Register pairs featuring SP (write)
         final ReadAccess16[] r216; // Register pairs featuring AF (read)
         final WriteAccess16[] w216; // Register pairs featuring AF (write)
 
-        private RegisterAccess(final ReadAccess8[] r8, final WriteAccess8[] w8, final ReadWriteAccess8[] rw8, final ReadAccess16[] r16, final WriteAccess16[] w16, final ReadAccess16[] r216, final WriteAccess16[] w216) {
+        private RegisterAccess(final ReadAccess8[] r8, final IndirectWriteAccess8[] w8, final ReadWriteAccess8[] rw8, final ReadAccess16[] r16, final WriteAccess16[] w16, final ReadAccess16[] r216, final WriteAccess16[] w216) {
             this.r8 = r8;
             this.w8 = w8;
             this.rw8 = rw8;
