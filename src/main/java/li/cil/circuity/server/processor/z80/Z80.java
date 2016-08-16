@@ -95,22 +95,6 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     }
 
     // --------------------------------------------------------------------- //
-    // Object
-
-    @Override
-    public String toString() {
-        return String.format(
-                "%02X %02X %02X %02X %02X %02X %02X %02X | %04X %04X %04X %04X %04X %04X %04X %04X | {",
-                B, C, D, E, H, L, A, F, BC(), DE(), HL(), AF(), SP, IX(), IY(), PC) +
-                (FLAG_M() ? " S" : "") +
-                (FLAG_Z() ? " Z" : "") +
-                (FLAG_H() ? " H" : "") +
-                (FLAG_PE() ? " P" : "") +
-                (FLAG_N() ? " N" : "") +
-                (FLAG_C() ? " C" : "") + "}";
-    }
-
-    // --------------------------------------------------------------------- //
 
     /**
      * Set the value of the CPU's program counter.
@@ -134,9 +118,11 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     public void reset() {
         synchronized (lock) {
             status = Status.RUNNING;
-            B = C = D = E = H = L = A = F = 0;
+            B = C = D = E = H = L = 0;
+            AF((short) 0xFFFF);
             IXH = IXL = IYH = IYL = 0;
-            SP = 0;
+            SP = (short) 0xFFFF;
+            I = R = 0;
             PC = 0;
             IFF1 = IFF2 = false;
             IM = InterruptMode.MODE_0;
@@ -152,16 +138,17 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
      *
      * @param cycles the number of cycles to emulate.
      */
-    public void run(final int cycles) {
+    public boolean run(final int cycles) {
         synchronized (lock) {
             // Don't allow saving up cycles.
-            if (status == Status.HALTED) return;
+            if (status == Status.HALTED) return false;
             cycleBudget += cycles;
         }
         for (; ; ) {
             // Lock each iteration individually to allow interrupts to... interrupt.
             synchronized (lock) {
-                if (status == Status.HALTED || cycleBudget <= 0) return;
+                if (status == Status.HALTED) return false;
+                if (cycleBudget <= 0) return true;
                 R = (byte) ((R & 0b10000000) | ((R + 1) & 0b01111111));
                 final byte opcode = read8();
                 cycleBudget -= 1;
@@ -247,7 +234,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
 
     // 8-bit register accessors.
 
-    private byte B() {
+    public byte B() {
         return B;
     }
 
@@ -259,7 +246,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         B = transform.apply(B);
     }
 
-    private byte C() {
+    public byte C() {
         return C;
     }
 
@@ -271,7 +258,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         C = transform.apply(C);
     }
 
-    private byte D() {
+    public byte D() {
         return D;
     }
 
@@ -283,7 +270,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         D = transform.apply(D);
     }
 
-    private byte E() {
+    public byte E() {
         return E;
     }
 
@@ -295,7 +282,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         E = transform.apply(E);
     }
 
-    private byte H() {
+    public byte H() {
         return H;
     }
 
@@ -307,7 +294,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         H = transform.apply(H);
     }
 
-    private byte L() {
+    public byte L() {
         return L;
     }
 
@@ -319,7 +306,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         L = transform.apply(L);
     }
 
-    private byte A() {
+    public byte A() {
         return A;
     }
 
@@ -331,7 +318,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         A = transform.apply(A);
     }
 
-    private byte IXH() {
+    public byte IXH() {
         return IXH;
     }
 
@@ -343,7 +330,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         IXH = transform.apply(IXH);
     }
 
-    private byte IXL() {
+    public byte IXL() {
         return IXL;
     }
 
@@ -355,7 +342,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         IXL = transform.apply(IXL);
     }
 
-    private byte IYH() {
+    public byte IYH() {
         return IYH;
     }
 
@@ -367,7 +354,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         IYH = transform.apply(IYH);
     }
 
-    private byte IYL() {
+    public byte IYL() {
         return IYL;
     }
 
@@ -381,7 +368,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
 
     // 16-bit register accessors.
 
-    private short BC() {
+    public short BC() {
         return (short) ((B << 8) | (C & 0xFF));
     }
 
@@ -390,7 +377,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         C = (byte) value;
     }
 
-    private short DE() {
+    public short DE() {
         return (short) ((D << 8) | (E & 0xFF));
     }
 
@@ -399,7 +386,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         E = (byte) value;
     }
 
-    private short HL() {
+    public short HL() {
         return (short) ((H << 8) | (L & 0xFF));
     }
 
@@ -408,7 +395,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         L = (byte) value;
     }
 
-    private short AF() {
+    public short AF() {
         return (short) ((A << 8) | (F & 0xFF));
     }
 
@@ -417,7 +404,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         F = (byte) value;
     }
 
-    private short IX() {
+    public short IX() {
         return (short) ((IXH << 8) | (IXL & 0xFF));
     }
 
@@ -426,7 +413,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         IXL = (byte) value;
     }
 
-    private short IY() {
+    public short IY() {
         return (short) ((IYH << 8) | (IYL & 0xFF));
     }
 
@@ -435,7 +422,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         IYL = (byte) value;
     }
 
-    private short SP() {
+    public short SP() {
         return SP;
     }
 
@@ -654,11 +641,6 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         f |= OVERFLOW_TABLE[carry >>> 7];
         f |= result >>> (8 - FLAG_SHIFT_C);
 
-        // I8080 compat {
-        f &= ~FLAG_MASK_PV;
-        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-        // }
-
         A = (byte) result;
         F = f;
     }
@@ -780,12 +762,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         final byte carry = (byte) (a & 1);
         final int result = (a >>> 1) | ((F & FLAG_MASK_C) << 7);
 
-        byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
-        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-        F = f;
-
+        F = (byte) ((F & FLAG_MASK_SZPV) | carry);
         return (byte) result;
     }
 
@@ -794,12 +771,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         final byte carry = (byte) (a & 1);
         final int result = (a >>> 1) | (carry << 7);
 
-        byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
-        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-
-        F = f;
+        F = (byte) ((F & FLAG_MASK_SZPV) | carry);
         return (byte) result;
     }
 
@@ -808,12 +780,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         final byte carry = (byte) (a >>> 7);
         final int result = (a << 1) | (F & FLAG_MASK_C);
 
-        byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
-        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-
-        F = f;
+        F = (byte) ((F & FLAG_MASK_SZPV) | carry);
         return (byte) result;
     }
 
@@ -822,12 +789,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         final byte carry = (byte) (a >>> 7);
         final int result = (a << 1) | carry;
 
-        byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
-        f |= computeParity((byte) result) << FLAG_SHIFT_PV;
-
-        F = f;
+        F = (byte) ((F & FLAG_MASK_SZPV) | carry);
         return (byte) result;
     }
 
@@ -930,8 +892,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         final int carry = ul ^ ur ^ result;
 
         byte f = 0;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if (result == 0) f |= FLAG_MASK_Z;
+        else f |= (result >>> 8) & FLAG_MASK_S;
         f |= (carry >>> 8) & FLAG_MASK_H;
         f |= OVERFLOW_TABLE[carry >>> 15];
         f |= result >>> (16 - FLAG_SHIFT_C);
@@ -946,8 +908,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
         int carry = ul ^ ur ^ result;
 
         byte f = FLAG_MASK_N;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if (result == 0) f |= FLAG_MASK_Z;
+        else f |= (result >>> 8) & FLAG_MASK_S;
         f |= (carry >>> 8) & FLAG_MASK_H;
         carry &= 0b1_10000000_00000000;
         f |= OVERFLOW_TABLE[carry >>> 15];
@@ -1508,9 +1470,9 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                         }
                                         case 1: { // (DD prefix)
                                             status = Status.PARSING_DD;
+                                            if (cycleBudget <= 0) return;
                                             opcode = read8();
                                             cycleBudget -= 1;
-                                            if (cycleBudget <= 0) return;
                                             r = registersDD;
                                             continue;
                                         }
@@ -1527,16 +1489,15 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                                 case 1:
                                                     switch (z) {
                                                         case 0: { // Input from port with 16-bit address
+                                                            final byte value = ioRead(BC());
                                                             if (y != 6) { // IN r[y],(C)
-                                                                r.w8[y].apply(ioRead(BC()));
-                                                            } else { // IN (C)
-                                                                ioRead(BC());
-                                                            }
+                                                                r.w8[y].apply(value);
+                                                            } // else: IN (C)
 
                                                             byte f = (byte) (F & FLAG_MASK_C);
-                                                            if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
-                                                            else f |= A & FLAG_MASK_S;
-                                                            f |= computeParity(A) << FLAG_SHIFT_PV;
+                                                            if ((value & 0xFF) == 0) f |= FLAG_MASK_Z;
+                                                            else f |= value & FLAG_MASK_S;
+                                                            f |= computeParity(value) << FLAG_SHIFT_PV;
                                                             F = f;
                                                             return;
                                                         }
@@ -1643,7 +1604,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                                 case 2:
                                                     if (z <= 3) { // Block instruction: bli[y,z]
                                                         if (y > 3) {
-                                                            bli[y >>> 4][z].apply();
+                                                            bli[y - 4][z].apply();
                                                         }
                                                     } // else: NOP
                                                     return;
@@ -1656,9 +1617,9 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                         }
                                         case 3: // (FD prefix)
                                             status = Status.PARSING_FD;
+                                            if (cycleBudget <= 0) return;
                                             opcode = read8();
                                             cycleBudget -= 1;
-                                            if (cycleBudget <= 0) return;
                                             r = registersFD;
                                             continue;
                                         default:
