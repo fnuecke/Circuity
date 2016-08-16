@@ -12,7 +12,7 @@ import net.minecraft.util.ITickable;
 
 @Serializable
 public class BusDeviceZ80Processor extends AbstractComponentBusDevice implements ITickable {
-    private static final int CYCLES_PER_TICK = Z80.CYCLES_1MHZ * 2;
+    private static final int CYCLES_PER_TICK = 2_000_000 / 20;
 
     @Serialize
     private final Z80 device = new Z80();
@@ -51,7 +51,13 @@ public class BusDeviceZ80Processor extends AbstractComponentBusDevice implements
         final BusController controller = device.getController();
         if (redstone.getInput(null) > 0 && controller != null) {
             if (!isRunning.get()) {
-                device.reset();
+                device.reset(0);
+
+//                try {
+//                    IntelHexLoader.load(Files.readAllLines(Paths.get("C:\\Users\\fnuecke\\Desktop\\sdcc\\monitor.ihx")), controller::mapAndWrite);
+//                } catch (IOException | IllegalArgumentException e) {
+//                    e.printStackTrace();
+//                }
 
                 // TODO Configurable address.
                 final int eepromAddress = 0xC100;

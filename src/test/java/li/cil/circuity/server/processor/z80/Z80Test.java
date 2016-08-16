@@ -20,12 +20,9 @@ public class Z80Test {
         cpu.setBusController(controller);
         controller.setCPU(cpu);
 
-        cpu.reset();
-
         final int diagnosticsOffset = 0x100;
         final byte[] diagnosticsRom = Files.readAllBytes(Paths.get("src/test/resources/zexdoc.com"));
 
-        cpu.setPC(diagnosticsOffset);
         for (int address = diagnosticsOffset, end = Math.min(0xFFFF, diagnosticsOffset + diagnosticsRom.length); address < end; ++address) {
             controller.mapAndWrite(address, diagnosticsRom[address - diagnosticsOffset] & 0xFF);
         }
@@ -48,6 +45,8 @@ public class Z80Test {
         final int mhz = 2_000_000;
         final int tps = 20;
         final int cps = mhz / tps;
+
+        cpu.reset(diagnosticsOffset);
         while (cpu.run(cps)) {
         }
 

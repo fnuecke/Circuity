@@ -97,25 +97,13 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     // --------------------------------------------------------------------- //
 
     /**
-     * Set the value of the CPU's program counter.
-     * <p>
-     * Intended to allow setting the starting offset after resetting the CPU.
-     * Note that it will be truncated to a short automatically.
-     *
-     * @param value the value to set the program counter to.
-     */
-    public void setPC(final int value) {
-        synchronized (lock) {
-            this.PC = (short) value;
-        }
-    }
-
-    /**
-     * Reset the CPU.
+     * Reset the CPU and set the initial program counter value.
      * <p>
      * This will restore all registers to their initial values.
+     *
+     * @param pc allows setting the initial PC to set the starting offset.
      */
-    public void reset() {
+    public void reset(final int pc) {
         synchronized (lock) {
             status = Status.RUNNING;
             B = C = D = E = H = L = 0;
@@ -123,7 +111,7 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
             IXH = IXL = IYH = IYL = 0;
             SP = (short) 0xFFFF;
             I = R = 0;
-            PC = 0;
+            PC = (short) (pc & 0xFFFF);
             IFF1 = IFF2 = false;
             IM = InterruptMode.MODE_0;
             cycleBudget = 0;
