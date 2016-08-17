@@ -1216,10 +1216,12 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
                                     }
                                     return;
                                 }
-                                case 3: // JR e
-                                    PC += read8();
+                                case 3: { // JR e
+                                    final byte e = read8();
+                                    PC += e;
                                     cycleBudget -= 5;
                                     return;
+                                }
                                 case 4:
                                 case 5:
                                 case 6:
