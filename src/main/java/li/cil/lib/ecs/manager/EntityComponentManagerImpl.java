@@ -50,63 +50,25 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
     // --------------------------------------------------------------------- //
 
     /**
-     * Called each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
-     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)}
-     * (depending on which side this manager is on).
+     * Called at the beginning of each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
+     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
      * <p>
      * Processes lists of added and removed components, then updates all
      * tickable components currently managed by this manager.
      */
     public void update() {
-        for (final ITickable component : addedUpdatingComponents) {
-            final int index = Collections.binarySearch(updatingComponents, component, TICKABLE_COMPARATOR);
-            assert index < 0 : "Inserting tickable that is already in the list!";
-            updatingComponents.add(~index, component);
-        }
-        addedUpdatingComponents.clear();
-
-        for (final ITickable component : removedUpdatingComponents) {
-            final int index = Collections.binarySearch(updatingComponents, component, TICKABLE_COMPARATOR);
-            assert index >= 0 : "Removing tickable that is not in the list!";
-            updatingComponents.remove(index);
-        }
-        removedUpdatingComponents.clear();
-
-        for (final ITickable component : updatingComponents) {
-            if (!removedUpdatingComponents.contains(component)) {
-                component.update();
-            }
-        }
+        updateTickables(addedUpdatingComponents, removedUpdatingComponents, updatingComponents, TICKABLE_COMPARATOR, ITickable::update);
     }
 
     /**
-     * Called each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
-     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)}
-     * (depending on which side this manager is on).
+     * Called at the end of each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
+     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
      * <p>
      * Processes lists of added and removed components, then updates all
      * tickable components currently managed by this manager.
      */
     public void lateUpdate() {
-        for (final LateTickable component : addedLateUpdatingComponents) {
-            final int index = Collections.binarySearch(lateUpdatingComponents, component, LATE_TICKABLE_COMPARATOR);
-            assert index < 0 : "Inserting tickable that is already in the list!";
-            lateUpdatingComponents.add(~index, component);
-        }
-        addedLateUpdatingComponents.clear();
-
-        for (final LateTickable component : removedLateUpdatingComponents) {
-            final int index = Collections.binarySearch(lateUpdatingComponents, component, LATE_TICKABLE_COMPARATOR);
-            assert index >= 0 : "Removing tickable that is not in the list!";
-            lateUpdatingComponents.remove(index);
-        }
-        removedLateUpdatingComponents.clear();
-
-        for (final LateTickable component : lateUpdatingComponents) {
-            if (!removedLateUpdatingComponents.contains(component)) {
-                component.lateUpdate();
-            }
-        }
+        updateTickables(addedLateUpdatingComponents, removedLateUpdatingComponents, lateUpdatingComponents, LATE_TICKABLE_COMPARATOR, LateTickable::lateUpdate);
     }
 
     /**
@@ -359,6 +321,28 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
     private void validateEntity(final long entity) {
         if (!hasEntity(entity)) {
             throw new IllegalArgumentException("Invalid entity.");
+        }
+    }
+
+    private static <T> void updateTickables(final Set<T> added, final Set<T> removed, final List<T> current, final Comparator<T> comparator, final Consumer<T> updater) {
+        for (final T component : added) {
+            final int index = Collections.binarySearch(current, component, comparator);
+            assert index < 0 : "Inserting tickable that is already in the list!";
+            current.add(~index, component);
+        }
+        added.clear();
+
+        for (final T component : removed) {
+            final int index = Collections.binarySearch(current, component, comparator);
+            assert index >= 0 : "Removing tickable that is not in the list!";
+            current.remove(index);
+        }
+        removed.clear();
+
+        for (final T component : current) {
+            if (!removed.contains(component)) {
+                updater.accept(component);
+            }
         }
     }
 
