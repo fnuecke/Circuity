@@ -7,7 +7,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 
 @Serializable
-public abstract class AbstractAddressableInterruptSink extends AbstractAddressable implements InterruptSink {
+public abstract class AbstractInterruptSink extends AbstractBusDevice implements InterruptSink {
     @Serialize
     private int[] interruptSinks;
 

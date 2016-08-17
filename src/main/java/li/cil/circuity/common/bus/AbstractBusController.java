@@ -1,17 +1,21 @@
 package li.cil.circuity.common.bus;
 
 import com.google.common.base.Throwables;
-import li.cil.circuity.api.bus.AddressBlock;
+import li.cil.circuity.ModCircuity;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusSegment;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.AsyncTickable;
 import li.cil.circuity.api.bus.device.BusStateAware;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
+import li.cil.circuity.api.bus.device.InterruptList;
+import li.cil.circuity.api.bus.device.InterruptSink;
+import li.cil.circuity.api.bus.device.InterruptSource;
 import li.cil.circuity.common.Constants;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.scheduler.ScheduledCallback;
@@ -23,6 +27,7 @@ import javax.annotation.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -152,6 +157,37 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
      * side-effect of a less terrible worst-case remove time.
      */
     private final Comparator<Addressable> addressComparator = Comparator.comparingInt(addressable -> addressBlocks.get(addressable).getOffset());
+
+    /**
+     * The list of occupied interrupt source IDs. These IDs get assigned to
+     * {@link InterruptSource}s as they are connected to the bus.
+     */
+    private final BitSet interruptSourceIds = new BitSet();
+
+    /**
+     * The list of occupied interrupt sink IDs. These IDs get assigned to
+     * {@link InterruptSink}s as they are connected to the bus.
+     */
+    private final BitSet interruptSinkIds = new BitSet();
+
+    /**
+     * The mapping of interrupt source ID to actual interrupt sink. As there
+     * may be gaps in the IDs, this may contain <code>null</code> entries.
+     */
+    private final List<InterruptSource> interruptSources = new ArrayList<>();
+
+    /**
+     * The mapping of interrupt sink ID to actual interrupt sink. As there
+     * may be gaps in the IDs, this may contain <code>null</code> entries.
+     */
+    private final List<InterruptSink> interruptSinks = new ArrayList<>();
+
+    /**
+     * The mapping of source to sink interrupt IDs. A value of <code>-1</code>
+     * means that there is no mapping for that source interrupt ID. This array
+     * will be grown as necessary.
+     */
+    private int[] interruptMap = new int[0];
 
     /**
      * Whether we have a scan scheduled already (avoid multiple scans).
@@ -310,6 +346,15 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         }
     }
 
+    @Override
+    public void interrupt(final int interruptId, final int data) {
+        final int interruptSinkId = interruptMap[interruptId];
+        final InterruptSink sink = interruptSinks.get(interruptSinkId);
+        if (sink != null) {
+            sink.interrupt(interruptId, data);
+        }
+    }
+
     // --------------------------------------------------------------------- //
 
     /**
@@ -401,6 +446,18 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 }
             }
 
+            for (final InterruptSink sink : interruptSinks) {
+                if (sink != null) {
+                    sink.setAcceptedInterrupts(null);
+                }
+            }
+
+            for (final InterruptSource source : interruptSources) {
+                if (source != null) {
+                    source.setEmittedInterrupts(null);
+                }
+            }
+
             for (final BusDevice device : devices) {
                 device.setBusController(null);
             }
@@ -410,6 +467,12 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             tickables.clear();
             addressables.clear();
             addressBlocks.clear();
+            interruptSourceIds.clear();
+            interruptSinkIds.clear();
+            interruptSources.clear();
+            interruptSinks.clear();
+
+            Arrays.fill(interruptMap, -1);
 
             if (scheduledScan != null) {
                 SillyBeeAPI.scheduler.cancel(getBusWorld(), scheduledScan);
@@ -529,7 +592,8 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 // If the device is in the list of found devices, it is still
                 // known and nothing changes for the device. We remove it so
                 // that this set of devices only contains the added devices
-                // when we're done.
+                // when we're done. If it isn't in the list, then, well, it
+                // is gone, and we have to update our internal data.
                 if (!newDevices.remove(device)) {
                     it.remove();
 
@@ -548,9 +612,39 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                         }
                     }
 
-                    // TODO InterruptSource
+                    if (device instanceof InterruptSource) {
+                        final InterruptSource source = (InterruptSource) device;
 
-                    // TODO InterruptSink
+                        final int[] ids = source.getEmittedInterrupts(InterruptList.empty());
+                        for (final int id : ids) {
+                            if (id < 0 || id >= interruptSources.size() || interruptSources.get(id) != device) {
+                                ModCircuity.getLogger().warn("InterruptSource claims to own an interrupt ID that is invalid or not owned by it. This indicates an incorrect implementation in '%s'.", device.getClass().getName());
+                            } else {
+                                interruptSourceIds.clear(id);
+                                interruptMap[id] = -1;
+                                interruptSources.set(id, null);
+                            }
+                        }
+                    }
+
+                    if (device instanceof InterruptSink) {
+                        final InterruptSink sink = (InterruptSink) device;
+
+                        final int[] ids = sink.getAcceptedInterrupts(InterruptList.empty());
+                        for (final int id : ids) {
+                            if (id < 0 || id >= interruptSinks.size() || interruptSinks.get(id) != device) {
+                                ModCircuity.getLogger().warn("InterruptSink claims to own an interrupt ID that is invalid or not owned by it. This indicates an incorrect implementation in '%s'.", device.getClass().getName());
+                            } else {
+                                interruptSinkIds.clear(id);
+                                for (int i = 0; i < interruptMap.length; i++) {
+                                    if (interruptMap[i] == id) {
+                                        interruptMap[i] = -1;
+                                    }
+                                }
+                                interruptSinks.set(id, null);
+                            }
+                        }
+                    }
 
                     device.setBusController(null);
                 }
@@ -595,9 +689,39 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 }
             }
 
-            // TODO InterruptSource
+            if (device instanceof InterruptSource) {
+                final InterruptSource source = (InterruptSource) device;
 
-            // TODO InterruptSink
+                final int[] ids = source.getEmittedInterrupts(computeInterruptList(interruptSourceIds));
+                for (final int id : ids) {
+                    if (id < 0 || id >= interruptSources.size() || interruptSourceIds.get(id)) {
+                        ModCircuity.getLogger().warn("InterruptSource wants to use an interrupt ID that is invalid or already in use. This indicates an incorrect implementation in '%s'.", device.getClass().getName());
+                    }
+                    interruptSourceIds.set(id);
+                }
+            }
+
+            if (device instanceof InterruptSink) {
+                final InterruptSink sink = (InterruptSink) device;
+
+                final int[] ids = sink.getAcceptedInterrupts(computeInterruptList(interruptSinkIds));
+                for (final int id : ids) {
+                    if (id < 0 || id >= interruptSinks.size() || interruptSinkIds.get(id)) {
+                        ModCircuity.getLogger().warn("InterruptSink wants to use an interrupt ID that is invalid or already in use. This indicates an incorrect implementation in '%s'.", device.getClass().getName());
+                    } else {
+                        interruptSinkIds.set(id);
+                        while (interruptSinks.size() <= id)
+                            interruptSinks.add(null);
+                        interruptSinks.set(id, null);
+                    }
+                }
+            }
+        }
+
+        // Ensure capacity of interrupt map is sufficiently large if new sources were added.
+        if (interruptSourceIds.length() > interruptMap.length) {
+            final int[] newInterruptMap = Arrays.copyOf(interruptMap, interruptSourceIds.length());
+            Arrays.fill(newInterruptMap, interruptMap.length, newInterruptMap.length, -1);
         }
 
         // ----------------------------------------------------------------- //
@@ -727,5 +851,19 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         final AddressHint ah1 = (AddressHint) a1;
         final AddressHint ah2 = (AddressHint) a2;
         return ah1.getSortHint() - ah2.getSortHint();
+    }
+
+    private static InterruptList computeInterruptList(final BitSet ids) {
+        final BitSet notIds = new BitSet(ids.length() + 1);
+        notIds.or(ids);
+        notIds.flip(0, notIds.length() + 1);
+        final int[] unusedIds = new int[notIds.cardinality()];
+        for (int id = notIds.nextSetBit(0), idx = 0; id >= 0; id = notIds.nextSetBit(id + 1), idx++) {
+            unusedIds[idx] = id;
+            if (id == Integer.MAX_VALUE) {
+                break; // or (i+1) would overflow
+            }
+        }
+        return new InterruptList(unusedIds);
     }
 }

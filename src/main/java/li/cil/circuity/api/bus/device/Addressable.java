@@ -1,6 +1,5 @@
 package li.cil.circuity.api.bus.device;
 
-import li.cil.circuity.api.bus.AddressBlock;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 

@@ -22,32 +22,42 @@ import javax.annotation.Nullable;
  */
 public interface InterruptSink extends BusDevice {
     /**
-     * The number of interrupts provided by this device.
+     * Get the list of interrupts provided by this device.
      * <p>
      * These may be regular IRQs (interrupt requests) or NMI (non-maskable
      * interrupts), depending on the implementation of the Device.
      * <p>
      * Interrupts are numbered globally by the {@link BusController}. The
-     * passed list of interrupts will contain the list of "holes" in the
-     * sequence of already occupied interrupts, as well as the last unused
-     * interrupt. For example, if interrupts <code>1</code> and <code>4</code>
-     * are already occupied, the list will be <code>{0,2,3,5}</code>. If no
-     * interrupts are occupied, the list will be <code>{0}</code>.
+     * passed list provides an abstracted way of selecting the desired number
+     * of interrupt IDs (for as many interrupts as the device uses).
      * <p>
      * The device <em>is required to persist the interrupts it is currently
-     * occupying</em>.
+     * occupying</em>. In that case, the given list is to be ignored, and the
+     * persisted list of interrupt IDs is to be returned.
      *
      * @param interrupts the list of available interrupts.
      * @return the number of interrupts this device provides.
      */
-    int[] getAcceptedInterrupts(final int[] interrupts);
+    int[] getAcceptedInterrupts(final InterruptList interrupts);
 
+    /**
+     * Sets the list of actual interrupt IDs bound to this device.
+     * <p>
+     * Passing <code>null</code> indicates unbinding the device from all
+     * interrupts.
+     * <p>
+     * The device <em>is required to persist the interrupts it is currently
+     * occupying</em>.
+     *
+     * @param interrupts the list of interrupt IDs the device is now bound to.
+     */
     void setAcceptedInterrupts(@Nullable final int[] interrupts);
 
     /**
      * Activate the specified interrupt provided by this device.
      *
-     * @param interrupt the number of the interrupt to activate.
+     * @param interruptId the ID of the interrupt to activate.
+     * @param data        additional data passed along with the interrupt.
      */
-    void interrupt(final int interrupt);
+    void interrupt(final int interruptId, final int data);
 }

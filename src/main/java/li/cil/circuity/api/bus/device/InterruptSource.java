@@ -16,7 +16,7 @@ import javax.annotation.Nullable;
  * build the global list of assignments of interrupts.
  */
 public interface InterruptSource extends BusDevice {
-    int[] getEmittedInterrupts(final int[] interrupts);
+    int[] getEmittedInterrupts(final InterruptList interrupts);
 
     void setEmittedInterrupts(@Nullable final int[] interrupts);
 }

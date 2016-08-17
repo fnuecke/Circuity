@@ -1,6 +1,6 @@
 package li.cil.circuity.common.ecs.component;
 
-import li.cil.circuity.api.bus.AddressBlock;
+import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressHint;

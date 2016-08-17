@@ -1,7 +1,7 @@
 package li.cil.circuity.common.ecs.component;
 
 import io.netty.buffer.ByteBuf;
-import li.cil.circuity.api.bus.AddressBlock;
+import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;

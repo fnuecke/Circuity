@@ -1,6 +1,5 @@
 package li.cil.circuity.api.bus.device;
 
-import li.cil.circuity.api.bus.AddressBlock;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 

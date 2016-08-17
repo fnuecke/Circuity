@@ -1,5 +1,7 @@
 package li.cil.circuity.api.bus;
 
+import li.cil.circuity.api.bus.device.AddressBlock;
+
 /**
  * Implemented by bus controllers responsible for managing a bus.
  * <p>
@@ -67,4 +69,15 @@ public interface BusController extends BusSegment {
      * @throws IndexOutOfBoundsException if the address is unsupported.
      */
     int mapAndRead(final int address) throws IndexOutOfBoundsException;
+
+    /**
+     * Triggers the interrupt with the specified ID, passing along the specified data.
+     * <p>
+     * Whether or not the data is actually used depends on the interrupted
+     * device.
+     *
+     * @param interruptId the ID of the interrupt to trigger.
+     * @param data        the data to pass along.
+     */
+    void interrupt(final int interruptId, final int data);
 }

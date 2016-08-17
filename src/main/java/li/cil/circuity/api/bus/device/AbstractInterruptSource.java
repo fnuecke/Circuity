@@ -6,7 +6,7 @@ import li.cil.lib.api.serialization.Serialize;
 import javax.annotation.Nullable;
 
 @Serializable
-public abstract class AbstractAddressableInterruptSource extends AbstractAddressable implements InterruptSource {
+public abstract class AbstractInterruptSource extends AbstractAddressable implements InterruptSource {
     @Serialize
     private int[] interruptsSources;
 

@@ -29,14 +29,14 @@ public class Z80Test {
 
         final int biosOffset = 0x00;
         final byte[] biosRom = {
-         (byte) 0x76,       /* HLT */
+                (byte) 0x76,       /* HLT */
                 0x00,
                 0x00,
                 0x00,
                 0x00,
-         (byte) 0xDB,       /* IN A, N */
-         (byte) 0x00,
-         (byte) 0xC9        /* RET */
+                (byte) 0xDB,       /* IN A, N */
+                (byte) 0x00,
+                (byte) 0xC9        /* RET */
         };
         for (int address = biosOffset, end = Math.min(0xFFFF, biosOffset + biosRom.length); address < end; ++address) {
             controller.mapAndWrite(address, biosRom[address - biosOffset] & 0xFF);
@@ -80,6 +80,10 @@ public class Z80Test {
             } else {
                 return memory[address] & 0xFF;
             }
+        }
+
+        @Override
+        public void interrupt(final int interruptId, final int data) {
         }
 
         @Override
