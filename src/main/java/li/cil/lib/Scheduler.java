@@ -2,12 +2,12 @@ package li.cil.lib;
 
 import li.cil.lib.api.SchedulerAPI;
 import li.cil.lib.api.SillyBeeAPI;
+import li.cil.lib.api.event.ForwardedFMLServerStoppedEvent;
 import li.cil.lib.api.scheduler.ScheduledCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
@@ -26,13 +26,14 @@ public enum Scheduler implements SchedulerAPI {
 
     public static void init() {
         SillyBeeAPI.scheduler = INSTANCE;
+        SillyBeeAPI.EVENT_BUS.register(INSTANCE);
         MinecraftForge.EVENT_BUS.register(INSTANCE);
     }
 
     // --------------------------------------------------------------------- //
 
     @SubscribeEvent
-    public void onTick(final TickEvent.ServerTickEvent event) {
+    public void handleServerTick(final TickEvent.ServerTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             synchronized (scheduledCallbacks) {
                 scheduledCallbacks.forEach(Scheduler::runWorldCallbacksServer);
@@ -41,7 +42,7 @@ public enum Scheduler implements SchedulerAPI {
     }
 
     @SubscribeEvent
-    public void onTick(final TickEvent.ClientTickEvent event) {
+    public void handleClientTick(final TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.END) {
             synchronized (scheduledCallbacks) {
                 scheduledCallbacks.forEach(Scheduler::runWorldCallbacksClient);
@@ -49,7 +50,8 @@ public enum Scheduler implements SchedulerAPI {
         }
     }
 
-    public void handleServerStopped(final FMLServerStoppedEvent event) {
+    @SubscribeEvent
+    public void handleServerStopped(final ForwardedFMLServerStoppedEvent event) {
         scheduledCallbacks.clear();
     }
 

@@ -4,11 +4,11 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.StorageAPI;
+import li.cil.lib.api.event.ForwardedFMLServerStoppedEvent;
 import li.cil.lib.api.storage.ExternalData;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
-import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 
 import javax.annotation.Nullable;
@@ -39,6 +39,7 @@ public enum Storage implements StorageAPI {
 
     public static void init() {
         SillyBeeAPI.storage = INSTANCE;
+        SillyBeeAPI.EVENT_BUS.register(INSTANCE);
         MinecraftForge.EVENT_BUS.register(INSTANCE);
     }
 
@@ -47,7 +48,8 @@ public enum Storage implements StorageAPI {
         loadedData.values().removeIf(ExternalDataImpl::flush);
     }
 
-    public void handleServerStopped(final FMLServerStoppedEvent event) {
+    @SubscribeEvent
+    public void handleServerStopped(final ForwardedFMLServerStoppedEvent event) {
         loadedData.clear();
     }
 

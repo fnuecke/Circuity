@@ -1,6 +1,10 @@
 package li.cil.lib;
 
 import li.cil.lib.api.SillyBeeAPI;
+import li.cil.lib.api.event.ForwardedFMLServerStartedEvent;
+import li.cil.lib.api.event.ForwardedFMLServerStartingEvent;
+import li.cil.lib.api.event.ForwardedFMLServerStoppedEvent;
+import li.cil.lib.api.event.ForwardedFMLServerStoppingEvent;
 import li.cil.lib.capabilities.ItemHandlerModifiableWrapperProvider;
 import li.cil.lib.capabilities.ItemHandlerWrapperProvider;
 import li.cil.lib.network.Network;
@@ -8,7 +12,10 @@ import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityInject;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartedEvent;
+import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
+import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import org.apache.logging.log4j.Logger;
@@ -49,9 +56,22 @@ public final class ModSillyBee {
     }
 
     @Mod.EventHandler
+    public void serverStarting(final FMLServerStartingEvent event) {
+        SillyBeeAPI.EVENT_BUS.post(new ForwardedFMLServerStartingEvent(event));
+    }
+
+    @Mod.EventHandler
+    public void serverStarted(final FMLServerStartedEvent event) {
+        SillyBeeAPI.EVENT_BUS.post(new ForwardedFMLServerStartedEvent(event));
+    }
+
+    @Mod.EventHandler
+    public void serverStopping(final FMLServerStoppingEvent event) {
+        SillyBeeAPI.EVENT_BUS.post(new ForwardedFMLServerStoppingEvent(event));
+    }
+
+    @Mod.EventHandler
     public void serverStopped(final FMLServerStoppedEvent event) {
-        Manager.INSTANCE.handleServerStopped(event);
-        Scheduler.INSTANCE.handleServerStopped(event);
-        Storage.INSTANCE.handleServerStopped(event);
+        SillyBeeAPI.EVENT_BUS.post(new ForwardedFMLServerStoppedEvent(event));
     }
 }

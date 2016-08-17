@@ -1,5 +1,7 @@
 package li.cil.lib.api;
 
+import net.minecraftforge.fml.common.eventhandler.EventBus;
+
 /**
  * API entry point for the library.
  */
@@ -13,6 +15,17 @@ public final class SillyBeeAPI {
      * Version of the library and its API.
      */
     public static final String MOD_VERSION = "@VERSION_LIB@";
+
+    // --------------------------------------------------------------------- //
+
+    /**
+     * Event bus the library will post events to.
+     * <p>
+     * Most notably, it will forward some FML events to this bus, so that they
+     * can also be used in other classes than just directly in the mod class.
+     * See the <code>event</code> package for the list of forwarded events.
+     */
+    public static final EventBus EVENT_BUS = new EventBus();
 
     // --------------------------------------------------------------------- //
 
