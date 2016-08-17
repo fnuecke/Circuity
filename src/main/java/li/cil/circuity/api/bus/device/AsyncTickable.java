@@ -1,5 +1,7 @@
 package li.cil.circuity.api.bus.device;
 
+import li.cil.circuity.api.bus.BusDevice;
+
 /**
  * Like {@link net.minecraft.util.ITickable}, but called from worker threads.
  * <p>
@@ -8,6 +10,6 @@ package li.cil.circuity.api.bus.device;
  * {@link net.minecraft.util.ITickable} for this to avoid confusion (since
  * tickable is usually assumed to be called from the server thread).
  */
-public interface AsyncTickable {
+public interface AsyncTickable extends BusDevice {
     void updateAsync();
 }

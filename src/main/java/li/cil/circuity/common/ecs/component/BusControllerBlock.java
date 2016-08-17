@@ -19,8 +19,7 @@ public final class BusControllerBlock extends BusNeighborAware implements ITicka
     @Serialize
     private final BlockBusControllerImpl controller = new BlockBusControllerImpl();
 
-    @Serialize
-    private final SynchronizedBoolean isWorking = new SynchronizedBoolean();
+    private final SynchronizedBoolean isOnline = new SynchronizedBoolean();
 
     private Redstone redstone;
 
@@ -73,11 +72,11 @@ public final class BusControllerBlock extends BusNeighborAware implements ITicka
 
     @Override
     public void update() {
-        if (redstone.getInput(null) > 0) {
-            isWorking.set(true);
+        final boolean online = redstone.getInput(null) > 0;
+        isOnline.set(online);
+        controller.setOnline(online);
+        if (online) {
             controller.startUpdate();
-        } else {
-            isWorking.set(false);
         }
     }
 

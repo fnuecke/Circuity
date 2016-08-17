@@ -1,25 +1,20 @@
 package li.cil.circuity.common.ecs.component;
 
-import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AsyncTickable;
+import li.cil.circuity.api.bus.device.BusStateAware;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.server.processor.BusControllerAccess;
 import li.cil.circuity.server.processor.z80.Z80;
-import li.cil.lib.api.ecs.component.event.ActivationListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
-import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.EnumFacing;
-import net.minecraft.util.EnumHand;
 
 import javax.annotation.Nullable;
 
 @Serializable
-public class BusDeviceZ80Processor extends AbstractComponentBusDevice implements ActivationListener {
+public class BusDeviceZ80Processor extends AbstractComponentBusDevice {
     private static final int CYCLES_PER_TICK = 2_000_000 / 20;
 
     @Serialize
@@ -42,25 +37,8 @@ public class BusDeviceZ80Processor extends AbstractComponentBusDevice implements
     // --------------------------------------------------------------------- //
     // ActivationListener
 
-    @Override
-    public boolean handleActivated(final EntityPlayer player, final EnumHand hand, @Nullable final ItemStack heldItem, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
-        final BusController controller = device.getController();
-        if (controller != null) {
-            device.z80.reset(0);
-
-            // TODO Configurable address.
-            final int eepromAddress = 0xC100;
-            for (int offset = 0; offset < 4 * 1024; offset++) {
-                final int value = controller.mapAndRead(eepromAddress + offset);
-                controller.mapAndWrite(offset, value);
-            }
-
-        }
-        return true;
-    }
-
     @Serializable
-    private class BusDeviceZ80Impl extends AbstractBusDevice implements InterruptSink, AsyncTickable {
+    private class BusDeviceZ80Impl extends AbstractBusDevice implements InterruptSink, BusStateAware, AsyncTickable {
         @Serialize
         private final Z80 z80;
 
@@ -93,6 +71,24 @@ public class BusDeviceZ80Processor extends AbstractComponentBusDevice implements
             } else {
                 z80.irq((byte) interrupt);
             }
+        }
+
+        // --------------------------------------------------------------------- //
+        // BusStateAware
+
+        @Override
+        public void handleBusOnline() {
+            // TODO Configurable address.
+            final int eepromAddress = 0xC100;
+            for (int offset = 0; offset < 4 * 1024; offset++) {
+                final int value = controller.mapAndRead(eepromAddress + offset);
+                controller.mapAndWrite(offset, value);
+            }
+        }
+
+        @Override
+        public void handleBusOffline() {
+            device.z80.reset(0);
         }
 
         // --------------------------------------------------------------------- //

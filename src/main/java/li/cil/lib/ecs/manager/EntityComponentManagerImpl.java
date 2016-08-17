@@ -2,6 +2,7 @@ package li.cil.lib.ecs.manager;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
+import li.cil.circuity.ModCircuity;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.component.LateTickable;
@@ -341,7 +342,11 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
 
         for (final T component : current) {
             if (!removed.contains(component)) {
-                updater.accept(component);
+                try {
+                    updater.accept(component);
+                } catch (final Throwable t) {
+                    ModCircuity.getLogger().catching(t);
+                }
             }
         }
     }

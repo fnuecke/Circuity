@@ -87,14 +87,6 @@ public class Z80Test {
         }
 
         @Override
-        public void startUpdate() {
-        }
-
-        @Override
-        public void finishUpdate() {
-        }
-
-        @Override
         public Iterable<BusDevice> getDevices() {
             return Collections.emptyList();
         }

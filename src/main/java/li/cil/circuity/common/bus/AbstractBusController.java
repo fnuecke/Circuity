@@ -9,11 +9,13 @@ import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.AsyncTickable;
+import li.cil.circuity.api.bus.device.BusStateAware;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.common.Constants;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.scheduler.ScheduledCallback;
+import li.cil.lib.api.serialization.Serialize;
 import net.minecraft.util.ITickable;
 import net.minecraft.world.World;
 
@@ -61,7 +63,7 @@ import java.util.concurrent.Future;
  * <tr><td>4</td><td>Low address selected device is mapped to. Read-only.</td></tr>
  * </table>
  */
-public abstract class AbstractBusController extends AbstractAddressable implements BusController, AddressHint {
+public abstract class AbstractBusController extends AbstractAddressable implements BusController, AddressHint, BusStateAware {
     /**
      * The number of addressable words via this buses address space.
      */
@@ -98,6 +100,12 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
      * completed. It will then contain the list of all connected devices.
      */
     private final Set<BusDevice> devices = new HashSet<>();
+
+    /**
+     * The list of state aware bus devices, i.e. device that are notified when
+     * the bus is powered on / off.
+     */
+    private final List<BusStateAware> stateAwares = new ArrayList<>();
 
     /**
      * The list of bus devices that also implement {@link ITickable}.
@@ -156,8 +164,16 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     private Future currentUpdate;
 
     /**
+     * Whether the bus is currently powered. Stored to notify newly connected
+     * devices.
+     */
+    @Serialize
+    private boolean isOnline;
+
+    /**
      * Currently selected device for reading its address via serial interface.
      */
+    @Serialize
     private int selected;
 
     // --------------------------------------------------------------------- //
@@ -235,27 +251,19 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     }
 
     // --------------------------------------------------------------------- //
+    // BusStateAware
+
+    @Override
+    public void handleBusOnline() {
+    }
+
+    @Override
+    public void handleBusOffline() {
+        selected = 0;
+    }
+
+    // --------------------------------------------------------------------- //
     // BusController
-
-    @Override
-    public void startUpdate() {
-        if (currentUpdate == null) {
-            currentUpdate = BusThreadPool.INSTANCE.submit(this::updateDevicesAsync);
-        }
-    }
-
-    @Override
-    public void finishUpdate() {
-        if (currentUpdate != null) {
-            try {
-                currentUpdate.get();
-            } catch (InterruptedException | ExecutionException e) {
-                Throwables.propagate(e);
-            } finally {
-                currentUpdate = null;
-            }
-        }
-    }
 
     @Override
     public void scheduleScan() {
@@ -299,6 +307,72 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
     // --------------------------------------------------------------------- //
 
+    /**
+     * Starts an update cycle.
+     * <p>
+     * This will trigger a worker thread which will then update all
+     * {@link li.cil.circuity.api.bus.device.AsyncTickable} bus devices, if
+     * and only if the bus controller is in a legal state (i.e. no two bus
+     * controllers connected to the same bus).
+     * <p>
+     * This method is <em>not</em> thread safe. It is expected to be called
+     * from the server thread only.
+     */
+    public void startUpdate() {
+        if (currentUpdate == null) {
+            currentUpdate = BusThreadPool.INSTANCE.submit(this::updateDevicesAsync);
+        }
+    }
+
+    /**
+     * Finish an update cycle.
+     * <p>
+     * Waits for the worker thread to complete updating all devices on the bus.
+     * This way, even though updates are running in parallel, they are still
+     * kept in sync with the server update loop, which is particularly useful
+     * to avoid non-deterministic behavior when saving.
+     * <p>
+     * This method is <em>not</em> thread safe. It is expected to be called
+     * from the server thread only.
+     */
+    public void finishUpdate() {
+        if (currentUpdate != null) {
+            try {
+                currentUpdate.get();
+            } catch (InterruptedException | ExecutionException e) {
+                Throwables.propagate(e);
+            } finally {
+                currentUpdate = null;
+            }
+        }
+    }
+
+    /**
+     * Set the buses power state.
+     * <p>
+     * Notifies attached state aware devices if the state changes.
+     *
+     * @param value the new power state.
+     */
+    public void setOnline(final boolean value) {
+        synchronized (busLock) {
+            if (value == isOnline) {
+                return;
+            }
+
+            isOnline = value;
+            if (isOnline) {
+                stateAwares.forEach(BusStateAware::handleBusOnline);
+            } else {
+                stateAwares.forEach(BusStateAware::handleBusOffline);
+            }
+        }
+    }
+
+    /**
+     * Clears the bus controller's state, removing all devices (and setting
+     * their bus controller to <code>null</code>).
+     */
     public void clear() {
         synchronized (busLock) {
             if (!doAnyAddressesOverlap()) {
@@ -313,6 +387,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             }
 
             devices.clear();
+            stateAwares.clear();
             tickables.clear();
             addressables.clear();
             addressBlocks.clear();
@@ -472,6 +547,10 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             this.devices.add(device);
 
             device.setBusController(this);
+
+            if (device instanceof BusStateAware) {
+                stateAwares.add((BusStateAware) device);
+            }
 
             if (device instanceof AsyncTickable) {
                 tickables.add((AsyncTickable) device);

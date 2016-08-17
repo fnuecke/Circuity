@@ -1,5 +1,7 @@
 package li.cil.circuity.api.bus.device;
 
+import li.cil.circuity.api.bus.BusDevice;
+
 /**
  * May be implemented on {@link Addressable}s to give the {@link li.cil.circuity.api.bus.BusController}
  * some hints when distributing addresses to connected devices. This should be
@@ -12,7 +14,7 @@ package li.cil.circuity.api.bus.device;
  * conflict with each other (unless the address space they require being mapped
  * to has been used up).
  */
-public interface AddressHint {
+public interface AddressHint extends BusDevice {
     /**
      * The sorting order of the device.
      * <p>

@@ -4,6 +4,7 @@ import li.cil.circuity.api.bus.AddressBlock;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressHint;
+import li.cil.circuity.api.bus.device.BusStateAware;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.common.Constants;
@@ -12,6 +13,7 @@ import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 
 @Serializable
 public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevice {
@@ -57,7 +59,7 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
     private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_WRITE_MEMORY);
 
-    private final class RandomAccessMemoryImpl extends AbstractAddressable implements AddressHint {
+    private final class RandomAccessMemoryImpl extends AbstractAddressable implements AddressHint, BusStateAware {
         // --------------------------------------------------------------------- //
         // AbstractAddressable
 
@@ -92,6 +94,18 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
         @Override
         public int getSortHint() {
             return Constants.MEMORY_ADDRESS;
+        }
+
+        // --------------------------------------------------------------------- //
+        // BusStateAware
+
+        @Override
+        public void handleBusOnline() {
+        }
+
+        @Override
+        public void handleBusOffline() {
+            Arrays.fill(BusDeviceRandomAccessMemory.this.memory, (byte) 0);
         }
     }
 }
