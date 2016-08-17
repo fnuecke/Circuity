@@ -5,6 +5,7 @@ import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.ecs.manager.event.ComponentChangeListener;
 import li.cil.lib.api.ecs.manager.event.EntityChangeListener;
+import li.cil.lib.api.event.ForwardedFMLServerStoppedEvent;
 import li.cil.lib.api.synchronization.SynchronizationManager;
 import li.cil.lib.ecs.manager.EntityComponentManagerImpl;
 import net.minecraft.client.Minecraft;
@@ -12,7 +13,6 @@ import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
-import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
@@ -21,6 +21,7 @@ import java.lang.ref.WeakReference;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public enum Manager implements ManagerAPI {
@@ -40,24 +41,21 @@ public enum Manager implements ManagerAPI {
 
     public static void init() {
         SillyBeeAPI.manager = INSTANCE;
+        SillyBeeAPI.EVENT_BUS.register(INSTANCE);
         MinecraftForge.EVENT_BUS.register(INSTANCE);
     }
 
     @SubscribeEvent
     public void handleServerTick(final TickEvent.ServerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            synchronized (lockServer) {
-                updateAll(managersServer, worldsServer, Manager::getServerWorld);
-            }
+        synchronized (lockServer) {
+            handleTick(event.phase, managersServer, worldsServer, Manager::getServerWorld);
         }
     }
 
     @SubscribeEvent
     public void handleClientTick(final TickEvent.ClientTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            synchronized (lockClient) {
-                updateAll(managersClient, worldsClient, Manager::getClientWorld);
-            }
+        synchronized (lockClient) {
+            handleTick(event.phase, managersClient, worldsClient, Manager::getClientWorld);
         }
     }
 
@@ -75,7 +73,8 @@ public enum Manager implements ManagerAPI {
         }
     }
 
-    public void handleServerStopped(final FMLServerStoppedEvent event) {
+    @SubscribeEvent
+    public void handleServerStopped(final ForwardedFMLServerStoppedEvent event) {
         managersServer.clear();
         worldsServer.clear();
         managersClient.clear();
@@ -132,7 +131,15 @@ public enum Manager implements ManagerAPI {
         return manager;
     }
 
-    private static void updateAll(final WeakHashMap<World, EntityComponentManager> managers, final WeakHashMap<EntityComponentManager, WeakReference<World>> worlds, final Function<World, World> actualWorldGetter) {
+    private static void handleTick(final TickEvent.Phase phase, final WeakHashMap<World, EntityComponentManager> managers, final WeakHashMap<EntityComponentManager, WeakReference<World>> worlds, final Function<World, World> actualWorldGetter) {
+        if (phase == TickEvent.Phase.START) {
+            updateManagers(managers, worlds, actualWorldGetter, EntityComponentManagerImpl::update);
+        } else if (phase == TickEvent.Phase.END) {
+            updateManagers(managers, worlds, actualWorldGetter, EntityComponentManagerImpl::lateUpdate);
+        }
+    }
+
+    private static void updateManagers(final WeakHashMap<World, EntityComponentManager> managers, final WeakHashMap<EntityComponentManager, WeakReference<World>> worlds, final Function<World, World> actualWorldGetter, final Consumer<EntityComponentManagerImpl> updater) {
         final Iterator<Map.Entry<World, EntityComponentManager>> iterator = managers.entrySet().iterator();
         while (iterator.hasNext()) {
             final Map.Entry<World, EntityComponentManager> entry = iterator.next();
@@ -142,7 +149,7 @@ public enum Manager implements ManagerAPI {
             if (world == actualWorldGetter.apply(world)) {
                 // We need/want to cast here, because we don't want this method in the public API.
                 final EntityComponentManagerImpl managerImpl = (EntityComponentManagerImpl) manager;
-                managerImpl.update();
+                updater.accept(managerImpl);
             } else {
                 iterator.remove();
                 worlds.remove(entry.getValue());

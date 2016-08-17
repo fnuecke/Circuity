@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
+import li.cil.lib.api.ecs.component.LateTickable;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.ecs.manager.event.ComponentChangeListener;
 import li.cil.lib.api.ecs.manager.event.EntityChangeListener;
@@ -25,8 +26,9 @@ import java.util.WeakHashMap;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-public final class EntityComponentManagerImpl implements EntityComponentManager {
-    private static final Comparator<ITickable> COMPONENT_COMPARATOR = Comparator.comparing(t -> ((Component) t).getId());
+public final class EntityComponentManagerImpl implements EntityComponentManager, ITickable, LateTickable {
+    private static final Comparator<ITickable> TICKABLE_COMPARATOR = Comparator.comparing(t -> ((Component) t).getId());
+    private static final Comparator<LateTickable> LATE_TICKABLE_COMPARATOR = Comparator.comparing(t -> ((Component) t).getId());
 
     // --------------------------------------------------------------------- //
 
@@ -39,6 +41,9 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     private final List<ITickable> updatingComponents = new ArrayList<>();
     private final Set<ITickable> addedUpdatingComponents = new HashSet<>();
     private final Set<ITickable> removedUpdatingComponents = new HashSet<>();
+    private final List<LateTickable> lateUpdatingComponents = new ArrayList<>();
+    private final Set<LateTickable> addedLateUpdatingComponents = new HashSet<>();
+    private final Set<LateTickable> removedLateUpdatingComponents = new HashSet<>();
     private final Set<EntityChangeListener> entityChangeListeners = Sets.newSetFromMap(new WeakHashMap<>());
     private final Set<ComponentChangeListener> componentChangeListeners = Sets.newSetFromMap(new WeakHashMap<>());
 
@@ -54,14 +59,14 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
      */
     public void update() {
         for (final ITickable component : addedUpdatingComponents) {
-            final int index = Collections.binarySearch(updatingComponents, component, COMPONENT_COMPARATOR);
+            final int index = Collections.binarySearch(updatingComponents, component, TICKABLE_COMPARATOR);
             assert index < 0 : "Inserting tickable that is already in the list!";
             updatingComponents.add(~index, component);
         }
         addedUpdatingComponents.clear();
 
         for (final ITickable component : removedUpdatingComponents) {
-            final int index = Collections.binarySearch(updatingComponents, component, COMPONENT_COMPARATOR);
+            final int index = Collections.binarySearch(updatingComponents, component, TICKABLE_COMPARATOR);
             assert index >= 0 : "Removing tickable that is not in the list!";
             updatingComponents.remove(index);
         }
@@ -70,6 +75,36 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
         for (final ITickable component : updatingComponents) {
             if (!removedUpdatingComponents.contains(component)) {
                 component.update();
+            }
+        }
+    }
+
+    /**
+     * Called each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
+     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)}
+     * (depending on which side this manager is on).
+     * <p>
+     * Processes lists of added and removed components, then updates all
+     * tickable components currently managed by this manager.
+     */
+    public void lateUpdate() {
+        for (final LateTickable component : addedLateUpdatingComponents) {
+            final int index = Collections.binarySearch(lateUpdatingComponents, component, LATE_TICKABLE_COMPARATOR);
+            assert index < 0 : "Inserting tickable that is already in the list!";
+            lateUpdatingComponents.add(~index, component);
+        }
+        addedLateUpdatingComponents.clear();
+
+        for (final LateTickable component : removedLateUpdatingComponents) {
+            final int index = Collections.binarySearch(lateUpdatingComponents, component, LATE_TICKABLE_COMPARATOR);
+            assert index >= 0 : "Removing tickable that is not in the list!";
+            lateUpdatingComponents.remove(index);
+        }
+        removedLateUpdatingComponents.clear();
+
+        for (final LateTickable component : lateUpdatingComponents) {
+            if (!removedLateUpdatingComponents.contains(component)) {
+                component.lateUpdate();
             }
         }
     }
@@ -136,6 +171,9 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
 
             if (component instanceof ITickable) {
                 addedUpdatingComponents.add((ITickable) component);
+            }
+            if (component instanceof LateTickable) {
+                addedLateUpdatingComponents.add((LateTickable) component);
             }
 
             component.onCreate();
@@ -232,6 +270,9 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
 
         if (component instanceof ITickable) {
             removedUpdatingComponents.add((ITickable) component);
+        }
+        if (component instanceof LateTickable) {
+            removedLateUpdatingComponents.add((LateTickable) component);
         }
 
         componentChangeListeners.forEach(l -> l.onComponentRemoved(component));
