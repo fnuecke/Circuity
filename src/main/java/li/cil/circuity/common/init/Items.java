@@ -35,12 +35,12 @@ public final class Items {
     }
 
     private static Item register(final Item item, final String name) {
-        ModCircuity.getProxy().handleRegisterItem(item);
-
-        return GameRegistry.register(item.
-                setCreativeTab(Globals.CREATIVE_TAB).
+        item.setCreativeTab(Globals.CREATIVE_TAB).
                 setUnlocalizedName(name).
-                setRegistryName(name));
+                setRegistryName(name);
+        GameRegistry.register(item);
+        ModCircuity.getProxy().handleRegisterItem(item);
+        return item;
     }
 
     private Items() {
