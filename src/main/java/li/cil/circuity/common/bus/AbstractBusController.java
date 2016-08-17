@@ -1,5 +1,6 @@
 package li.cil.circuity.common.bus;
 
+import com.google.common.base.Throwables;
 import li.cil.circuity.api.bus.AddressBlock;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
@@ -7,11 +8,13 @@ import li.cil.circuity.api.bus.BusSegment;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
+import li.cil.circuity.api.bus.device.AsyncTickable;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.common.Constants;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.scheduler.ScheduledCallback;
+import net.minecraft.util.ITickable;
 import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
@@ -27,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 /**
  * Base implementation for a bus controller.
@@ -95,6 +100,14 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     private final Set<BusDevice> devices = new HashSet<>();
 
     /**
+     * The list of bus devices that also implement {@link ITickable}.
+     * <p>
+     * These will be updated by the bus controller's worker thread whenever the
+     * bus controller is updated (which really should be every tick).
+     */
+    private final List<AsyncTickable> tickables = new ArrayList<>();
+
+    /**
      * List of all <em>addressable</em> devices.
      * <p>
      * This is a subset of {@link #devices}, for performance and stable per-
@@ -136,6 +149,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
      * Whether we have a scan scheduled already (avoid multiple scans).
      */
     private ScheduledCallback scheduledScan;
+
+    /**
+     * Set if we currently have a worker thread running.
+     */
+    private Future currentUpdate;
 
     /**
      * Currently selected device for reading its address via serial interface.
@@ -220,6 +238,26 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     // BusController
 
     @Override
+    public void startUpdate() {
+        if (currentUpdate == null) {
+            currentUpdate = BusThreadPool.INSTANCE.submit(this::updateDevicesAsync);
+        }
+    }
+
+    @Override
+    public void finishUpdate() {
+        if (currentUpdate != null) {
+            try {
+                currentUpdate.get();
+            } catch (InterruptedException | ExecutionException e) {
+                Throwables.propagate(e);
+            } finally {
+                currentUpdate = null;
+            }
+        }
+    }
+
+    @Override
     public void scheduleScan() {
         final World world = getBusWorld();
         if (world.isRemote) return;
@@ -275,6 +313,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             }
 
             devices.clear();
+            tickables.clear();
             addressables.clear();
             addressBlocks.clear();
 
@@ -312,6 +351,12 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     protected abstract World getBusWorld();
 
     // --------------------------------------------------------------------- //
+
+    private void updateDevicesAsync() {
+        synchronized (busLock) {
+            tickables.forEach(AsyncTickable::updateAsync);
+        }
+    }
 
     private void segfault() {
         // TODO Interrupt?
@@ -427,6 +472,10 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             this.devices.add(device);
 
             device.setBusController(this);
+
+            if (device instanceof AsyncTickable) {
+                tickables.add((AsyncTickable) device);
+            }
 
             if (device instanceof Addressable) {
                 final Addressable addressable = (Addressable) device;

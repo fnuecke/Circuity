@@ -1,11 +1,9 @@
 package li.cil.circuity.server.processor.z80;
 
-import li.cil.circuity.api.bus.device.AbstractBusDevice;
-import li.cil.circuity.api.bus.device.InterruptSink;
+import li.cil.circuity.server.processor.BusAccess;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 
-import javax.annotation.Nullable;
 import java.lang.reflect.Array;
 
 // http://www.zilog.com/manage_directlink.php?filepath=docs/z80/um0080
@@ -13,7 +11,7 @@ import java.lang.reflect.Array;
 // Flag computation based on https://github.com/anotherlin/z80emu/
 
 @Serializable
-public final class Z80 extends AbstractBusDevice implements InterruptSink {
+public final class Z80 {
     // --------------------------------------------------------------------- //
     // Flag register bit indices and masks
 
@@ -72,11 +70,17 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
     @Serialize
     private InterruptMode IM;
 
+    private final BusAccess memory;
+    private final BusAccess io;
+
     // --------------------------------------------------------------------- //
 
     protected final Object lock = new Object();
 
-    public Z80() {
+    public Z80(final BusAccess memory, final BusAccess io) {
+        this.memory = memory;
+        this.io = io;
+
         for (int i = 0; i < res.length; i++) {
             final int y = i;
             res[i] = (byte v) -> res(y, v);
@@ -85,31 +89,8 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
             final int y = i;
             set[i] = (byte v) -> set(y, v);
         }
-    }
 
-    // --------------------------------------------------------------------- //
-    // InterruptSink
-
-    @Override
-    public int[] getAcceptedInterrupts(final int[] interrupts) {
-        return new int[]{interrupts[0]};
-    }
-
-    @Override
-    public void setAcceptedInterrupts(@Nullable final int[] interrupts) {
-    }
-
-    @Override
-    public void interrupt(final int interrupt) {
-        // TODO THIS IS BULLSHIT
-        // No seriously, it's just for testing. Should replace with
-        // providing multiple interrupts, then getting the index of
-        // the one that's triggered and providing that.
-        if (interrupt < 0) {
-            nmi();
-        } else {
-            irq((byte) interrupt);
-        }
+        reset(0);
     }
 
     // --------------------------------------------------------------------- //
@@ -479,12 +460,12 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
 
     private byte peek8(final short address) {
         cycleBudget -= 3;
-        return (byte) controller.mapAndRead(address & 0xFFFF);
+        return (byte) memory.read(address & 0xFFFF);
     }
 
     private void poke8(final short address, final byte value) {
         cycleBudget -= 3;
-        controller.mapAndWrite(address & 0xFFFF, value & 0xFF);
+        memory.write(address & 0xFFFF, value & 0xFF);
     }
 
     private byte read8() {
@@ -604,12 +585,12 @@ public final class Z80 extends AbstractBusDevice implements InterruptSink {
 
     private byte ioRead(final short port) {
         cycleBudget -= 4;
-        return (byte) controller.mapAndRead(0x10000 + (port & 0xFFFF));
+        return (byte) io.read(port & 0xFFFF);
     }
 
     private void ioWrite(final short port, final byte data) {
         cycleBudget -= 4;
-        controller.mapAndWrite(0x10000 + (port & 0xFFFF), data & 0xFF);
+        io.write(port & 0xFFFF, data & 0xFF);
     }
 
     private byte ioRead() {

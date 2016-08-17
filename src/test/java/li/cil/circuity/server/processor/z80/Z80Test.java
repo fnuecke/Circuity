@@ -2,6 +2,7 @@ package li.cil.circuity.server.processor.z80;
 
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.server.processor.BusControllerAccess;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -16,8 +17,7 @@ public class Z80Test {
     public void runDiag() throws Exception {
         final BusControllerWithMemory controller = new BusControllerWithMemory();
 
-        final Z80 cpu = new Z80();
-        cpu.setBusController(controller);
+        final Z80 cpu = new Z80(new BusControllerAccess(controller, 0), new BusControllerAccess(controller, 0x10000));
         controller.setCPU(cpu);
 
         final int diagnosticsOffset = 0x100;
@@ -84,6 +84,14 @@ public class Z80Test {
 
         @Override
         public void scheduleScan() {
+        }
+
+        @Override
+        public void startUpdate() {
+        }
+
+        @Override
+        public void finishUpdate() {
         }
 
         @Override

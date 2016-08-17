@@ -3,17 +3,26 @@ package li.cil.circuity.common.ecs.component;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.common.bus.AbstractBusController;
+import li.cil.lib.api.ecs.component.LateTickable;
+import li.cil.lib.api.ecs.component.Redstone;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
+import li.cil.lib.synchronization.value.SynchronizedBoolean;
+import net.minecraft.util.ITickable;
 import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
 
 @Serializable
-public final class BusControllerBlock extends BusNeighborAware {
+public final class BusControllerBlock extends BusNeighborAware implements ITickable, LateTickable {
     @Serialize
     private final BlockBusControllerImpl controller = new BlockBusControllerImpl();
+
+    @Serialize
+    private final SynchronizedBoolean isWorking = new SynchronizedBoolean();
+
+    private Redstone redstone;
 
     // --------------------------------------------------------------------- //
 
@@ -28,6 +37,7 @@ public final class BusControllerBlock extends BusNeighborAware {
     public void onCreate() {
         super.onCreate();
 
+        redstone = getComponent(Redstone.class).orElseThrow(IllegalStateException::new);
         controller.scheduleScan();
     }
 
@@ -37,6 +47,7 @@ public final class BusControllerBlock extends BusNeighborAware {
     public void onDestroy() {
         super.onDestroy();
 
+        redstone = null;
         controller.clear();
     }
 
@@ -55,6 +66,27 @@ public final class BusControllerBlock extends BusNeighborAware {
     @Override
     protected BusController getController() {
         return controller;
+    }
+
+    // --------------------------------------------------------------------- //
+    // ITickable
+
+    @Override
+    public void update() {
+        if (redstone.getInput(null) > 0) {
+            isWorking.set(true);
+            controller.startUpdate();
+        } else {
+            isWorking.set(false);
+        }
+    }
+
+    // --------------------------------------------------------------------- //
+    // LateTickable
+
+    @Override
+    public void lateUpdate() {
+        controller.finishUpdate();
     }
 
     // --------------------------------------------------------------------- //

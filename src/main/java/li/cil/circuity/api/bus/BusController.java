@@ -22,8 +22,36 @@ public interface BusController extends BusSegment {
      * frame. In particular, devices cannot immediately remove themselves from
      * the bus. They must continue operating until the bus clears itself from
      * them via {@link BusDevice#setBusController(BusController)}.
+     * <p>
+     * This method is thread safe.
      */
     void scheduleScan();
+
+    /**
+     * Starts an update cycle.
+     * <p>
+     * This will trigger a worker thread which will then update all
+     * {@link li.cil.circuity.api.bus.device.AsyncTickable} bus devices, if
+     * and only if the bus controller is in a legal state (i.e. no two bus
+     * controllers connected to the same bus).
+     * <p>
+     * This method is <em>not</em> thread safe. It is expected to be called
+     * from the server thread only.
+     */
+    void startUpdate();
+
+    /**
+     * Finish an update cycle.
+     * <p>
+     * Waits for the worker thread to complete updating all devices on the bus.
+     * This way, even though updates are running in parallel, they are still
+     * kept in sync with the server update loop, which is particularly useful
+     * to avoid non-deterministic behavior when saving.
+     * <p>
+     * This method is <em>not</em> thread safe. It is expected to be called
+     * from the server thread only.
+     */
+    void finishUpdate();
 
     /**
      * Write a value to the specified global address.
@@ -38,6 +66,8 @@ public interface BusController extends BusSegment {
      * <p>
      * The value must fit into the data width supported by the bus controller,
      * otherwise you have to assume it may get truncated at some point.
+     * <p>
+     * This method is thread safe.
      *
      * @param address the global address to write to.
      * @param value   the value to write.
@@ -55,6 +85,8 @@ public interface BusController extends BusSegment {
      * The address must fit into the address width supported by the bus
      * controller, otherwise an {@link IndexOutOfBoundsException} will be
      * thrown.
+     * <p>
+     * This method is thread safe.
      *
      * @param address the global address to read from.
      * @return the value read.
