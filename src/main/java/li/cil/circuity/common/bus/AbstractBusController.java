@@ -159,6 +159,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     private ScheduledCallback scheduledScan;
 
     /**
+     * Whether the last scan failed.
+     */
+    private boolean hasErrors;
+
+    /**
      * Set if we currently have a worker thread running.
      */
     private Future currentUpdate;
@@ -370,6 +375,20 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     }
 
     /**
+     * Check whether the bus controller is currently in an error state.
+     * <p>
+     * The controller is in an error state when the last scan failed. This can
+     * happen if there are multiple controllers on the same bus, or when part
+     * of the bus cannot generate its list of adjacent devices (e.g. due to
+     * the adjacent block being in an unloaded chunk).
+     *
+     * @return <code>true</code> when in an error state; <code>false</code> otherwise.
+     */
+    public boolean hasErrors() {
+        return hasErrors;
+    }
+
+    /**
      * Clears the bus controller's state, removing all devices (and setting
      * their bus controller to <code>null</code>).
      */
@@ -441,6 +460,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     private void scanSynchronized() {
         synchronized (busLock) {
             scheduledScan = null;
+            hasErrors = false;
             scan();
         }
     }
@@ -450,9 +470,10 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         // Build new list of devices --------------------------------------- //
         // ----------------------------------------------------------------- //
 
-        final Set<BusDevice> devices = new HashSet<>();
+        final Set<BusDevice> newDevices = new HashSet<>();
 
         {
+            final List<BusDevice> adjacentDevices = new ArrayList<>();
             final Set<BusSegment> closed = new HashSet<>();
             final Queue<BusSegment> open = new ArrayDeque<>();
 
@@ -472,17 +493,22 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             while (!open.isEmpty()) {
                 final BusSegment segment = open.poll();
                 if (!closed.add(segment)) continue;
-                for (final BusDevice device : segment.getDevices()) {
-                    devices.add(device);
+                if (!segment.getDevices(adjacentDevices)) {
+                    scanErrored();
+                    return;
+                }
+                for (final BusDevice device : adjacentDevices) {
+                    newDevices.add(device);
                     if (device instanceof BusSegment) {
                         open.add((BusSegment) device);
                     }
                 }
+                adjacentDevices.clear();
             }
 
             // Similarly as with the above, avoid null entries in getDevices()
             // to screw things up. Still not trusting people. Who'd've thunk.
-            devices.remove(null);
+            newDevices.remove(null);
         }
 
         // ----------------------------------------------------------------- //
@@ -496,7 +522,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             // Find devices that have been removed, update internal data
             // structures accordingly and notify them. While doing so, convert
             // the set of found devices into the set of added devices.
-            final Iterator<BusDevice> it = this.devices.iterator();
+            final Iterator<BusDevice> it = devices.iterator();
             while (it.hasNext()) {
                 final BusDevice device = it.next();
 
@@ -504,7 +530,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 // known and nothing changes for the device. We remove it so
                 // that this set of devices only contains the added devices
                 // when we're done.
-                if (!devices.remove(device)) {
+                if (!newDevices.remove(device)) {
                     it.remove();
 
                     if (device instanceof Addressable) {
@@ -534,17 +560,16 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         // Multiple controllers on one bus are a no-go. If we detect we're
         // connected to another controller, shut down everything and start
         // rescanning periodically.
-        final boolean hasMultipleControllers = devices.stream().anyMatch(device -> device instanceof BusController && device != this);
+        final boolean hasMultipleControllers = newDevices.stream().anyMatch(device -> device instanceof BusController && device != this);
         if (hasMultipleControllers) {
-            clear();
-            scheduledScan = SillyBeeAPI.scheduler.scheduleIn(getBusWorld(), RESCAN_INTERVAL * 20, this::scanSynchronized);
+            scanErrored();
             return;
         }
 
         // The above leaves us with the list of added devices, update internal
         // data structures accordingly and notify them.
-        for (final BusDevice device : devices) {
-            this.devices.add(device);
+        for (final BusDevice device : newDevices) {
+            devices.add(device);
 
             device.setBusController(this);
 
@@ -584,7 +609,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             // If we were in an invalid state before we need to activate all
             // addressable devices known, which now includes the new devices.
             // Otherwise we just need to activate the new devices.
-            final Iterable<BusDevice> activatedDevices = didAnyAddressesOverlap ? this.devices : devices;
+            final Iterable<BusDevice> activatedDevices = didAnyAddressesOverlap ? devices : newDevices;
             for (final BusDevice device : activatedDevices) {
                 if (device instanceof Addressable) {
                     final Addressable addressable = (Addressable) device;
@@ -598,7 +623,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         } else if (!didAnyAddressesOverlap) {
             Arrays.fill(addresses, null);
             for (final Addressable addressable : addressables) {
-                if (!devices.contains(addressable)) {
+                if (!newDevices.contains(addressable)) {
                     addressable.setMemory(null);
                 }
             }
@@ -633,6 +658,12 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 }
             }
         }
+    }
+
+    private void scanErrored() {
+        clear();
+        scheduledScan = SillyBeeAPI.scheduler.scheduleIn(getBusWorld(), RESCAN_INTERVAL * 20, this::scanSynchronized);
+        hasErrors = true;
     }
 
     private boolean doAnyAddressesOverlap() {

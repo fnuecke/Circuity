@@ -13,7 +13,6 @@ import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
@@ -35,7 +34,8 @@ public abstract class BusNeighborAware extends AbstractComponentBusDevice implem
         // unnecessary overhead on the client.
         final BusController controller = getController();
         if (controller != null && !getWorld().isRemote) {
-            final Collection<BusDevice> devices = getDevicesCollection();
+            final HashSet<BusDevice> devices = new HashSet<>();
+            getDevices(devices);
             if (neighbors.retainAll(devices) | neighbors.addAll(devices)) {
                 controller.scheduleScan();
             }
@@ -47,42 +47,36 @@ public abstract class BusNeighborAware extends AbstractComponentBusDevice implem
     @Nullable
     protected abstract BusController getController();
 
-    protected final Collection<BusDevice> getDevicesCollection() {
+    protected final boolean getDevices(final Collection<BusDevice> devices) {
         final Optional<Location> location = getComponent(Location.class);
-        return location.map(BusNeighborAware::getDevicesAt).orElse(Collections.emptySet());
+        return !location.isPresent() || getDevicesAt(location.get(), devices);
     }
 
-    // --------------------------------------------------------------------- //
-
-    private static Collection<BusDevice> getDevicesAt(final Location location) {
+    private static boolean getDevicesAt(final Location location, final Collection<BusDevice> devices) {
         final World world = location.getWorld();
         final BlockPos pos = location.getPosition();
 
-        final Set<BusDevice> devices = new HashSet<>();
-
         for (final EnumFacing side : EnumFacing.VALUES) {
-            final BusDevice neighbor = getDeviceOnSide(world, pos, side);
+            final BlockPos neighborPos = pos.offset(side);
+            if (!world.isBlockLoaded(neighborPos)) {
+                return false;
+            }
+
+            BusDevice neighbor = null;
+            final TileEntity tileEntity = world.getTileEntity(neighborPos);
+            if (tileEntity != null) {
+                if (tileEntity.hasCapability(CapabilityBusDevice.BUS_DEVICE_CAPABILITY, side)) {
+                    neighbor = tileEntity.getCapability(CapabilityBusDevice.BUS_DEVICE_CAPABILITY, side);
+                } else if (tileEntity instanceof BusDevice) {
+                    neighbor = (BusDevice) tileEntity;
+                }
+            }
+
             if (neighbor != null) {
                 devices.add(neighbor);
             }
         }
 
-        return devices;
-    }
-
-    @Nullable
-    private static BusDevice getDeviceOnSide(final World world, final BlockPos pos, final EnumFacing side) {
-        final BlockPos neighborPos = pos.offset(side);
-        if (world.isBlockLoaded(neighborPos)) {
-            final TileEntity tileEntity = world.getTileEntity(neighborPos);
-            if (tileEntity != null) {
-                if (tileEntity.hasCapability(CapabilityBusDevice.BUS_DEVICE_CAPABILITY, side)) {
-                    return tileEntity.getCapability(CapabilityBusDevice.BUS_DEVICE_CAPABILITY, side);
-                } else if (tileEntity instanceof BusDevice) {
-                    return (BusDevice) tileEntity;
-                }
-            }
-        }
-        return null;
+        return true;
     }
 }

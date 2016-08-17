@@ -8,7 +8,7 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Collections;
+import java.util.Collection;
 
 import static org.junit.Assert.assertTrue;
 
@@ -87,8 +87,8 @@ public class Z80Test {
         }
 
         @Override
-        public Iterable<BusDevice> getDevices() {
-            return Collections.emptyList();
+        public boolean getDevices(final Collection<BusDevice> devices) {
+            return true;
         }
 
         @Override

@@ -7,6 +7,7 @@ import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 
 import javax.annotation.Nullable;
+import java.util.Collection;
 
 public final class BusSegmentBlock extends BusNeighborAware {
     private final BlockBusSegmentImpl segment = new BlockBusSegmentImpl();
@@ -50,8 +51,8 @@ public final class BusSegmentBlock extends BusNeighborAware {
 
     private final class BlockBusSegmentImpl extends AbstractBusDevice implements BusSegment {
         @Override
-        public Iterable<BusDevice> getDevices() {
-            return BusSegmentBlock.this.getDevicesCollection();
+        public boolean getDevices(final Collection<BusDevice> devices) {
+            return BusSegmentBlock.this.getDevices(devices);
         }
     }
 }
