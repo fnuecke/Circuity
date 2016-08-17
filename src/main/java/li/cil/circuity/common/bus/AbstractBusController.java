@@ -168,8 +168,13 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 case 1: // Select device.
                     return selected;
                 case 2: { // Type identifier of selected addressable device.
-                    // TODO Add API to allow devices to define their type ID.
-                    return 0;
+                    if (selected < 0 || selected >= addressables.size()) {
+                        return 0;
+                    } else {
+                        final Addressable device = addressables.get(selected);
+                        final DeviceInfo info = device.getDeviceInfo();
+                        return info != null ? info.type.id : 0;
+                    }
                 }
                 case 3: { // High address of selected addressable device.
                     if (selected < 0 || selected >= addressables.size()) {
