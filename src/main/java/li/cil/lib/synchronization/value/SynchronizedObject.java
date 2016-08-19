@@ -28,7 +28,7 @@ public final class SynchronizedObject<T> extends AbstractSynchronizedValue {
     }
 
     public SynchronizedObject(final Class<T> valueClass, final T value) {
-        this.valueClass = valueClass;
+        this(valueClass);
         this.value = value;
     }
 

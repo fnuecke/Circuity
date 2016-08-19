@@ -8,28 +8,33 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 @Serializable
-public final class SynchronizedInt extends AbstractSynchronizedValue {
+public final class SynchronizedEnum<T extends Enum<T>> extends AbstractSynchronizedValue {
+    private final T[] enumConstants;
+
     @Serialize
     private int value;
 
     // --------------------------------------------------------------------- //
 
-    public SynchronizedInt() {
+    public SynchronizedEnum(final Class<T> enumClass) {
+        enumConstants = enumClass.getEnumConstants();
     }
 
-    public SynchronizedInt(final int value) {
-        this.value = value;
+    public SynchronizedEnum(final Class<T> enumClass, final T value) {
+        this(enumClass);
+        this.value = value.ordinal();
     }
 
     // --------------------------------------------------------------------- //
 
-    public int get() {
-        return value;
+    public T get() {
+        return enumConstants[value];
     }
 
-    public void set(final int value) {
-        if (this.value != value) {
-            this.value = value;
+    public void set(final T value) {
+        final int ordinal = value.ordinal();
+        if (this.value != ordinal) {
+            this.value = ordinal;
             setDirty();
         }
     }
