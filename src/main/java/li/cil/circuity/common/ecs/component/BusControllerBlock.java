@@ -2,17 +2,26 @@ package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.bus.AbstractBusController;
 import li.cil.lib.api.ecs.component.LateTickable;
 import li.cil.lib.api.ecs.component.Location;
 import li.cil.lib.api.ecs.component.Redstone;
+import li.cil.lib.api.ecs.component.event.ActivationListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.synchronization.value.SynchronizedBoolean;
+import li.cil.lib.synchronization.value.SynchronizedEnum;
+import net.minecraft.client.Minecraft;
+import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.EnumFacing;
+import net.minecraft.util.EnumHand;
 import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ITickable;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
@@ -20,11 +29,11 @@ import java.util.Collection;
 import java.util.Optional;
 
 @Serializable
-public final class BusControllerBlock extends BusNeighborAware implements ITickable, LateTickable {
+public final class BusControllerBlock extends BusNeighborAware implements ITickable, LateTickable, ActivationListener {
     @Serialize
     private final BlockBusControllerImpl controller = new BlockBusControllerImpl();
 
-    private final SynchronizedBoolean hasErrors = new SynchronizedBoolean();
+    private final SynchronizedEnum<AbstractBusController.State> state = new SynchronizedEnum<>(AbstractBusController.State.class);
     private final SynchronizedBoolean isOnline = new SynchronizedBoolean();
 
     private Redstone redstone;
@@ -87,12 +96,19 @@ public final class BusControllerBlock extends BusNeighborAware implements ITicka
             }
 
             isOnline.set(online);
-            hasErrors.set(controller.hasErrors());
+            state.set(controller.getState());
         } else {
-            if (hasErrors.get()) {
-                spawnParticle(EnumParticleTypes.FLAME);
-            } else if (isOnline.get()) {
-                spawnParticle(EnumParticleTypes.REDSTONE);
+            switch (state.get()) {
+                case READY:
+                    if (isOnline.get()) {
+                        spawnParticle(EnumParticleTypes.REDSTONE);
+                    }
+                    break;
+                case ERROR_MULTIPLE_BUS_CONTROLLERS:
+                case ERROR_ADDRESSES_OVERLAP:
+                case ERROR_SEGMENT_FAILED:
+                    spawnParticle(EnumParticleTypes.FLAME);
+                    break;
             }
         }
     }
@@ -106,6 +122,47 @@ public final class BusControllerBlock extends BusNeighborAware implements ITicka
     }
 
     // --------------------------------------------------------------------- //
+    // ActivationListener
+
+    @Override
+    public boolean handleActivated(final EntityPlayer player, final EnumHand hand, @Nullable final ItemStack heldItem, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
+        switch (state.get()) {
+            case ERROR_MULTIPLE_BUS_CONTROLLERS:
+            case ERROR_ADDRESSES_OVERLAP:
+            case ERROR_SEGMENT_FAILED: {
+                final World world = getWorld();
+                if (world.isRemote) {
+                    printErrorMessage(player, state.get());
+                }
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // --------------------------------------------------------------------- //
+
+    private static void printErrorMessage(final EntityPlayer player, final AbstractBusController.State state) {
+        final String key;
+        switch (state) {
+            case ERROR_MULTIPLE_BUS_CONTROLLERS:
+                key = Constants.I18N_SCAN_ERROR_MULTIPLE_BUS_CONTROLLERS;
+                break;
+            case ERROR_ADDRESSES_OVERLAP:
+                key = Constants.I18N_SCAN_ERROR_ADDRESSES_OVERLAP;
+                break;
+            case ERROR_SEGMENT_FAILED:
+                key = Constants.I18N_SCAN_ERROR_SEGMENT_FAILED;
+                break;
+            default:
+                return;
+        }
+
+        if (player == Minecraft.getMinecraft().thePlayer) {
+            Minecraft.getMinecraft().ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation(key));
+        }
+    }
 
     private void spawnParticle(final EnumParticleTypes particleType) {
         final Optional<Location> location = getComponent(Location.class);

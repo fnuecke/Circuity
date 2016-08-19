@@ -16,7 +16,40 @@ import javax.annotation.Nullable;
  * build the global list of assignments of interrupts.
  */
 public interface InterruptSource extends BusDevice {
+    /**
+     * Get the list of interrupts IDs emitted by this device.
+     * <p>
+     * There must be one interrupt ID for each interrupt the device emits. For
+     * example, if the device emits two different interrupts, it must return
+     * two IDs. How these interrupts are used depends on how they are mapped
+     * to {@link InterruptSink}s in the {@link BusController}.
+     * <p>
+     * Interrupts are numbered globally by the {@link BusController}. The
+     * passed list provides an abstracted way of selecting the desired number
+     * of interrupt IDs (for as many interrupts as the device uses).
+     * <p>
+     * Returning an interrupt ID that is already in use is an error; a warning
+     * will be logged, and the device will be assigned no interrupt IDs.
+     * <p>
+     * The device <em>is required to persist the interrupts it is currently
+     * occupying</em>. In that case, the given list is to be ignored, and the
+     * persisted list of interrupt IDs is to be returned.
+     *
+     * @param interrupts the list of available interrupts.
+     * @return the list of IDs equal in size as the number of emitted interrupts.
+     */
     int[] getEmittedInterrupts(final InterruptList interrupts);
 
+    /**
+     * Sets the list of actual interrupt source IDs bound to this device.
+     * <p>
+     * Passing <code>null</code> indicates unbinding the device from all
+     * interrupts.
+     * <p>
+     * The device <em>is required to persist the interrupts it is currently
+     * occupying</em>.
+     *
+     * @param interrupts the list of interrupt IDs the device is now bound to.
+     */
     void setEmittedInterrupts(@Nullable final int[] interrupts);
 }

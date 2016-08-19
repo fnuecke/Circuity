@@ -87,6 +87,11 @@ public class Z80Test {
         }
 
         @Override
+        public boolean isOnline() {
+            return true;
+        }
+
+        @Override
         public void scheduleScan() {
         }
 

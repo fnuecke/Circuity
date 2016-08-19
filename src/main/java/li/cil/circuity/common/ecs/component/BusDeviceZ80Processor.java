@@ -7,9 +7,14 @@ import li.cil.circuity.api.bus.device.BusStateAware;
 import li.cil.circuity.api.bus.device.InterruptList;
 import li.cil.circuity.server.processor.BusControllerAccess;
 import li.cil.circuity.server.processor.z80.Z80;
+import li.cil.circuity.util.IntelHexLoader;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 @Serializable
 public class BusDeviceZ80Processor extends AbstractComponentBusDevice {
@@ -73,6 +78,12 @@ public class BusDeviceZ80Processor extends AbstractComponentBusDevice {
             for (int offset = 0; offset < 4 * 1024; offset++) {
                 final int value = controller.mapAndRead(eepromAddress + offset);
                 controller.mapAndWrite(offset, value);
+            }
+
+            try {
+                IntelHexLoader.load(Files.readAllLines(Paths.get("C:\\Users\\fnuecke\\Desktop\\sdcc\\monitor.ihx")), controller::mapAndWrite);
+            } catch (IOException | IllegalArgumentException e) {
+                e.printStackTrace();
             }
         }
 

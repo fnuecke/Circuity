@@ -46,7 +46,7 @@ public final class InterruptList {
         // which case this should not be called. I.e. there's some wrong
         // assumption somewhere.
         if (interrupts.length == 0) {
-            throw new IllegalStateException("Trying to generate interrupts from the empty interrupt list");
+            throw new IllegalStateException("Trying to generate interrupts from the empty interrupt list.");
         }
 
         final int[] result = new int[count];
@@ -54,7 +54,7 @@ public final class InterruptList {
             result[i] = interrupts[i];
         }
         for (int i = 0, n = result.length - interrupts.length; i < n; i++) {
-            result[interrupts.length + i] = interrupts[interrupts.length - 1] + i;
+            result[interrupts.length + i] = interrupts[interrupts.length - 1] + 1 + i;
         }
         return result;
     }
