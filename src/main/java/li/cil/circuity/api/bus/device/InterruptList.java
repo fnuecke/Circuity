@@ -5,12 +5,6 @@ package li.cil.circuity.api.bus.device;
  * gaps in the existing list of interrupt IDs.
  */
 public final class InterruptList {
-    private static final InterruptList EMPTY = new InterruptList(new int[0]);
-
-    public static InterruptList empty() {
-        return EMPTY;
-    }
-
     /**
      * This will contain the list of "holes" in the sequence of already
      * occupied interrupts IDs, as well as at least the last unused interrupt
@@ -41,13 +35,7 @@ public final class InterruptList {
             throw new IllegalArgumentException("count < 0");
         }
 
-        // Special case, used by the empty interrupt list, which is used when
-        // querying interrupt sources/sinks for their current interrupts. In
-        // which case this should not be called. I.e. there's some wrong
-        // assumption somewhere.
-        if (interrupts.length == 0) {
-            throw new IllegalStateException("Trying to generate interrupts from the empty interrupt list.");
-        }
+        assert interrupts.length > 0 : "Trying to generate interrupts from the empty interrupt list.";
 
         final int[] result = new int[count];
         for (int i = 0, n = Math.min(result.length, interrupts.length); i < n; i++) {
