@@ -81,7 +81,7 @@ public class BusDeviceZ80Processor extends AbstractComponentBusDevice {
             }
 
             try {
-                IntelHexLoader.load(Files.readAllLines(Paths.get("C:\\Users\\fnuecke\\Desktop\\sdcc\\monitor.ihx")), controller::mapAndWrite);
+                IntelHexLoader.load(Files.readAllLines(Paths.get("F:\\sdcc\\monitor.ihx")), controller::mapAndWrite);
             } catch (IOException | IllegalArgumentException e) {
                 e.printStackTrace();
             }

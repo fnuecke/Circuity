@@ -684,6 +684,14 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 if (!newDevices.remove(device)) {
                     it.remove();
 
+                    if (device instanceof BusStateAware) {
+                        stateAwares.remove(device);
+                    }
+
+                    if (device instanceof AsyncTickable) {
+                        tickables.remove(device);
+                    }
+
                     if (device instanceof Addressable) {
                         final Addressable addressable = (Addressable) device;
 

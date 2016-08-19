@@ -11,7 +11,7 @@ import javax.annotation.Nullable;
 public class MessageHandlerTypeInfo extends AbstractMessageHandlerNoResponse<MessageTypeInfo> {
     @Nullable
     @Override
-    public IMessage onMessage(final MessageTypeInfo message, final MessageContext ctx) {
+    public IMessage onMessage(final MessageTypeInfo message, final MessageContext context) {
         final Class type = message.getType();
         final int typeId = message.getTypeId();
 

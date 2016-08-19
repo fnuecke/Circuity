@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -33,6 +34,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
 
     // --------------------------------------------------------------------- //
 
+    private final ReentrantLock lock = new ReentrantLock();
     private long lastId = 0;
     private final HashSet<Long> entities = new HashSet<>();
     private final HashMap<Long, List<Component>> componentsByEntity = new HashMap<>();
@@ -50,6 +52,10 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
 
     // --------------------------------------------------------------------- //
 
+    public ReentrantLock getLock() {
+        return lock;
+    }
+
     /**
      * Called at the beginning of each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
      * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
@@ -58,7 +64,12 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
      * tickable components currently managed by this manager.
      */
     public void update() {
-        updateTickables(addedUpdatingComponents, removedUpdatingComponents, updatingComponents, TICKABLE_COMPARATOR, ITickable::update);
+        lock.lock();
+        try {
+            updateTickables(addedUpdatingComponents, removedUpdatingComponents, updatingComponents, TICKABLE_COMPARATOR, ITickable::update);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
@@ -69,7 +80,12 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
      * tickable components currently managed by this manager.
      */
     public void lateUpdate() {
-        updateTickables(addedLateUpdatingComponents, removedLateUpdatingComponents, lateUpdatingComponents, LATE_TICKABLE_COMPARATOR, LateTickable::lateUpdate);
+        lock.lock();
+        try {
+            updateTickables(addedLateUpdatingComponents, removedLateUpdatingComponents, lateUpdatingComponents, LATE_TICKABLE_COMPARATOR, LateTickable::lateUpdate);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
@@ -81,12 +97,17 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
      * @return <code>true</code> if the entity was created; <code>false</code> if it already existed.
      */
     public boolean addEntity(final long entity) {
-        if (hasEntity(entity)) {
-            return false;
-        }
-        entities.add(entity);
+        lock.lock();
+        try {
+            if (hasEntity(entity)) {
+                return false;
+            }
+            entities.add(entity);
 
-        entityChangeListeners.forEach(l -> l.handleEntityAdded(this, entity));
+            entityChangeListeners.forEach(l -> l.handleEntityAdded(this, entity));
+        } finally {
+            lock.unlock();
+        }
 
         return true;
     }
@@ -104,51 +125,56 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
      */
     @SuppressWarnings("unchecked")
     public <T extends Component> T addComponent(final long entity, final long id, final Class<T> clazz) {
-        validateEntity(entity);
-
-        if (hasComponent(id)) {
-            final Component component = componentsById.get(id);
-            if (component.getEntity() != entity) {
-                throw new IllegalArgumentException("Component with this ID already exists but belongs to a different entity.");
-            }
-            if (component.getClass() != clazz) {
-                throw new IllegalArgumentException("Component with this ID already exists but has a different type.");
-            }
-            return (T) component;
-        }
-
+        lock.lock();
         try {
-            final T component = clazz.getConstructor(EntityComponentManager.class, long.class, long.class).newInstance(this, entity, id);
-            componentsById.
-                    put(id, component);
-            collectTypes(clazz, type -> componentsByType.
-                    computeIfAbsent(type, k -> new ArrayList<>()).
-                    add(component));
-            componentsByEntity.
-                    computeIfAbsent(entity, k -> new ArrayList<>()).
-                    add(component);
-            ((List<T>) componentsByEntityAndType.
-                    computeIfAbsent(entity, k -> new HashMap<>()).
-                    computeIfAbsent(clazz, k -> new ArrayList<T>())).
-                    add(component);
+            validateEntity(entity);
 
-            if (component instanceof ITickable) {
-                addedUpdatingComponents.add((ITickable) component);
-            }
-            if (component instanceof LateTickable) {
-                addedLateUpdatingComponents.add((LateTickable) component);
-            }
-
-            component.onCreate();
-
-            // Unlikely, but component may have decided to self-destruct in onCreate.
             if (hasComponent(id)) {
-                componentChangeListeners.forEach(l -> l.onComponentAdded(component));
+                final Component component = componentsById.get(id);
+                if (component.getEntity() != entity) {
+                    throw new IllegalArgumentException("Component with this ID already exists but belongs to a different entity.");
+                }
+                if (component.getClass() != clazz) {
+                    throw new IllegalArgumentException("Component with this ID already exists but has a different type.");
+                }
+                return (T) component;
             }
 
-            return component;
-        } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
-            throw Throwables.propagate(e);
+            try {
+                final T component = clazz.getConstructor(EntityComponentManager.class, long.class, long.class).newInstance(this, entity, id);
+                componentsById.
+                        put(id, component);
+                collectTypes(clazz, type -> componentsByType.
+                        computeIfAbsent(type, k -> new ArrayList<>()).
+                        add(component));
+                componentsByEntity.
+                        computeIfAbsent(entity, k -> new ArrayList<>()).
+                        add(component);
+                ((List<T>) componentsByEntityAndType.
+                        computeIfAbsent(entity, k -> new HashMap<>()).
+                        computeIfAbsent(clazz, k -> new ArrayList<T>())).
+                        add(component);
+
+                if (component instanceof ITickable) {
+                    addedUpdatingComponents.add((ITickable) component);
+                }
+                if (component instanceof LateTickable) {
+                    addedLateUpdatingComponents.add((LateTickable) component);
+                }
+
+                component.onCreate();
+
+                // Unlikely, but component may have decided to self-destruct in onCreate.
+                if (hasComponent(id)) {
+                    componentChangeListeners.forEach(l -> l.onComponentAdded(component));
+                }
+
+                return component;
+            } catch (InstantiationException | IllegalAccessException | NoSuchMethodException | InvocationTargetException e) {
+                throw Throwables.propagate(e);
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -171,25 +197,30 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
 
     @Override
     public boolean removeEntity(final long entity) {
-        // Remove at the end, so that the entity still exists while components are removed.
-        if (!hasEntity(entity)) {
-            return false;
-        }
-
-        if (componentsByEntity.containsKey(entity)) {
-            final List<Component> components = componentsByEntity.get(entity);
-            while (!components.isEmpty()) {
-                removeComponent(components.get(components.size() - 1));
+        lock.lock();
+        try {
+            // Remove at the end, so that the entity still exists while components are removed.
+            if (!hasEntity(entity)) {
+                return false;
             }
-            componentsByEntity.remove(entity);
-        }
-        if (componentsByEntityAndType.containsKey(entity)) {
-            componentsByEntityAndType.remove(entity);
-        }
 
-        entities.remove(entity);
+            if (componentsByEntity.containsKey(entity)) {
+                final List<Component> components = componentsByEntity.get(entity);
+                while (!components.isEmpty()) {
+                    removeComponent(components.get(components.size() - 1));
+                }
+                componentsByEntity.remove(entity);
+            }
+            if (componentsByEntityAndType.containsKey(entity)) {
+                componentsByEntityAndType.remove(entity);
+            }
 
-        entityChangeListeners.forEach(l -> l.handleEntityRemoved(this, entity));
+            entities.remove(entity);
+
+            entityChangeListeners.forEach(l -> l.handleEntityRemoved(this, entity));
+        } finally {
+            lock.unlock();
+        }
 
         return true;
     }
@@ -215,30 +246,35 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
 
     @Override
     public boolean removeComponent(final Component component) throws UnsupportedOperationException {
-        if (!hasComponent(component.getId())) {
-            return false;
+        lock.lock();
+        try {
+            if (!hasComponent(component.getId())) {
+                return false;
+            }
+
+            component.onDestroy();
+
+            final long entity = component.getEntity();
+            componentsById.remove(component.getId());
+            collectTypes(component.getClass(), type -> componentsByType.
+                    computeIfPresent(type, (k, list) -> {
+                        list.remove(component);
+                        return list.isEmpty() ? null : list;
+                    }));
+            componentsByEntity.get(entity).remove(component);
+            componentsByEntityAndType.get(entity).get(component.getClass()).remove(component);
+
+            if (component instanceof ITickable) {
+                removedUpdatingComponents.add((ITickable) component);
+            }
+            if (component instanceof LateTickable) {
+                removedLateUpdatingComponents.add((LateTickable) component);
+            }
+
+            componentChangeListeners.forEach(l -> l.onComponentRemoved(component));
+        } finally {
+            lock.unlock();
         }
-
-        component.onDestroy();
-
-        final long entity = component.getEntity();
-        componentsById.remove(component.getId());
-        collectTypes(component.getClass(), type -> componentsByType.
-                computeIfPresent(type, (k, list) -> {
-                    list.remove(component);
-                    return list.isEmpty() ? null : list;
-                }));
-        componentsByEntity.get(entity).remove(component);
-        componentsByEntityAndType.get(entity).get(component.getClass()).remove(component);
-
-        if (component instanceof ITickable) {
-            removedUpdatingComponents.add((ITickable) component);
-        }
-        if (component instanceof LateTickable) {
-            removedLateUpdatingComponents.add((LateTickable) component);
-        }
-
-        componentChangeListeners.forEach(l -> l.onComponentRemoved(component));
 
         return true;
     }

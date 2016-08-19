@@ -12,7 +12,7 @@ import java.util.List;
 public class MessageHandlerTypeInfoList extends AbstractMessageHandlerNoResponse<MessageTypeInfoList> {
     @Nullable
     @Override
-    public IMessage onMessage(final MessageTypeInfoList message, final MessageContext ctx) {
+    public IMessage onMessage(final MessageTypeInfoList message, final MessageContext context) {
         final List<Class> types = message.getTypes();
 
         // We need/want to cast here, because we don't want this method in the public API.
