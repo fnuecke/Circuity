@@ -147,13 +147,13 @@ public final class BusControllerBlock extends BusNeighborAware implements ITicka
         final String key;
         switch (state) {
             case ERROR_MULTIPLE_BUS_CONTROLLERS:
-                key = Constants.I18N_SCAN_ERROR_MULTIPLE_BUS_CONTROLLERS;
+                key = Constants.I18N.BUS_ERROR_MULTIPLE_CONTROLLERS;
                 break;
             case ERROR_ADDRESSES_OVERLAP:
-                key = Constants.I18N_SCAN_ERROR_ADDRESSES_OVERLAP;
+                key = Constants.I18N.BUS_ERROR_ADDRESSES_OVERLAP;
                 break;
             case ERROR_SEGMENT_FAILED:
-                key = Constants.I18N_SCAN_ERROR_SEGMENT_FAILED;
+                key = Constants.I18N.BUS_ERROR_SEGMENT_FAILED;
                 break;
             default:
                 return;

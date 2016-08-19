@@ -1,8 +1,8 @@
 package li.cil.circuity.common.ecs.component;
 
-import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.BusStateAware;
 import li.cil.circuity.api.bus.device.DeviceInfo;
@@ -57,7 +57,7 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
     // --------------------------------------------------------------------- //
 
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_WRITE_MEMORY);
+    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_WRITE_MEMORY, Constants.DeviceInfo.RANDOM_ACCESS_MEMORY_NAME);
 
     private final class RandomAccessMemoryImpl extends AbstractAddressable implements AddressHint, BusStateAware {
         // --------------------------------------------------------------------- //

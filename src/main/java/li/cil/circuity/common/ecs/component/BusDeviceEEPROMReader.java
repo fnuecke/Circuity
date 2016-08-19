@@ -1,10 +1,10 @@
 package li.cil.circuity.common.ecs.component;
 
 import io.netty.buffer.ByteBuf;
-import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
@@ -99,7 +99,7 @@ public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements
         }
     }
 
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_ONLY_MEMORY);
+    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_ONLY_MEMORY, Constants.DeviceInfo.EEPROM_READER_NAME);
 
     private final class EEPROMImpl extends AbstractAddressable implements AddressHint {
         // --------------------------------------------------------------------- //

@@ -1,10 +1,10 @@
 package li.cil.circuity.common.ecs.component;
 
 import io.netty.buffer.ByteBuf;
-import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
@@ -79,7 +79,8 @@ public class BusDeviceHardDiskDrive extends AbstractComponentBusDevice implement
             controller.scheduleScan();
         }
     }
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.HARD_DISK_DRIVE);
+
+    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.HARD_DISK_DRIVE, Constants.DeviceInfo.HARD_DISK_DRIVE_NAME);
 
     private final class HardDiskDriveImpl extends AbstractAddressable implements AddressHint {
         // --------------------------------------------------------------------- //

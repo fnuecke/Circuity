@@ -1,8 +1,8 @@
 package li.cil.circuity.common.ecs.component;
 
-import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
@@ -29,7 +29,7 @@ public class BusDeviceSerialConsole extends AbstractComponentBusDevice {
 
     // --------------------------------------------------------------------- //
 
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE);
+    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.SERIAL_CONSOLE_NAME);
 
     private static final class SerialConsoleImpl extends AbstractAddressable implements AddressHint {
         // --------------------------------------------------------------------- //

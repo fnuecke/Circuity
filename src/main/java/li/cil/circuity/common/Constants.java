@@ -1,6 +1,13 @@
 package li.cil.circuity.common;
 
 public final class Constants {
+    /**
+     * The tick rate of Minecraft, just to avoid that magic number everywhere.
+     */
+    public static final int TICKS_PER_SECOND = 20;
+
+    // --------------------------------------------------------------------- //
+
     public static final String BUS_CONTROLLER_NAME = "bus_controller";
     public static final String BUS_CABLE_NAME = "bus_cable";
     public static final String EEPROM_NAME = "eeprom";
@@ -12,9 +19,34 @@ public final class Constants {
 
     // --------------------------------------------------------------------- //
 
-    public static final String I18N_SCAN_ERROR_MULTIPLE_BUS_CONTROLLERS = "bus.error.multiple_controllers";
-    public static final String I18N_SCAN_ERROR_ADDRESSES_OVERLAP = "bus.error.addresses_overlap";
-    public static final String I18N_SCAN_ERROR_SEGMENT_FAILED = "bus.error.segment_failed";
+    /**
+     * Localization string IDs present in the external localization file.
+     */
+    public static final class I18N {
+        public static final String BUS_ERROR_MULTIPLE_CONTROLLERS = "bus.error.multiple_controllers";
+        public static final String BUS_ERROR_ADDRESSES_OVERLAP = "bus.error.addresses_overlap";
+        public static final String BUS_ERROR_SEGMENT_FAILED = "bus.error.segment_failed";
+
+        private I18N() {
+        }
+    }
+
+    // --------------------------------------------------------------------- //
+
+    /**
+     * Device info constants.
+     */
+    public static final class DeviceInfo {
+        public static final String BUS_CONTROLLER_NAME = "Bus Controller";
+        public static final String EEPROM_READER_NAME = "EEPROM Reader";
+        public static final String HARD_DISK_DRIVE_NAME = "HDD";
+        public static final String RANDOM_ACCESS_MEMORY_NAME = "RAM";
+        public static final String REDSTONE_CONTROLLER_NAME = "Redstone Controller";
+        public static final String SERIAL_CONSOLE_NAME = "Serial Console";
+
+        private DeviceInfo() {
+        }
+    }
 
     // --------------------------------------------------------------------- //
 
@@ -29,18 +61,13 @@ public final class Constants {
     public static final int MEMORY_ADDRESS = 0x0000; // up to 0x6FFF
     public static final int GRAPHICS_CARD_ADDRESS = 0x7000; // up to 0xBFFF
     public static final int EEPROM_ADDRESS = 0xC000; // up to 0xCFFF
-    public static final int DISK_DRIVE_ADDRESS = 0xD000;
-    public static final int REDSTONE_CONTROLLER_ADDRESS = 0xD000;
-    public static final int SERIAL_CONSOLE_ADDRESS = 0x10002;
 
     public static final int BUS_CONTROLLER_ADDRESS = 0x10000;
+    public static final int SERIAL_CONSOLE_ADDRESS = 0x10020;
+    public static final int DISK_DRIVE_ADDRESS = 0x10030;
+    public static final int REDSTONE_CONTROLLER_ADDRESS = 0x10040;
 
     // --------------------------------------------------------------------- //
-
-    /**
-     * The tick rate of Minecraft, just to avoid that magic number everywhere.
-     */
-    public static final int TICKS_PER_SECOND = 20;
 
     private Constants() {
     }
