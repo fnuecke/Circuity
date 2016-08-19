@@ -3,7 +3,6 @@ package li.cil.lib.ecs.component;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
-import li.cil.lib.synchronization.value.SynchronizedByte;
 import net.minecraft.util.EnumFacing;
 
 import javax.annotation.Nullable;
@@ -11,7 +10,7 @@ import javax.annotation.Nullable;
 @Serializable
 public final class RedstoneController extends AbstractRedstoneController {
     @Serialize
-    private final SynchronizedByte output = new SynchronizedByte();
+    private byte output;
 
     // --------------------------------------------------------------------- //
 
@@ -24,14 +23,14 @@ public final class RedstoneController extends AbstractRedstoneController {
 
     @Override
     public int getOutput(@Nullable final EnumFacing side) {
-        return output.get();
+        return output & 0xFF;
     }
 
     @Override
-    public void setOutput(@Nullable final EnumFacing side, final int output) {
-        final byte clampedOutput = clampSignal(output);
+    public void setOutput(@Nullable final EnumFacing side, final int value) {
+        final byte clampedOutput = clampSignal(value);
         if (clampedOutput == getOutput(side)) return;
-        this.output.set(clampedOutput);
+        output = clampedOutput;
         scheduleNotifyNeighbors();
         markChanged();
     }

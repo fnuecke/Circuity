@@ -6,7 +6,6 @@ import li.cil.lib.api.ecs.component.Redstone;
 import li.cil.lib.api.ecs.component.event.NeighborChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.scheduler.ScheduledCallback;
-import li.cil.lib.synchronization.value.SynchronizedByteArray;
 import li.cil.lib.util.SpatialUtil;
 import net.minecraft.block.state.IBlockState;
 import net.minecraft.util.EnumFacing;
@@ -17,7 +16,7 @@ import javax.annotation.Nullable;
 import java.util.Optional;
 
 public abstract class AbstractRedstoneController extends AbstractComponent implements Redstone, NeighborChangeListener {
-    private final SynchronizedByteArray input = new SynchronizedByteArray(EnumFacing.VALUES.length);
+    private final byte[] input = new byte[EnumFacing.VALUES.length];
     private ScheduledCallback scheduledInputComputation;
     private ScheduledCallback scheduledNeighborNotification;
 
@@ -56,7 +55,7 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
 
     @Override
     public int getInput(@Nullable final EnumFacing side) {
-        return (side != null ? input.get(side.getIndex()) : getMaxInput()) & 0xFF;
+        return (side != null ? input[side.getIndex()] : getMaxInput()) & 0xFF;
     }
 
     // --------------------------------------------------------------------- //
@@ -121,8 +120,8 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
         final World world = location.getWorld();
         final BlockPos pos = location.getPosition();
         for (final EnumFacing side : EnumFacing.VALUES) {
-            final byte input = clampSignal(world.getRedstonePower(pos.offset(side), side));
-            this.input.set(side.getIndex(), input);
+            final byte value = clampSignal(world.getRedstonePower(pos.offset(side), side));
+            input[side.getIndex()] = value;
         }
     }
 
@@ -133,13 +132,13 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
         final BlockPos pos = location.getPosition();
         final EnumFacing side = SpatialUtil.getNeighborFacing(pos, neighborPos);
 
-        final byte input = clampSignal(world.getRedstonePower(pos.offset(side), side));
-        if (input == getInput(side)) {
+        final byte value = clampSignal(world.getRedstonePower(pos.offset(side), side));
+        if (value == getInput(side)) {
             return;
         }
 
-        if (input > getInput(side)) {
-            this.input.set(side.getIndex(), input);
+        if (value > getInput(side)) {
+            input[side.getIndex()] = value;
         } else {
             scheduleInputComputation();
         }
@@ -148,7 +147,7 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
     private int getMaxInput() {
         int max = 0;
         for (final EnumFacing value : EnumFacing.VALUES) {
-            max = Math.max(max, input.get(value.getIndex()));
+            max = Math.max(max, input[value.getIndex()]);
         }
         return max;
     }
