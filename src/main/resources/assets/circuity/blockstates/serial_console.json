@@ -2,9 +2,9 @@
     "forge_marker": 1,
     "defaults": {
         "textures": {
-            "bottom": "circuity:blocks/eepromReader_bottom",
-            "top": "circuity:blocks/eepromReader_top",
-            "side": "circuity:blocks/eepromReader_side"
+            "bottom": "circuity:blocks/serial_console_bottom",
+            "top": "circuity:blocks/serial_console_top",
+            "side": "circuity:blocks/serial_console_side"
         },
         "model": "cube_bottom_top"
      },

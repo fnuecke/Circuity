@@ -2,9 +2,9 @@
     "forge_marker": 1,
     "defaults": {
         "textures": {
-            "bottom": "circuity:blocks/redstoneController_bottom",
-            "top": "circuity:blocks/redstoneController_top",
-            "side": "circuity:blocks/redstoneController_side"
+            "bottom": "circuity:blocks/random_access_memory_bottom",
+            "top": "circuity:blocks/random_access_memory_top",
+            "side": "circuity:blocks/random_access_memory_side"
         },
         "model": "cube_bottom_top"
      },

@@ -2,9 +2,9 @@
     "forge_marker": 1,
     "defaults": {
         "textures": {
-            "bottom": "circuity:blocks/serialConsole_bottom",
-            "top": "circuity:blocks/serialConsole_top",
-            "side": "circuity:blocks/serialConsole_side"
+            "bottom": "circuity:blocks/bus_controller_bottom",
+            "top": "circuity:blocks/bus_controller_top",
+            "side": "circuity:blocks/bus_controller_side"
         },
         "model": "cube_bottom_top"
      },

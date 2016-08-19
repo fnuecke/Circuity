@@ -1,0 +1,3 @@
+bus.error.multiple_controllers=Multiple Bus Controllers
+bus.error.addresses_overlap=Address Blocks Overlap
+bus.error.segment_failed=Bus Segment Failed
