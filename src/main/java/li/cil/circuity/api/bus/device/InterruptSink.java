@@ -2,6 +2,7 @@ package li.cil.circuity.api.bus.device;
 
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
+import net.minecraft.util.text.ITextComponent;
 
 import javax.annotation.Nullable;
 
@@ -57,6 +58,22 @@ public interface InterruptSink extends BusDevice {
      * @param interrupts the list of interrupt IDs the device is now bound to.
      */
     void setAcceptedInterrupts(@Nullable final int[] interrupts);
+
+    /**
+     * Get a descriptive name for the specified input ID.
+     * <p>
+     * This is used for communicating what a single interrupt of this device
+     * does to the user (i.e. it will be shown to the user in status messages
+     * and interfaces).
+     * <p>
+     * While this may return <em>null</em>, it is strongly recommended to
+     * return a meaningful, human-readable value here.
+     *
+     * @param interruptId the ID to get the name for.
+     * @return the name for that ID.
+     */
+    @Nullable
+    ITextComponent getInterruptName(final int interruptId);
 
     /**
      * Activate the specified interrupt provided by this device.

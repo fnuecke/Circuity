@@ -2,6 +2,10 @@ package li.cil.circuity.server.processor.z80;
 
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.device.AddressBlock;
+import li.cil.circuity.api.bus.device.Addressable;
+import li.cil.circuity.api.bus.device.InterruptSink;
+import li.cil.circuity.api.bus.device.InterruptSource;
 import li.cil.circuity.server.processor.BusControllerAccess;
 import org.junit.Test;
 
@@ -9,6 +13,7 @@ import javax.annotation.Nullable;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.PrimitiveIterator;
 
 import static org.junit.Assert.assertTrue;
 
@@ -59,6 +64,35 @@ public class Z80Test {
         private Z80 cpu;
 
         @Override
+        public boolean isOnline() {
+            return true;
+        }
+
+        @Override
+        public void scheduleScan() {
+        }
+
+        @Nullable
+        @Override
+        public AddressBlock getAddress(final Addressable device) {
+            return null;
+        }
+
+        @Override
+        public PrimitiveIterator.OfInt getInterruptSourceIds(final InterruptSource device) {
+            return null;
+        }
+
+        @Override
+        public PrimitiveIterator.OfInt getInterruptSinkIds(final InterruptSink device) {
+            return null;
+        }
+
+        @Override
+        public void interrupt(final int interruptId, final int data) {
+        }
+
+        @Override
         public void mapAndWrite(final int address, final int value) throws IndexOutOfBoundsException {
             memory[address] = (byte) value;
         }
@@ -82,26 +116,19 @@ public class Z80Test {
             }
         }
 
+        @Nullable
         @Override
-        public void interrupt(final int interruptId, final int data) {
+        public BusController getBusController() {
+            return null;
         }
 
         @Override
-        public boolean isOnline() {
-            return true;
-        }
-
-        @Override
-        public void scheduleScan() {
+        public void setBusController(@Nullable final BusController controller) {
         }
 
         @Override
         public boolean getDevices(final Collection<BusDevice> devices) {
             return true;
-        }
-
-        @Override
-        public void setBusController(@Nullable final BusController controller) {
         }
 
         public void setCPU(final Z80 CPU) {

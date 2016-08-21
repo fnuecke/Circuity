@@ -27,7 +27,22 @@ public final class Constants {
         public static final String BUS_ERROR_MULTIPLE_CONTROLLERS = "bus.error.multiple_controllers";
         public static final String BUS_ERROR_ADDRESSES_OVERLAP = "bus.error.addresses_overlap";
         public static final String BUS_ERROR_SEGMENT_FAILED = "bus.error.segment_failed";
+
         public static final String CONFIGURATOR_MODE_CHANGED = "configurator.mode_changed";
+        public static final String CONFIGURATOR_CLEARED = "configurator.cleared";
+        public static final String CONFIGURATOR_ADDRESS_SELECTED = "configurator.address_selected";
+        public static final String CONFIGURATOR_INTERRUPT_SOURCE = "configurator.interrupt_source";
+        public static final String CONFIGURATOR_NO_INTERRUPT_SOURCE = "configurator.no_interrupt_source";
+        public static final String CONFIGURATOR_INTERRUPT_SINK = "configurator.interrupt_sink";
+        public static final String CONFIGURATOR_NO_INTERRUPT_SINK = "configurator.no_interrupt_sink";
+        public static final String CONFIGURATOR_INTERRUPT_SET = "configurator.interrupt_set";
+        public static final String CONFIGURATOR_INTERRUPT_CLEARED = "configurator.interrupt_cleared";
+
+        public static final String INTERRUPT_SINK_NON_MASKABLE_INTERRUPT = "interrupt_sink.nmi";
+        public static final String INTERRUPT_SINK_INTERRUPT_REQUEST = "interrupt_sink.irq";
+        public static final String INTERRUPT_SOURCE_KEYBOARD_INPUT = "interrupt_source.keyboard_input";
+
+        public static final String UNKNOWN = "generic.unknown";
 
         private I18N() {
         }

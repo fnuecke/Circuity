@@ -1,14 +1,17 @@
 package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AbstractAddressableInterruptSource;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
+import li.cil.circuity.api.bus.device.InterruptList;
 import li.cil.circuity.common.Constants;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serialize;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
 
 import javax.annotation.Nullable;
 
@@ -31,22 +34,30 @@ public class BusDeviceSerialConsole extends AbstractComponentBusDevice {
 
     private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.SERIAL_CONSOLE_NAME);
 
-    private static final class SerialConsoleImpl extends AbstractAddressable implements AddressHint {
+    private static final class SerialConsoleImpl extends AbstractAddressableInterruptSource implements AddressHint {
         // --------------------------------------------------------------------- //
-        // AbstractAddressable
+        // AbstractAddressableInterruptSource
+
+        @Nullable
+        @Override
+        public DeviceInfo getDeviceInfo() {
+            return DEVICE_INFO;
+        }
 
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
             return memory.take(Constants.SERIAL_CONSOLE_ADDRESS, 8);
         }
 
-        // --------------------------------------------------------------------- //
-        // Addressable
+        @Override
+        protected int[] validateEmittedInterrupts(final InterruptList interrupts) {
+            return interrupts.take(1);
+        }
 
         @Nullable
         @Override
-        public DeviceInfo getDeviceInfo() {
-            return DEVICE_INFO;
+        public ITextComponent getInterruptName(final int interruptId) {
+            return new TextComponentTranslation(Constants.I18N.INTERRUPT_SOURCE_KEYBOARD_INPUT);
         }
 
         @Override

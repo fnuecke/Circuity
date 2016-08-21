@@ -25,8 +25,8 @@ public final class BusSegmentBlock extends BusNeighborAware {
     public void onDestroy() {
         super.onDestroy();
 
-        if (segment.getController() != null) {
-            segment.getController().scheduleScan();
+        if (segment.getBusController() != null) {
+            segment.getBusController().scheduleScan();
         }
     }
 
@@ -44,7 +44,7 @@ public final class BusSegmentBlock extends BusNeighborAware {
     @Nullable
     @Override
     protected BusController getController() {
-        return segment.getController();
+        return segment.getBusController();
     }
 
     // --------------------------------------------------------------------- //

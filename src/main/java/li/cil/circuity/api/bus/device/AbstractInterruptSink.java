@@ -2,6 +2,7 @@ package li.cil.circuity.api.bus.device;
 
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
+import net.minecraft.util.text.ITextComponent;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -11,16 +12,18 @@ public abstract class AbstractInterruptSink extends AbstractBusDevice implements
     @Serialize
     private int[] interruptSinks;
 
-    protected abstract int[] validateInterrupts(final InterruptList interrupts);
+    protected abstract int[] validateAcceptedInterrupts(final InterruptList interrupts);
 
-    protected abstract void handleInterrupt(final int interrupt, final int data);
+    protected abstract void interruptIndexed(final int interrupt, final int data);
+
+    protected abstract ITextComponent getInterruptNameIndexed(final int interrupt);
 
     @Override
     public final int[] getAcceptedInterrupts(final InterruptList interrupts) {
         if (this.interruptSinks != null) {
             return this.interruptSinks;
         } else {
-            return validateInterrupts(interrupts);
+            return validateAcceptedInterrupts(interrupts);
         }
     }
 
@@ -29,10 +32,18 @@ public abstract class AbstractInterruptSink extends AbstractBusDevice implements
         this.interruptSinks = interrupts;
     }
 
+    @Nullable
+    @Override
+    public ITextComponent getInterruptName(final int interruptId) {
+        if (interruptSinks == null) return null;
+        final int index = Arrays.binarySearch(interruptSinks, interruptId);
+        return getInterruptNameIndexed(index);
+    }
+
     @Override
     public final void interrupt(final int interruptId, final int data) {
         if (interruptSinks == null) return;
         final int index = Arrays.binarySearch(interruptSinks, interruptId);
-        handleInterrupt(index, data);
+        interruptIndexed(index, data);
     }
 }

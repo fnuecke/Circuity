@@ -11,7 +11,7 @@ public abstract class AbstractAddressableInterruptSink extends AbstractAddressab
     @Serialize
     private int[] interruptSinks;
 
-    protected abstract int[] validateInterrupts(final InterruptList interrupts);
+    protected abstract int[] validateAcceptedInterrupts(final InterruptList interrupts);
 
     protected abstract void handleInterrupt(final int interrupt, final int data);
 
@@ -20,7 +20,7 @@ public abstract class AbstractAddressableInterruptSink extends AbstractAddressab
         if (this.interruptSinks != null) {
             return this.interruptSinks;
         } else {
-            return validateInterrupts(interrupts);
+            return validateAcceptedInterrupts(interrupts);
         }
     }
 

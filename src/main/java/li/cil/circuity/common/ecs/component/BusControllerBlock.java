@@ -13,7 +13,7 @@ import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.synchronization.value.SynchronizedBoolean;
 import li.cil.lib.synchronization.value.SynchronizedEnum;
-import net.minecraft.client.Minecraft;
+import li.cil.lib.util.PlayerUtil;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
@@ -159,9 +159,7 @@ public final class BusControllerBlock extends BusNeighborAware implements ITicka
                 return;
         }
 
-        if (player == Minecraft.getMinecraft().thePlayer) {
-            Minecraft.getMinecraft().ingameGUI.getChatGUI().printChatMessage(new TextComponentTranslation(key));
-        }
+        PlayerUtil.addLocalChatMessage(player, new TextComponentTranslation(key));
     }
 
     private void spawnParticle(final EnumParticleTypes particleType) {

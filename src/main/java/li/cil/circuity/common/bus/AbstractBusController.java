@@ -5,6 +5,7 @@ import li.cil.circuity.ModCircuity;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusSegment;
+import li.cil.circuity.api.bus.ConfigurableBusController;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
@@ -35,6 +36,8 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.PrimitiveIterator;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
@@ -77,7 +80,7 @@ import java.util.concurrent.Future;
  * <p>
  * <sup>3)</sup> How these fields are used depends on the bus width. For an 8-bit data bus, they will hold the 4 bytes of the full 32-bit integer address. For a 16-bit dat bus the two first ports will always be zero, the last two will return the high and low 16 bits of the 32-bit integer address, e.g.
  */
-public abstract class AbstractBusController extends AbstractAddressable implements BusController, AddressHint, BusStateAware {
+public abstract class AbstractBusController extends AbstractAddressable implements ConfigurableBusController, AddressHint, BusStateAware {
     /**
      * The number of addressable words via this buses address space.
      */
@@ -116,6 +119,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         READY,
 
         /**
+         * A scan is currently pending.
+         */
+        SCANNING,
+
+        /**
          * State entered when multiple bus controllers were present.
          */
         ERROR_MULTIPLE_BUS_CONTROLLERS,
@@ -140,7 +148,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
      * Used for synchronized access to the bus, in particular for read/writes
      * and rescanning/changing addresses/interrupts of devices.
      */
-    private final Object busLock = new Object();
+    private final Object lock = new Object();
 
     /**
      * List of all currently known bus devices on the bus.
@@ -241,7 +249,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     /**
      * The current controller state, based on the last scan.
      */
-    private State state = State.READY;
+    private State state = State.SCANNING;
 
     /**
      * Set if we currently have a worker thread running.
@@ -385,11 +393,18 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     public void scheduleScan() {
         final World world = getBusWorld();
         if (world.isRemote) return;
-        synchronized (busLock) {
+        synchronized (lock) {
             if (scheduledScan == null) {
                 scheduledScan = SillyBeeAPI.scheduler.schedule(world, this::scanSynchronized);
+                state = State.SCANNING;
             }
         }
+    }
+
+    @Nullable
+    @Override
+    public AddressBlock getAddress(final Addressable device) {
+        return addressBlocks.get(device);
     }
 
     @Override
@@ -418,14 +433,43 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     }
 
     @Override
+    public PrimitiveIterator.OfInt getInterruptSourceIds(final InterruptSource device) {
+        return new InterruptIterator<>(interruptSources, device);
+    }
+
+    @Override
+    public PrimitiveIterator.OfInt getInterruptSinkIds(final InterruptSink device) {
+        return new InterruptIterator<>(interruptSinks, device);
+    }
+
+    @Override
     public void interrupt(final int interruptId, final int data) {
         final int interruptSinkId = interruptMap[interruptId];
         if (interruptSinkId >= 0) {
             final InterruptSink sink = interruptSinks.get(interruptSinkId);
             assert sink != null : "BusController is in an invalid state: mapping to InterruptSink ID with missing InterruptSink instance.";
-            sink.interrupt(interruptId, data);
+            sink.interrupt(interruptSinkId, data);
         }
     }
+
+    // --------------------------------------------------------------------- //
+    // ConfigurableBusController
+
+    @Override
+    public void setDeviceAddress(final Addressable device, final AddressBlock address) {
+        synchronized (lock) {
+//            addressBlocks.put(device, address);
+//            scheduleScan();
+        }
+    }
+
+    @Override
+    public void setInterruptMapping(final int sourceId, final int sinkId) {
+        synchronized (lock) {
+            interruptMap[sourceId] = sinkId;
+        }
+    }
+
 
     // --------------------------------------------------------------------- //
 
@@ -481,7 +525,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
      * @see State#isOnline()
      */
     public void startUpdate() {
-        if (currentUpdate == null && state == State.READY) {
+        if (currentUpdate == null && isOnline()) {
             currentUpdate = BusThreadPool.INSTANCE.submit(this::updateDevicesAsync);
         }
     }
@@ -518,7 +562,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     public void clear() {
         // Needs to be synchronized as it may be called when owner is disposed,
         // which may happen during a tick, i.e. while async update is running.
-        synchronized (busLock) {
+        synchronized (lock) {
             if (!doAnyAddressesOverlap()) {
                 Arrays.fill(addresses, null);
                 for (final Addressable addressable : addressables) {
@@ -561,28 +605,6 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         }
     }
 
-    public void setDeviceAddress(final int index, final AddressBlock address) {
-        synchronized (busLock) {
-            final boolean didAnyAddressesOverlap = doAnyAddressesOverlap();
-
-            addressBlocks.put(addressables.get(index), address);
-
-            final boolean doAnyAddressesOverlap = doAnyAddressesOverlap();
-            if (!didAnyAddressesOverlap && doAnyAddressesOverlap) {
-                Arrays.fill(addresses, null);
-                for (final Addressable addressable : addressables) {
-                    addressable.setMemory(null);
-                }
-            } else if (didAnyAddressesOverlap && !doAnyAddressesOverlap) {
-                for (final Addressable addressable : addressables) {
-                    final AddressBlock memory = addressBlocks.get(addressable);
-                    setAddressMap(memory, addressable);
-                    addressable.setMemory(memory);
-                }
-            }
-        }
-    }
-
     // --------------------------------------------------------------------- //
 
     protected abstract World getBusWorld();
@@ -590,7 +612,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     // --------------------------------------------------------------------- //
 
     private void updateDevicesAsync() {
-        synchronized (busLock) {
+        synchronized (lock) {
             // A rescan might have snuck in or the owner may have been disposed
             // between this was scheduled and before the worker thread started.
             if (!isOnline()) return;
@@ -604,9 +626,8 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
     // Avoids one level of indentation in scan.
     private void scanSynchronized() {
-        synchronized (busLock) {
+        synchronized (lock) {
             scheduledScan = null;
-            state = State.READY;
             scan();
         }
     }
@@ -710,24 +731,28 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     if (device instanceof InterruptSource) {
                         final InterruptSource source = (InterruptSource) device;
 
-                        int id = -1;
-                        while ((id = indexOf(interruptSources, source, id + 1)) >= 0) {
+                        final PrimitiveIterator.OfInt sourceIds = getInterruptSourceIds(source);
+                        while (sourceIds.hasNext()) {
+                            final int id = sourceIds.nextInt();
                             interruptMap[id] = -1;
                             interruptSources.set(id, null);
                             interruptSourceIds.clear(id);
                         }
+
                         source.setEmittedInterrupts(null);
                     }
 
                     if (device instanceof InterruptSink) {
                         final InterruptSink sink = (InterruptSink) device;
 
-                        int id = -1;
-                        while ((id = indexOf(interruptSinks, sink, id + 1)) >= 0) {
+                        final PrimitiveIterator.OfInt sinkIds = getInterruptSinkIds(sink);
+                        while (sinkIds.hasNext()) {
+                            final int id = sinkIds.nextInt();
                             removedSinkIds.set(id);
                             interruptSinks.set(id, null);
                             interruptSinkIds.clear(id);
                         }
+
                         sink.setAcceptedInterrupts(null);
                     }
 
@@ -872,9 +897,12 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     addressable.setMemory(memory);
                 }
             } else {
-                state = State.ERROR_ADDRESSES_OVERLAP;
+                scanErrored(State.ERROR_ADDRESSES_OVERLAP);
+                return;
             }
         }
+
+        state = State.READY;
     }
 
     private void scanErrored(final State state) {
@@ -989,6 +1017,31 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             while (list.size() <= id)
                 list.add(null);
             list.set(id, instance);
+        }
+    }
+
+    private static final class InterruptIterator<T> implements PrimitiveIterator.OfInt {
+        private final List<T> list;
+        private final T value;
+        private int next;
+
+        private InterruptIterator(final List<T> list, final T value) {
+            this.list = list;
+            this.value = value;
+            next = list.indexOf(value);
+        }
+
+        @Override
+        public boolean hasNext() {
+            return next >= 0;
+        }
+
+        @Override
+        public int nextInt() {
+            if (!hasNext()) throw new NoSuchElementException();
+            final int value = next;
+            next = indexOf(list, this.value, value + 1);
+            return value;
         }
     }
 }

@@ -20,6 +20,14 @@ import javax.annotation.Nullable;
  */
 public interface BusDevice {
     /**
+     * Get the bus controller the device is currently assigned to.
+     *
+     * @return the controller the the device is connected to.
+     */
+    @Nullable
+    BusController getBusController();
+
+    /**
      * Called when this device is connected to or disconnected from a bus controller.
      * <p>
      * When <code>controller</code> is non-<code>null</code>, this merely means

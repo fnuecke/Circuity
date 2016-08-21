@@ -42,8 +42,8 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
         System.arraycopy(memory, 0, newMemory, 0, Math.min(memory.length, newMemory.length));
         memory = newMemory;
 
-        if (device.getController() != null) {
-            device.getController().scheduleScan();
+        if (device.getBusController() != null) {
+            device.getBusController().scheduleScan();
         }
     }
 

@@ -4,8 +4,12 @@ import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.AsyncTickable;
 import li.cil.circuity.api.bus.device.BusStateAware;
+import li.cil.circuity.api.bus.device.InterruptList;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.api.bus.device.InterruptSource;
+
+import javax.annotation.Nullable;
+import java.util.PrimitiveIterator;
 
 /**
  * Implemented by bus controllers responsible for managing a bus.
@@ -46,6 +50,21 @@ public interface BusController extends BusSegment {
      * This method is thread safe.
      */
     void scheduleScan();
+
+    // --------------------------------------------------------------------- //
+
+    /**
+     * Get the address block the specified device is currently assigned to.
+     * <p>
+     * This allows retrieving the authoritative address from the bus, and avoids
+     * having to call {@link Addressable#getMemory(AddressBlock)} in a potentially
+     * unknown state.
+     *
+     * @param device the device to get the address for.
+     * @return the address of that device.
+     */
+    @Nullable
+    AddressBlock getAddress(final Addressable device);
 
     /**
      * Write a value to the specified global address.
@@ -104,6 +123,36 @@ public interface BusController extends BusSegment {
      * @throws IndexOutOfBoundsException if the address is unsupported.
      */
     int mapAndRead(final int address) throws IndexOutOfBoundsException;
+
+    // --------------------------------------------------------------------- //
+
+    /**
+     * Get the list of interrupt IDs the specified source has currently assigned.
+     * <p>
+     * This allows retrieving the authoritative list from the bus, and avoids
+     * having to call {@link InterruptSource#getEmittedInterrupts(InterruptList)}
+     * in a potentially unknown state.
+     * <p>
+     * Note that this method is not very efficient. Do not call this frequently.
+     *
+     * @param device the interrupt source to get the interrupt IDs for.
+     * @return the list of interrupt IDs the source has assigned to it.
+     */
+    PrimitiveIterator.OfInt getInterruptSourceIds(final InterruptSource device);
+
+    /**
+     * Get the list of interrupt IDs the specified sink has currently assigned.
+     * <p>
+     * This allows retrieving the authoritative list from the bus, and avoids
+     * having to call {@link InterruptSink#getAcceptedInterrupts(InterruptList)}
+     * in a potentially unknown state.
+     * <p>
+     * Note that this method is not very efficient. Do not call this frequently.
+     *
+     * @param device the interrupt sink to get the interrupt IDs for.
+     * @return the list of interrupt IDs the sink has assigned to it.
+     */
+    PrimitiveIterator.OfInt getInterruptSinkIds(final InterruptSink device);
 
     /**
      * Triggers the interrupt with the specified ID, passing along the specified data.

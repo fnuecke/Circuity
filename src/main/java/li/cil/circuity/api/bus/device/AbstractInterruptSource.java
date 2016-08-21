@@ -10,9 +10,10 @@ public abstract class AbstractInterruptSource extends AbstractAddressable implem
     @Serialize
     private int[] interruptsSources;
 
-    protected abstract int[] validateInterrupts(final InterruptList interrupts);
+    protected abstract int[] validateEmittedInterrupts(final InterruptList interrupts);
 
     protected void triggerInterrupt(final int index, final int data) {
+        if (interruptsSources == null) return;
         final int interruptId = interruptsSources[index];
         controller.interrupt(interruptId, data);
     }
@@ -22,7 +23,7 @@ public abstract class AbstractInterruptSource extends AbstractAddressable implem
         if (this.interruptsSources != null) {
             return this.interruptsSources;
         } else {
-            return validateInterrupts(interrupts);
+            return validateEmittedInterrupts(interrupts);
         }
     }
 

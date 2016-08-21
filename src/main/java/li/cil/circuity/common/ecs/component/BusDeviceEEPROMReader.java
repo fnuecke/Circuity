@@ -93,7 +93,7 @@ public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements
             data = medium.getData();
         }
 
-        final BusController controller = device.getController();
+        final BusController controller = device.getBusController();
         if (controller != null) {
             controller.scheduleScan();
         }

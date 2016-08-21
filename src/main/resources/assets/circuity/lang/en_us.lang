@@ -1,9 +1,22 @@
 bus.error.multiple_controllers=Multiple Bus Controllers
 bus.error.addresses_overlap=Address Blocks Overlap
 bus.error.segment_failed=Bus Segment Failed
+
 configurator.mode_changed=Mode changed to: %s
+configurator.cleared=Cleared stored configuration.
 configurator.mode.change_address=Change Address
 configurator.mode.bind_address=Bind Address
 configurator.mode.bind_interrupt=Bind Interrupt
-configurator.address_stored=Address Stored: %s
-configurator.interrupt_stored=Interrupt Stored: %s (%s)
+configurator.address_selected=Address: %sh
+configurator.interrupt_source=Interrupt source: %s (#%s)
+configurator.no_interrupt_source=Interrupt source cleared.
+configurator.interrupt_sink=Interrupt sink: %s (#%s)
+configurator.no_interrupt_sink=Interrupt sink cleared.
+configurator.interrupt_set=Interrupts linked.
+configurator.interrupt_set=Interrupt cleared.
+
+interrupt_sink.nmi=NMI
+interrupt_sink.irq=IRQ
+interrupt_source.keyboard_input=Keyboard Input
+
+generic.unknown=Unknown

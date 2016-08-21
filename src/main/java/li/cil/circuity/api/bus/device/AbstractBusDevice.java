@@ -9,7 +9,8 @@ public abstract class AbstractBusDevice implements BusDevice {
     protected BusController controller;
 
     @Nullable
-    public BusController getController() {
+    @Override
+    public BusController getBusController() {
         return controller;
     }
 
