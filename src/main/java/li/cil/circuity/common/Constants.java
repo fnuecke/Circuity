@@ -10,6 +10,7 @@ public final class Constants {
 
     public static final String BUS_CONTROLLER_NAME = "bus_controller";
     public static final String BUS_CABLE_NAME = "bus_cable";
+    public static final String CONFIGURATOR_NAME = "configurator";
     public static final String EEPROM_NAME = "eeprom";
     public static final String EEPROM_READER_NAME = "eeprom_reader";
     public static final String PROCESSOR_Z80_NAME = "processor_z80";
@@ -26,6 +27,7 @@ public final class Constants {
         public static final String BUS_ERROR_MULTIPLE_CONTROLLERS = "bus.error.multiple_controllers";
         public static final String BUS_ERROR_ADDRESSES_OVERLAP = "bus.error.addresses_overlap";
         public static final String BUS_ERROR_SEGMENT_FAILED = "bus.error.segment_failed";
+        public static final String CONFIGURATOR_MODE_CHANGED = "configurator.mode_changed";
 
         private I18N() {
         }

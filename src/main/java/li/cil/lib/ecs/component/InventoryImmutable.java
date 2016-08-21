@@ -1,6 +1,5 @@
 package li.cil.lib.ecs.component;
 
-import li.cil.circuity.common.capabilities.NoSuchCapabilityException;
 import li.cil.lib.api.ecs.component.Location;
 import li.cil.lib.api.ecs.component.event.ContainerDestructionListener;
 import li.cil.lib.api.ecs.component.event.InventoryChangeListener;
@@ -116,12 +115,13 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
         return capability == ITEM_HANDLER_CAPABILITY;
     }
 
+    @Nullable
     @Override
     public <T> T getCapability(final Capability<T> capability, @Nullable final EnumFacing facing) {
         if (capability == ITEM_HANDLER_CAPABILITY) {
             return ITEM_HANDLER_CAPABILITY.cast(this);
         }
-        throw new NoSuchCapabilityException();
+        return null;
     }
 
     // --------------------------------------------------------------------- //

@@ -6,7 +6,7 @@ import li.cil.circuity.common.capabilities.CapabilityBusDevice;
 import li.cil.lib.api.ecs.component.Location;
 import li.cil.lib.api.ecs.component.event.NeighborChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
-import net.minecraft.tileentity.TileEntity;
+import li.cil.lib.util.CapabilityUtil;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -62,16 +62,7 @@ public abstract class BusNeighborAware extends AbstractComponentBusDevice implem
                 return false;
             }
 
-            BusDevice neighbor = null;
-            final TileEntity tileEntity = world.getTileEntity(neighborPos);
-            if (tileEntity != null) {
-                if (tileEntity.hasCapability(CapabilityBusDevice.BUS_DEVICE_CAPABILITY, side)) {
-                    neighbor = tileEntity.getCapability(CapabilityBusDevice.BUS_DEVICE_CAPABILITY, side);
-                } else if (tileEntity instanceof BusDevice) {
-                    neighbor = (BusDevice) tileEntity;
-                }
-            }
-
+            final BusDevice neighbor = CapabilityUtil.getCapability(world, neighborPos, side, CapabilityBusDevice.BUS_DEVICE_CAPABILITY, BusDevice.class);
             if (neighbor != null) {
                 devices.add(neighbor);
             }

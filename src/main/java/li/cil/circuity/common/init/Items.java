@@ -3,6 +3,7 @@ package li.cil.circuity.common.init;
 import li.cil.circuity.ModCircuity;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.Globals;
+import li.cil.circuity.common.item.ItemConfigurator;
 import li.cil.circuity.common.item.ItemEEPROM;
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
@@ -12,6 +13,7 @@ import net.minecraftforge.fml.common.registry.GameRegistry;
 public final class Items {
     public static Item busCable;
     public static Item busController;
+    public static Item configurator;
     public static Item eeprom;
     public static Item eepromReader;
     public static Item processorZ80;
@@ -22,6 +24,7 @@ public final class Items {
     public static void init() {
         busCable = register(Blocks.busCable);
         busController = register(Blocks.busController);
+        configurator = register(new ItemConfigurator(), Constants.CONFIGURATOR_NAME);
         eeprom = register(new ItemEEPROM(), Constants.EEPROM_NAME);
         eepromReader = register(Blocks.eepromReader);
         processorZ80 = register(Blocks.processorZ80);

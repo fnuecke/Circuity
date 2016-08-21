@@ -10,7 +10,14 @@ public final class CapabilityEEPROM {
     @CapabilityInject(EEPROM.class)
     public static Capability<EEPROM> EEPROM_CAPABILITY;
 
+    // --------------------------------------------------------------------- //
+
     public static void register() {
         CapabilityManager.INSTANCE.register(EEPROM.class, new StorageMediumStorage<>(), EEPROMImpl::new);
+    }
+
+    // --------------------------------------------------------------------- //
+
+    private CapabilityEEPROM() {
     }
 }

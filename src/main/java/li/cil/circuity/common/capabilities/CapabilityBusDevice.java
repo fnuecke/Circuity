@@ -11,7 +11,14 @@ public final class CapabilityBusDevice {
     @CapabilityInject(BusDevice.class)
     public static Capability<BusDevice> BUS_DEVICE_CAPABILITY;
 
+    // --------------------------------------------------------------------- //
+
     public static void register() {
         CapabilityManager.INSTANCE.register(BusDevice.class, new NullStorage<>(), NullFactory::create);
+    }
+
+    // --------------------------------------------------------------------- //
+
+    private CapabilityBusDevice() {
     }
 }

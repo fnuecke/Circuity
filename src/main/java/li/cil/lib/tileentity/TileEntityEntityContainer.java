@@ -1,6 +1,5 @@
 package li.cil.lib.tileentity;
 
-import li.cil.circuity.common.capabilities.NoSuchCapabilityException;
 import li.cil.lib.ModSillyBee;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
@@ -127,6 +126,8 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
         return false;
     }
 
+    @SuppressWarnings("NullableProblems") // getCapability *is* nullable, just missing the tag in TileEntity.
+    @Nullable
     @Override
     public <T> T getCapability(final Capability<T> capability, final EnumFacing facing) {
         final List<T> instances = new ArrayList<>();
@@ -145,7 +146,7 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
         }
 
         if (instances.isEmpty()) {
-            throw new NoSuchCapabilityException();
+            return null;
         }
         if (instances.size() == 1) {
             return instances.get(0);
@@ -165,7 +166,10 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
             return;
         }
 
-        assert (getEntity() == 0L);
+        if (getEntity() != 0L) {
+            throw new IllegalStateException("Trying to initialize an already initialized entity container.");
+        }
+
         entity = getManager().addEntity();
         addComponents();
         if (loadedData != null) {

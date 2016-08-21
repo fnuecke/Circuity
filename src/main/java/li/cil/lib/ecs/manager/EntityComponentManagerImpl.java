@@ -52,40 +52,17 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
 
     // --------------------------------------------------------------------- //
 
+    /**
+     * Get a lock to synchronize <em>some</em> interaction with the manager.
+     * <p>
+     * In particular, this is used to synchronize updating components with
+     * removal of components and entities with network messages (for both
+     * sides) and with adding of components and entities (for the client side).
+     *
+     * @return the lock to use for synchronized operations.
+     */
     public ReentrantLock getLock() {
         return lock;
-    }
-
-    /**
-     * Called at the beginning of each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
-     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
-     * <p>
-     * Processes lists of added and removed components, then updates all
-     * tickable components currently managed by this manager.
-     */
-    public void update() {
-        lock.lock();
-        try {
-            updateTickables(addedUpdatingComponents, removedUpdatingComponents, updatingComponents, TICKABLE_COMPARATOR, ITickable::update);
-        } finally {
-            lock.unlock();
-        }
-    }
-
-    /**
-     * Called at the end of each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
-     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
-     * <p>
-     * Processes lists of added and removed components, then updates all
-     * tickable components currently managed by this manager.
-     */
-    public void lateUpdate() {
-        lock.lock();
-        try {
-            updateTickables(addedLateUpdatingComponents, removedLateUpdatingComponents, lateUpdatingComponents, LATE_TICKABLE_COMPARATOR, LateTickable::lateUpdate);
-        } finally {
-            lock.unlock();
-        }
     }
 
     /**
@@ -317,6 +294,46 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
             return componentsByEntity.get(entity);
         } else {
             return Collections.emptyList();
+        }
+    }
+
+    // --------------------------------------------------------------------- //
+    // ITickable
+
+    /**
+     * Called at the beginning of each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
+     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
+     * <p>
+     * Processes lists of added and removed components, then updates all
+     * tickable components currently managed by this manager.
+     */
+    @Override
+    public void update() {
+        lock.lock();
+        try {
+            updateTickables(addedUpdatingComponents, removedUpdatingComponents, updatingComponents, TICKABLE_COMPARATOR, ITickable::update);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    // --------------------------------------------------------------------- //
+    // LateTickable
+
+    /**
+     * Called at the end of each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
+     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
+     * <p>
+     * Processes lists of added and removed components, then updates all
+     * tickable components currently managed by this manager.
+     */
+    @Override
+    public void lateUpdate() {
+        lock.lock();
+        try {
+            updateTickables(addedLateUpdatingComponents, removedLateUpdatingComponents, lateUpdatingComponents, LATE_TICKABLE_COMPARATOR, LateTickable::lateUpdate);
+        } finally {
+            lock.unlock();
         }
     }
 

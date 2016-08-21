@@ -1,7 +1,7 @@
 package li.cil.circuity.common.capabilities.storage;
 
+import li.cil.circuity.ModCircuity;
 import li.cil.circuity.api.item.StorageMedium;
-import li.cil.lib.ModSillyBee;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
@@ -29,7 +29,7 @@ public final class StorageMediumStorage<T extends StorageMedium> implements Capa
                 compound.setLong(LEAST_SIGNIFICANT_BITS_TAG, eeprom.uuid.getLeastSignificantBits());
             }
         } else {
-            ModSillyBee.getLogger().error("Trying to save a non-default implementation of EEPROM using the default EEPROM storage implementation.");
+            ModCircuity.getLogger().error("Trying to save a non-default implementation of EEPROM using the default EEPROM storage implementation.");
         }
 
         return compound;
@@ -47,10 +47,10 @@ public final class StorageMediumStorage<T extends StorageMedium> implements Capa
                     eeprom.uuid = new UUID(mostSignificantBits, leastSignificantBits);
                 }
             } else {
-                ModSillyBee.getLogger().error("Trying to load storage medium from incompatible tag type.");
+                ModCircuity.getLogger().error("Trying to load storage medium from incompatible tag type.");
             }
         } else {
-            ModSillyBee.getLogger().error("Trying to load a non-default implementation of storage medium using the default storage medium storage implementation.");
+            ModCircuity.getLogger().error("Trying to load a non-default implementation of storage medium using the default storage medium storage implementation.");
         }
     }
 }
