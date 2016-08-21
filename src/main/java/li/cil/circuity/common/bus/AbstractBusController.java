@@ -444,11 +444,14 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
     @Override
     public void interrupt(final int interruptId, final int data) {
-        final int interruptSinkId = interruptMap[interruptId];
-        if (interruptSinkId >= 0) {
-            final InterruptSink sink = interruptSinks.get(interruptSinkId);
-            assert sink != null : "BusController is in an invalid state: mapping to InterruptSink ID with missing InterruptSink instance.";
-            sink.interrupt(interruptSinkId, data);
+        synchronized (lock) {
+            if (!isOnline()) return;
+            final int interruptSinkId = interruptMap[interruptId];
+            if (interruptSinkId >= 0) {
+                final InterruptSink sink = interruptSinks.get(interruptSinkId);
+                assert sink != null : "BusController is in an invalid state: mapping to InterruptSink ID with missing InterruptSink instance.";
+                sink.interrupt(interruptSinkId, data);
+            }
         }
     }
 

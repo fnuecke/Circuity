@@ -171,9 +171,7 @@ public interface BusController extends BusSegment {
      * includes {@link AsyncTickable#updateAsync()}, {@link Addressable#read(int)},
      * {@link Addressable#write(int, int)} and {@link InterruptSink#interrupt(int, int)}.
      * <p>
-     * This method is <em>not</em> thread safe. It must only be called while in
-     * a callback initiated from the bus controller (as listed in the previous
-     * paragraph).
+     * This method is thread safe.
      *
      * @param interruptId the ID of the interrupt to trigger.
      * @param data        the data to pass along.
