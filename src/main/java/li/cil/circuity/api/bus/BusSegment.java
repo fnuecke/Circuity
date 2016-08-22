@@ -7,10 +7,10 @@ import java.util.List;
  * Represents a transitive part of a bus.
  * <p>
  * Typically there are two use cases where this interface gets implemented.
- * The first is simple bus cables. In that case, {@link #getDevices(List)} will
+ * The first is simple bus cables. In that case, {@link #getDevices(Collection)} will
  * return the list of neighboring <em>segments and devices</em>.
  * <p>
- * The other use case are compound devices. In that case, {@link #getDevices(List)}
+ * The other use case are compound devices. In that case, {@link #getDevices(Collection)}
  * will return the list of only <em>internal devices</em>.
  * <p>
  * It is up to the implementer to decide what to do with this, and whether to
