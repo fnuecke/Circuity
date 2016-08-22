@@ -280,7 +280,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
     @Override
     protected AddressBlock validateAddress(final AddressBlock memory) {
-        return memory.take(Constants.BUS_CONTROLLER_ADDRESS, 12 * 8);
+        return memory.take(Constants.BUS_CONTROLLER_ADDRESS, 20 * 8);
     }
 
     // --------------------------------------------------------------------- //
@@ -310,32 +310,22 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     return info != null ? info.type.id : 0;
                 }
             }
-            case 4:
-            case 5: { // Size of the device.
-                if (selected < 0 || selected >= addressables.size()) {
-                    return 0;
-                } else {
-                    final Addressable device = addressables.get(selected);
-                    final AddressBlock memory = addressBlocks.get(device);
-                    return (memory.getLength() >>> ((5 - address) * 8)) & 0xFF;
-                }
-            }
-            case 6:
-            case 7:
             case 8:
-            case 9: { // Address the device is mapped to.
+            case 9:
+            case 10:
+            case 11: { // Address the device is mapped to.
                 if (selected < 0 || selected >= addressables.size()) {
                     return 0;
                 } else {
                     final Addressable device = addressables.get(selected);
                     final AddressBlock memory = addressBlocks.get(device);
-                    return (memory.getOffset() >>> ((9 - address) * FULL_ADDRESS_BLOCK.getWordSize())) & 0xFF;
+                    return (memory.getOffset() >>> ((address - 8) * FULL_ADDRESS_BLOCK.getWordSize())) & 0xFF;
                 }
             }
-            case 10: // Reset device name pointer.
+            case 12: // Reset device name pointer.
                 nameIndex = 0;
                 break;
-            case 11: { // Read a single character of the name of the selected device.
+            case 13: { // Read a single character of the name of the selected device.
                 if (selected < 0 || selected >= addressables.size()) {
                     return 0;
                 } else {
@@ -343,6 +333,19 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     final DeviceInfo info = device.getDeviceInfo();
                     final String name = info != null ? info.name : null;
                     return name != null && nameIndex < name.length() ? (name.charAt(nameIndex++) & 0xFF) : 0;
+                }
+            }
+
+            case 16:
+            case 17:
+            case 18:
+            case 19: { // Size of the device.
+                if (selected < 0 || selected >= addressables.size()) {
+                    return 0;
+                } else {
+                    final Addressable device = addressables.get(selected);
+                    final AddressBlock memory = addressBlocks.get(device);
+                    return (memory.getLength() >>> ((address - 16) * 8)) & 0xFF;
                 }
             }
         }
@@ -356,7 +359,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 selected = value;
                 nameIndex = 0;
                 break;
-            case 10: // Reset device name pointer.
+            case 12: // Reset device name pointer.
                 break;
         }
     }
