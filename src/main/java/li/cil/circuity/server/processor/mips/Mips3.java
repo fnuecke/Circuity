@@ -111,6 +111,12 @@ public class Mips3 {
     @Serialize
     private boolean fault_bd = false;
 
+    // Cache policy
+    public static final int CACHE_WTHRU_NOWALLOC = 0x0;
+    public static final int CACHE_WTHRU_WALLOC = 0x1;
+    public static final int CACHE_NONE = 0x2;
+    public static final int CACHE_WBACK = 0x3;
+
     // Exceptions
     public class MipsAddressErrorException extends Exception {}
     public class MipsBusErrorException extends Exception {}
@@ -202,6 +208,23 @@ public class Mips3 {
 
     // Address remapping
 
+    private int cachePolicy(long vaddr, long paddr) {
+        // TODO: TLB
+        if(vaddr >= -0x80000000L && vaddr < -0x60000000L) {
+            // ckseg0
+            // K0 field([0,2]) in c0_config(16) determines this
+            return CACHE_WBACK;
+        } else if(vaddr >= -0x60000000L && vaddr < -0x40000000L) {
+            // ckseg1
+            return CACHE_NONE;
+        } else if(vaddr >= -0x8000000000000000L && vaddr < -0xA000000000000000L) {
+            // xkphys
+            return 3&(int)(vaddr>>>59L);
+        } else {
+            return CACHE_WBACK;
+        }
+    }
+
     private long virtToPhys64(long vaddr) throws MipsAddressErrorException {
         // TODO: xkphys region (HALP)
         // summary of xkphys:
@@ -226,11 +249,24 @@ public class Mips3 {
         } else if(vaddr < -0x40000000) { // 0xFFFFFFFFC0000000 to 0xFFFFFFFFFFFFFFFF
             // TODO: perm check (kernel only)
             if(vaddr >= -0x60000000) { // 0xFFFFFFFFA0000000 to 0xFFFFFFFFBFFFFFFF
+                // ckseg1
                 return (vaddr & 0x000000001FFFFFFFL);
 
-            } else if(vaddr >= -0x40000000) { // 0xFFFFFFFF80000000 to 0xFFFFFFFF9FFFFFFF
+            } else if(vaddr >= -0x80000000) { // 0xFFFFFFFF80000000 to 0xFFFFFFFF9FFFFFFF
+                // ckseg0
                 // TODO: cache
                 return (vaddr & 0x000000001FFFFFFFL);
+
+            } else if(vaddr >= -0x8000000000000000L && vaddr < -0xA000000000000000L) {
+                // xkphys
+                // TODO: cache
+                if((vaddr & 0x07FFFFF000000000L) == 0) {
+                    // valid (we support 36 physbits, partly to make Sangar's job harder --GM)
+                    return (vaddr & 0x0000000FFFFFFFFFL);
+                } else {
+                    // INVALID!
+                    throw new MipsAddressErrorException();
+                }
 
             } else {
                 // INVALID!
@@ -1161,7 +1197,8 @@ public class Mips3 {
 
     public void reset() {
         synchronized(lock) {
-            this.pc = 0xFFFFFFFFA0000000L;
+            //this.pc = 0xFFFFFFFFA0000000L; // ckseg1 (uncached)
+            this.pc = 0x9000000000000000L; // xkphys uncached
             this.pl0_op = 0;
             this.pl0_pc = this.pc;
             this.pl0_bd = false;
