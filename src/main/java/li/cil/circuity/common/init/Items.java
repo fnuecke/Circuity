@@ -16,6 +16,7 @@ public final class Items {
     public static Item configurator;
     public static Item eeprom;
     public static Item eepromReader;
+    public static Item processorMips3;
     public static Item processorZ80;
     public static Item randomAccessMemory;
     public static Item redstoneController;
@@ -27,6 +28,7 @@ public final class Items {
         configurator = register(new ItemConfigurator(), Constants.CONFIGURATOR_NAME);
         eeprom = register(new ItemEEPROM(), Constants.EEPROM_NAME);
         eepromReader = register(Blocks.eepromReader);
+        processorMips3 = register(Blocks.processorMips3);
         processorZ80 = register(Blocks.processorZ80);
         randomAccessMemory = register(Blocks.randomAccessMemory);
         redstoneController = register(Blocks.redstoneController);

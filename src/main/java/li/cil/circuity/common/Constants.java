@@ -13,6 +13,7 @@ public final class Constants {
     public static final String CONFIGURATOR_NAME = "configurator";
     public static final String EEPROM_NAME = "eeprom";
     public static final String EEPROM_READER_NAME = "eeprom_reader";
+    public static final String PROCESSOR_MIPS3_NAME = "processor_mips3";
     public static final String PROCESSOR_Z80_NAME = "processor_z80";
     public static final String RANDOM_ACCESS_MEMORY_NAME = "random_access_memory";
     public static final String REDSTONE_CONTROLLER_NAME = "redstone_controller";
