@@ -579,10 +579,27 @@ public class Mips3 {
                                 this.mdlo = 0;
                                 this.mdhi = this.regs[rs];
                             }
-                        //} else if(this.regs[rs] < 0) { // *rs >= (1<<63) -- TODO: deal to this case
+                        } else if(this.regs[rt] == 1) {
+                            this.mdlo = this.regs[rs];
+                            this.mdhi = 0;
+                        } else if(this.regs[rt] == 2) {
+                            this.mdlo = this.regs[rs]>>1L;
+                            this.mdhi = this.regs[rs]&1L;
                         } else {
-                            this.mdlo = (this.regs[rs]) / this.regs[rt];
-                            this.mdhi = (this.regs[rs]) % this.regs[rt];
+                            // we should hopefully be OK by now
+                            // we are dividing by numbers no smaller than 3
+                            long sh = 0xFFFFFFFFL&(long)(int)(this.regs[rs]>>32L);
+                            long sl = 0xFFFFFFFFL&(long)(int)(this.regs[rs]);
+                            long tx = this.regs[rt];
+
+                            long qh = sh/tx;
+                            long rh = sh%tx;
+                            sl += rh<<32L;
+                            long ql = sl/tx;
+                            long rl = sl%tx;
+
+                            this.mdlo = (qh<<32L)+ql;
+                            this.mdhi = rl;
                         }
                     } break;
 
@@ -740,8 +757,124 @@ public class Mips3 {
                 }
             } break;
 
-            // RELIMM
-            // TODO!
+            // REGIMM
+
+            case 1: switch(rt) {
+
+                // Branches
+
+                case 0: // BLTZ
+                    if(this.regs[rs] < 0) {
+                        this.pc = ex_pc + 4 + (((long)(short)ex_op)<<2);
+                        this.pl0_bd = true;
+                    }
+                    break;
+                case 1: // BGEZ
+                    if(this.regs[rs] >= 0) {
+                        this.pc = ex_pc + 4 + (((long)(short)ex_op)<<2);
+                        this.pl0_bd = true;
+                    }
+                    break;
+                case 2: // BLTZL
+                    if(this.regs[rs] < 0) {
+                        this.pc = ex_pc + 4 + (((long)(short)ex_op)<<2);
+                        this.pl0_bd = true;
+                    } else {
+                        this.pl0_op = 0;
+                    }
+                    break;
+                case 3: // BGEZL
+                    if(this.regs[rs] >= 0) {
+                        this.pc = ex_pc + 4 + (((long)(short)ex_op)<<2);
+                        this.pl0_bd = true;
+                    } else {
+                        this.pl0_op = 0;
+                    }
+                    break;
+
+                // Immediate conditional traps
+
+                case 8: // TGEI
+                    if(this.regs[rs] >= (long)(short)ex_op) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+                case 9: // TGEIU
+                    if((this.regs[rs]^0x8000000000000000L) >= (0x8000000000000000L^(long)(short)ex_op)) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+                case 10: // TLTI
+                    if(this.regs[rs] < (long)(short)ex_op) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+                case 11: // TLTIU
+                    if((this.regs[rs]^0x8000000000000000L) < (0x8000000000000000L^(long)(short)ex_op)) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+                case 12: // TEQ
+                    if(this.regs[rs] == (long)(short)ex_op) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+                case 14: // TNE
+                    if(this.regs[rs] != (long)(short)ex_op) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+
+                // Branch and link
+
+                case 16: // BLTZAL
+                    if(this.regs[rs] < 0) {
+                        rd = 31;
+                        wb_result = ex_pc+8;
+                        this.pc = ex_pc + 4 + (((long)(short)ex_op)<<2);
+                        this.pl0_bd = true;
+                    }
+                    break;
+                case 17: // BGEZAL
+                    if(this.regs[rs] >= 0) {
+                        rd = 31;
+                        wb_result = ex_pc+8;
+                        this.pc = ex_pc + 4 + (((long)(short)ex_op)<<2);
+                        this.pl0_bd = true;
+                    }
+                    break;
+                case 18: // BLTZALL
+                    if(this.regs[rs] < 0) {
+                        rd = 31;
+                        wb_result = ex_pc+8;
+                        this.pc = ex_pc + 4 + (((long)(short)ex_op)<<2);
+                        this.pl0_bd = true;
+                    } else {
+                        this.pl0_op = 0;
+                    }
+                    break;
+                case 19: // BGEZALL
+                    if(this.regs[rs] >= 0) {
+                        rd = 31;
+                        wb_result = ex_pc+8;
+                        this.pc = ex_pc + 4 + (((long)(short)ex_op)<<2);
+                        this.pl0_bd = true;
+                    } else {
+                        this.pl0_op = 0;
+                    }
+                    break;
+
+                // Reserved instruction fault
+
+                default:
+                    if(ex_op == 0) {
+                        break;
+                    }
+
+                    System.err.printf("RI RegImm: %d\n", rt);
+                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                    break;
+            } break;
 
             // Jumps
 
