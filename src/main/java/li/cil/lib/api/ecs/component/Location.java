@@ -28,7 +28,7 @@ public interface Location extends Component {
      * The world the component's entity resides in.
      * <p>
      * This should be the same as what {@link li.cil.lib.Manager#getWorld(EntityComponentManager, boolean)}
-     * returns for the component's manager.
+     * returns for the component's manager (with the remote flag being that of the returned world).
      *
      * @return the world the component's entity resides in.
      */
