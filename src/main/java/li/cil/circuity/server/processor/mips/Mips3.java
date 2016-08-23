@@ -10,13 +10,14 @@ import li.cil.lib.api.serialization.Serialize;
  * - just about everything
  * - big-endian mode (little-endian is used exclusively)
  * - TLB
- * - xkphys segment
  * - caches
  * - the entirety of COP0
  * - FPA (that is, COP1)
  * - 64-bit ops
  */
 public class Mips3 {
+
+    public static final int TLB_COUNT = 48;
 
     private BusControllerAccess memory;
     private final Object lock = new Object();
@@ -42,6 +43,31 @@ public class Mips3 {
     private long[] c0regs = new long[32];
     @Serialize
     private long mdlo, mdhi;
+
+    // COP0 register names
+    public static final int C0_INDEX = 0;
+    public static final int C0_RANDOM = 1;
+    public static final int C0_ENTRYLO0 = 2;
+    public static final int C0_ENTRYLO1 = 3;
+    public static final int C0_CONTEXT = 4;
+    public static final int C0_PAGEMASK = 5;
+    public static final int C0_WIRED = 6;
+    public static final int C0_BADVADDR = 8;
+    public static final int C0_COUNT = 9;
+    public static final int C0_ENTRYHI = 10;
+    public static final int C0_COMPARE = 11;
+    public static final int C0_STATUS = 12;
+    public static final int C0_CAUSE = 13;
+    public static final int C0_EPC = 14;
+    public static final int C0_PRID = 15;
+    public static final int C0_CONFIG = 16;
+    public static final int C0_LLADDR = 17;
+    public static final int C0_XCONTEXT = 20;
+    public static final int C0_ECC = 26;
+    public static final int C0_CACHEERR = 27;
+    public static final int C0_TAGLO = 28;
+    public static final int C0_TAGHI = 29;
+    public static final int C0_ERROREPC = 30;
 
     // Pipeline stages
     public enum MPipelineStage {
@@ -125,6 +151,10 @@ public class Mips3 {
     @Serialize
     private int cycleBudget = 0;
 
+    // Masks for 32/64-bit stuff
+    @Serialize
+    private boolean allow64 = true;
+
     // Actual code!
 
     // Constructor
@@ -147,6 +177,13 @@ public class Mips3 {
         this.fault_type = code;
         this.fault_pc = pc;
         this.fault_bd = bd;
+
+        // Set COP0 info
+        this.c0regs[C0_STATUS] |= 2; // EXL
+        this.c0regs[C0_CAUSE] = (long)(int)((this.c0regs[C0_CAUSE] & 0x0000FF00)
+                | ((code.code<<2)&0x1F)
+                | (bd ? 0x80000000 : 0));
+        this.c0regs[C0_EPC] = (bd ? pc - 4 : pc);
 
         // Spew fault into log
         System.err.printf("MIPS FAULT:\n");
@@ -285,11 +322,6 @@ public class Mips3 {
         }
     }
 
-    private long virtToPhys32(int vaddr) throws MipsAddressErrorException {
-        // sign-extended memory map
-        return virtToPhys64((long)vaddr);
-    }
-
     // Situational reads and writes
 
     private int readInstr(long vaddr) throws MipsAddressErrorException, MipsBusErrorException {
@@ -299,6 +331,7 @@ public class Mips3 {
         }
 
         long paddr = virtToPhys64(vaddr);
+        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+4) >= AbstractBusController.ADDRESS_COUNT) {
@@ -310,6 +343,7 @@ public class Mips3 {
 
     private int readData8(long vaddr) throws MipsAddressErrorException, MipsBusErrorException {
         long paddr = virtToPhys64(vaddr);
+        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+1) >= AbstractBusController.ADDRESS_COUNT) {
@@ -326,6 +360,7 @@ public class Mips3 {
         }
 
         long paddr = virtToPhys64(vaddr);
+        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+2) >= AbstractBusController.ADDRESS_COUNT) {
@@ -342,6 +377,7 @@ public class Mips3 {
         }
 
         long paddr = virtToPhys64(vaddr);
+        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+4) >= AbstractBusController.ADDRESS_COUNT) {
@@ -358,6 +394,7 @@ public class Mips3 {
         }
 
         long paddr = virtToPhys64(vaddr);
+        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+8) >= AbstractBusController.ADDRESS_COUNT) {
@@ -369,6 +406,7 @@ public class Mips3 {
 
     private void writeData8(long vaddr, int data) throws MipsAddressErrorException {
         long paddr = virtToPhys64(vaddr);
+        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+1) >= AbstractBusController.ADDRESS_COUNT) {
@@ -385,6 +423,7 @@ public class Mips3 {
         }
 
         long paddr = virtToPhys64(vaddr);
+        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+2) >= AbstractBusController.ADDRESS_COUNT) {
@@ -401,6 +440,7 @@ public class Mips3 {
         }
 
         long paddr = virtToPhys64(vaddr);
+        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+4) >= AbstractBusController.ADDRESS_COUNT) {
@@ -417,6 +457,7 @@ public class Mips3 {
         }
 
         long paddr = virtToPhys64(vaddr);
+        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+8) >= AbstractBusController.ADDRESS_COUNT) {
@@ -1197,8 +1238,10 @@ public class Mips3 {
 
     public void reset() {
         synchronized(lock) {
-            //this.pc = 0xFFFFFFFFA0000000L; // ckseg1 (uncached)
-            this.pc = 0x9000000000000000L; // xkphys uncached
+            //this.pc = 0xFFFFFFFFBFC00000L; // ckseg1 (uncached) - actual normal reset vector
+            this.pc = 0xFFFFFFFFA0000000L; // ckseg1 (uncached)
+            //this.pc = 0x9000000000000000L; // xkphys uncached
+
             this.pl0_op = 0;
             this.pl0_pc = this.pc;
             this.pl0_bd = false;
@@ -1206,6 +1249,22 @@ public class Mips3 {
             this.fault_stage = MPipelineStage.NONE;
             this.fault_pc = 0;
             this.fault_bd = false;
+
+            // extra stuff that doesn't normally get covered
+            for(int i = 0; i < 32; i++) {
+                this.regs[i] = 0L;
+            }
+            for(int i = 0; i < 32; i++) {
+                this.c0regs[i] = 0L;
+            }
+
+            this.c0regs[C0_STATUS] = (long)0x044000E0;
+            this.c0regs[C0_CAUSE] = (long)0x00000000;
+            this.c0regs[C0_CONFIG] = (long)0x1002649B;
+
+            // however, this DOES happen during a reset!
+            this.c0regs[C0_STATUS] |= (long)0x00400004;
+            this.c0regs[C0_RANDOM] = TLB_COUNT-1;
         }
     }
 
