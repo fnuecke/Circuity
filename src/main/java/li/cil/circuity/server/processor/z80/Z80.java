@@ -585,12 +585,14 @@ public final class Z80 {
 
     private byte ioRead(final short port) {
         cycleBudget -= 4;
-        return (byte) io.read(port & 0xFFFF);
+        // A15-A8 lines pulled down to 0
+        // to prevent issues with the bus controller
+        return (byte) io.read(port & 0x00FF);
     }
 
     private void ioWrite(final short port, final byte data) {
         cycleBudget -= 4;
-        io.write(port & 0xFFFF, data & 0xFF);
+        io.write(port & 0x00FF, data & 0xFF);
     }
 
     private byte ioRead() {
@@ -1478,10 +1480,10 @@ public final class Z80 {
                                     }
                                 }
                                 case 2: // OUT (n),A
-                                    ioWrite((short) (read8() & 0xFF), A);
+                                    ioWrite((short) (0x0101*(read8() & 0xFF)), A);
                                     return;
                                 case 3: // IN A,(n)
-                                    A = ioRead((short) (read8() & 0xFF));
+                                    A = ioRead((short) (0x0101*(read8() & 0xFF)));
                                     return;
                                 case 4: { // EX (SP), HL
                                     final short t = r.r16[IDX_HL_IX_IY].apply();
