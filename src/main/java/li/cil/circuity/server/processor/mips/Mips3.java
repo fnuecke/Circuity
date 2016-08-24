@@ -9,7 +9,6 @@ import li.cil.lib.api.serialization.Serialize;
  * What's missing:
  * - probably still quite a few things
  * - big-endian mode (little-endian is used exclusively)
- * - TLB
  * - caches
  * - FPA (that is, COP1)
  */
@@ -149,6 +148,7 @@ public class Mips3 {
     // Exceptions
     public class MipsAddressErrorException extends Exception {}
     public class MipsBusErrorException extends Exception {}
+    public class MipsTlbModException extends Exception {}
     public class MipsTlbMissException extends Exception {}
 
     // TLB entries as defined by MIPS
@@ -170,6 +170,8 @@ public class Mips3 {
     private int[] tlbPrev = new int[TLB_COUNT];
     @Serialize
     private int tlbFirst = 0;
+    @Serialize
+    private long tlbRecentLo = 0;
 
     // Cycles for timing
     @Serialize
@@ -224,11 +226,22 @@ public class Mips3 {
         this.c0regs[C0_CAUSE] = (long) (int) ((this.c0regs[C0_CAUSE] & 0x0000FF00)
                 | ((code.code & 0x1F) << 2)
                 | (bd ? 0x80000000 : 0));
-        this.c0regs[C0_EPC] = (bd ? pc - 4 : pc);
+        if(!oldExl) {
+            this.c0regs[C0_EPC] = (bd ? pc - 4 : pc);
+        }
 
         // Update important flags
         updateC0Cause(this.c0regs[C0_CAUSE]);
         updateC0Status(this.c0regs[C0_STATUS]);
+
+        // Form contexts
+        this.c0regs[C0_CONTEXT]
+                = (this.c0regs[C0_CONTEXT]&0xFFFF_FFFF_FF80_0000L)
+                | ((this.c0regs[C0_BADVADDR]>>(13-4))&0x0000_0000_007F_FFF0L);
+        this.c0regs[C0_XCONTEXT]
+                = (this.c0regs[C0_XCONTEXT]&0xFFFF_FFFF_0000_0000L)
+                | ((this.c0regs[C0_BADVADDR]>>32)&0x0000_0000_C000_0000L)
+                | ((this.c0regs[C0_BADVADDR]>>(13-4))&0x0000_0000_3FFF_FFF0L);
 
         // Branch
         long bvec = (((this.c0regs[C0_STATUS] >> 22) & 1) != 0 // BEV
@@ -263,13 +276,13 @@ public class Mips3 {
         // DEBUG TOOL: print fault info
         if(false) {
             // Spew fault into log
-            System.err.printf("MIPS FAULT:\n");
-            System.err.printf("- Cause: %s (%d)\n", code.name, code.code);
-            System.err.printf("- Pipeline stage: %s\n", stage.name);
-            System.err.printf("- PC: %016X (BD = %s)\n", pc, bd ? "YES" : "no");
-            System.err.printf("- c0_status:   %016X\n", this.c0regs[C0_STATUS]);
-            System.err.printf("- c0_cause:    %016X\n", this.c0regs[C0_CAUSE]);
-            System.err.printf("- c0_badvaddr: %016X\n", this.c0regs[C0_BADVADDR]);
+            System.out.printf("MIPS FAULT:\n");
+            System.out.printf("- Cause: %s (%d)\n", code.name, code.code);
+            System.out.printf("- Pipeline stage: %s\n", stage.name);
+            System.out.printf("- PC: %016X (BD = %s)\n", pc, bd ? "YES" : "no");
+            System.out.printf("- c0_status:   %016X\n", this.c0regs[C0_STATUS]);
+            System.out.printf("- c0_cause:    %016X\n", this.c0regs[C0_CAUSE]);
+            System.out.printf("- c0_badvaddr: %016X\n", this.c0regs[C0_BADVADDR]);
 
             // Nuke cycle budget so we don't spam the console
             if (this.cycleBudget > 0) {
@@ -333,6 +346,7 @@ public class Mips3 {
 
     private int getTlbIndex(long vaddr) {
         // Scan the TLB
+        vaddr &= 0xC000_00FF_FFFF_FFFFL;
         for(int c = 0, i = tlbFirst; c < TLB_COUNT; c++, i = tlbNext[i]) {
             // Check if we hit
             if((vaddr & ~tlbPageMask[i]) == tlbBase[i]) {
@@ -348,17 +362,20 @@ public class Mips3 {
                 }
 
                 // Move entry to start
-                // 1. Remove self
-                int p = tlbPrev[i];
-                int n = tlbNext[i];
-                tlbNext[p] = tlbNext[i]; tlbPrev[n] = tlbPrev[i];
-                // 2. Insert self between last and first
-                int f = tlbFirst;
-                int l = tlbPrev[f];
-                tlbNext[l] = i; tlbPrev[i] = l;
-                tlbNext[i] = f; tlbPrev[f] = i;
-                // 3. Update first to point to us
-                tlbFirst = i;
+                // 1. ENSURE WE ARE NOT THE THING AT THE START
+                if(i != tlbFirst) {
+                    // 2. Remove self
+                    int p = tlbPrev[i];
+                    int n = tlbNext[i];
+                    tlbNext[p] = tlbNext[i]; tlbPrev[n] = tlbPrev[i];
+                    // 3. Insert self between last and first
+                    int f = tlbFirst;
+                    int l = tlbPrev[f];
+                    tlbNext[l] = i; tlbPrev[i] = l;
+                    tlbNext[i] = f; tlbPrev[f] = i;
+                    // 4. Update first to point to us
+                    tlbFirst = i;
+                }
 
                 // Check V(alid)
                 if((lo&2) == 0) {
@@ -369,6 +386,7 @@ public class Mips3 {
                 // Return index
                 return i;
             }
+            //System.out.printf("TLB next %d -> %d\n", i, tlbNext[i]);
         }
 
         // TLB missed
@@ -378,15 +396,20 @@ public class Mips3 {
     private long getTlbPhysAddress(long vaddr) throws MipsTlbMissException {
         int idx = getTlbIndex(vaddr);
         if(idx < 0) {
+            // TLB MISS
+            this.c0regs[C0_BADVADDR] = vaddr;
             throw new MipsTlbMissException();
         }
 
-        // Remap
-        // TODO: communicate dirty bit + cache bits
-        // (valid + global are handled in getTlbIndex)
+        // Get fields
         boolean use1 = ((vaddr & ((tlbPageMask[idx]+1)>>1)) != 0);
         long lo = use1 ? tlbEntryLo1[idx] : tlbEntryLo0[idx];
-        long mask = tlbPageMask[idx];
+        long mask = tlbPageMask[idx]>>1;
+
+        // Pass on the lo field for things that need it
+        this.tlbRecentLo = lo;
+
+        // Remap
         return (vaddr&mask)|((lo<<6)&~mask);
     }
 
@@ -416,24 +439,8 @@ public class Mips3 {
 
     // Address remapping
 
-    private int cachePolicy(long vaddr, long paddr) {
-        // TODO: TLB
-        if(vaddr >= -0x80000000L && vaddr < -0x60000000L) {
-            // ckseg0
-            // K0 field([0,2]) in c0_config(16) determines this
-            return CACHE_WBACK;
-        } else if(vaddr >= -0x60000000L && vaddr < -0x40000000L) {
-            // ckseg1
-            return CACHE_NONE;
-        } else if(vaddr >= -0x8000_0000_0000_0000L && vaddr < -0x4000_0000_0000_0000L) {
-            // xkphys
-            return 3&(int)(vaddr>>>59L);
-        } else {
-            return CACHE_WBACK;
-        }
-    }
-
     private long virtToPhys64(long vaddr) throws MipsAddressErrorException, MipsTlbMissException {
+        // Clamp if we are in 32-bit address mode
         if(!address64) {
             vaddr = (long)(int)vaddr;
         }
@@ -467,11 +474,13 @@ public class Mips3 {
 
             if(vaddr >= -0x60000000) { // 0xFFFF_FFFF_A000_0000 to 0xFFFF_FFFF_BFFF_FFFF
                 // ckseg1/kseg1
+                tlbRecentLo = 0x7|(0x2<<3);
                 return (vaddr & 0x0000_0000_1FFF_FFFFL);
 
             } else if(vaddr >= -0x80000000) { // 0xFFFF_FFFF_8000_0000 to 0xFFFF_FFFF_9FFF_FFFF
                 // ckseg0/kseg0
                 // TODO: cache
+                tlbRecentLo = 0x7|((this.c0regs[C0_CONFIG]&0x3)<<3);
                 return (vaddr & 0x0000_0000_1FFF_FFFFL);
 
             } else if(vaddr >= -0x8000_0000_0000_0000L && vaddr < -0x6000_0000_0000_0000L) {
@@ -479,6 +488,7 @@ public class Mips3 {
                 // TODO: cache
                 if((vaddr & 0x07FF_FFF0_0000_0000L) == 0) {
                     // valid (we support 36 physbits, partly to make Sangar's job harder --GM)
+                    tlbRecentLo = 0x7|(((vaddr>>59)&3)<<3);
                     return (vaddr & 0x0000_000F_FFFF_FFFFL);
                 } else {
                     // INVALID!
@@ -504,7 +514,7 @@ public class Mips3 {
                 throw new MipsAddressErrorException();
             }
 
-            return getTlbPhysAddress(vaddr);
+            return getTlbPhysAddress((vaddr&0x1FFFFFFFL)|(1L<<62));
 
         } else { // 0xE0000000 to 0xFFFFFFFF
             // ckseg3/kseg3
@@ -514,7 +524,7 @@ public class Mips3 {
                 throw new MipsAddressErrorException();
             }
 
-            return getTlbPhysAddress(vaddr);
+            return getTlbPhysAddress((vaddr&0x1FFFFFFFL)|(3L<<62));
         }
     }
 
@@ -528,7 +538,6 @@ public class Mips3 {
         }
 
         long paddr = virtToPhys64(vaddr);
-        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+4) >= AbstractBusController.ADDRESS_COUNT) {
@@ -540,7 +549,6 @@ public class Mips3 {
 
     private int readData8(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
         long paddr = virtToPhys64(vaddr);
-        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+1) >= AbstractBusController.ADDRESS_COUNT) {
@@ -557,7 +565,6 @@ public class Mips3 {
         }
 
         long paddr = virtToPhys64(vaddr);
-        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+2) >= AbstractBusController.ADDRESS_COUNT) {
@@ -574,7 +581,6 @@ public class Mips3 {
         }
 
         long paddr = virtToPhys64(vaddr);
-        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+4) >= AbstractBusController.ADDRESS_COUNT) {
@@ -591,7 +597,6 @@ public class Mips3 {
         }
 
         long paddr = virtToPhys64(vaddr);
-        int cpol = cachePolicy(vaddr, paddr);
 
         // TODO: get the limit properly
         if((paddr+8) >= AbstractBusController.ADDRESS_COUNT) {
@@ -601,9 +606,15 @@ public class Mips3 {
         return read64Imm(paddr);
     }
 
-    private void writeData8(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException {
+    private void writeData8(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException {
         long paddr = virtToPhys64(vaddr);
-        int cpol = cachePolicy(vaddr, paddr);
+
+        // Check dirty (writeable) bit
+        if((tlbRecentLo & 4) == 0) {
+            // PERMISSION DENIED
+            this.c0regs[C0_BADVADDR] = vaddr;
+            throw new MipsTlbModException();
+        }
 
         // TODO: get the limit properly
         if((paddr+1) >= AbstractBusController.ADDRESS_COUNT) {
@@ -613,14 +624,20 @@ public class Mips3 {
         write8Imm(paddr, data);
     }
 
-    private void writeData16(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException {
+    private void writeData16(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException {
         // Ensure proper alignment
         if((vaddr&1)!= 0) {
             throw new MipsAddressErrorException();
         }
 
         long paddr = virtToPhys64(vaddr);
-        int cpol = cachePolicy(vaddr, paddr);
+
+        // Check dirty (writeable) bit
+        if((tlbRecentLo & 4) == 0) {
+            // PERMISSION DENIED
+            this.c0regs[C0_BADVADDR] = vaddr;
+            throw new MipsTlbModException();
+        }
 
         // TODO: get the limit properly
         if((paddr+2) >= AbstractBusController.ADDRESS_COUNT) {
@@ -630,14 +647,20 @@ public class Mips3 {
         write16Imm(paddr, data);
     }
 
-    private void writeData32(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException {
+    private void writeData32(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException {
         // Ensure proper alignment
         if((vaddr&3)!= 0) {
             throw new MipsAddressErrorException();
         }
 
         long paddr = virtToPhys64(vaddr);
-        int cpol = cachePolicy(vaddr, paddr);
+
+        // Check dirty (writeable) bit
+        if((tlbRecentLo & 4) == 0) {
+            // PERMISSION DENIED
+            this.c0regs[C0_BADVADDR] = vaddr;
+            throw new MipsTlbModException();
+        }
 
         // TODO: get the limit properly
         if((paddr+4) >= AbstractBusController.ADDRESS_COUNT) {
@@ -647,14 +670,20 @@ public class Mips3 {
         write32Imm(paddr, data);
     }
 
-    private void writeData64(long vaddr, long data) throws MipsAddressErrorException, MipsTlbMissException {
+    private void writeData64(long vaddr, long data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException {
         // Ensure proper alignment
         if((vaddr&7)!= 0) {
             throw new MipsAddressErrorException();
         }
 
         long paddr = virtToPhys64(vaddr);
-        int cpol = cachePolicy(vaddr, paddr);
+
+        // Check dirty (writeable) bit
+        if((tlbRecentLo & 4) == 0) {
+            // PERMISSION DENIED
+            this.c0regs[C0_BADVADDR] = vaddr;
+            throw new MipsTlbModException();
+        }
 
         // TODO: get the limit properly
         if((paddr+8) >= AbstractBusController.ADDRESS_COUNT) {
@@ -697,20 +726,20 @@ public class Mips3 {
             modeBits = 2;
         }
 
-        boolean erl = ((sr>>2)&1) != 0;
-        boolean exl = ((sr>>1)&1) != 0;
-
-        kernelMode = (modeBits <= 0) || exl || erl;
+        if((sr&6) != 0) { modeBits = 0; }
+        kernelMode = (modeBits <= 0);
         superMode = (modeBits <= 1) || kernelMode;
         address64 = ((sr>>(7-modeBits))&1) != 0;
         allow64 = address64 || kernelMode;
 
+        /*
         System.err.printf("SR update: k=%c | s=%c | d=%c | a=%c\n"
                 , (kernelMode ? 'Y' : 'n')
                 , (superMode ? 'Y' : 'n')
                 , (allow64 ? 'Y' : 'n')
                 , (address64 ? 'Y' : 'n')
                 );
+        */
     }
 
     private void updateC0Cause(long v)
@@ -1402,6 +1431,7 @@ public class Mips3 {
                         case C0_RANDOM:
                         case C0_ENTRYLO0:
                         case C0_ENTRYLO1:
+                        case C0_CONTEXT:
                         case C0_PAGEMASK:
                         case C0_WIRED:
                         case C0_BADVADDR:
@@ -1410,6 +1440,7 @@ public class Mips3 {
                         case C0_CAUSE:
                         case C0_EPC:
                         case C0_CONFIG:
+                        case C0_XCONTEXT:
                             wb_result = (long)(int)this.c0regs[rd];
                             rd = rt;
                             break;
@@ -1430,6 +1461,7 @@ public class Mips3 {
                             case C0_RANDOM:
                             case C0_ENTRYLO0:
                             case C0_ENTRYLO1:
+                            case C0_CONTEXT:
                             case C0_PAGEMASK:
                             case C0_WIRED:
                             case C0_BADVADDR:
@@ -1438,6 +1470,7 @@ public class Mips3 {
                             case C0_CAUSE:
                             case C0_EPC:
                             case C0_CONFIG:
+                            case C0_XCONTEXT:
                                 wb_result = this.c0regs[rd];
                                 rd = rt;
                                 break;
@@ -1463,6 +1496,11 @@ public class Mips3 {
                             this.c0regs[rd] = 0x3FFF_FFFFL&this.regs[rt];
                             break;
 
+                        case C0_CONTEXT:
+                            this.c0regs[rd] = (this.c0regs[rd]&0x007FFFFFL)
+                                    |(((long)(int)this.c0regs[rt])&~0x007FFFFFL);
+                            break;
+
                         case C0_PAGEMASK:
                             this.c0regs[rd] = 0x0055_5000L&this.regs[rt];
                             this.c0regs[rd] |= this.c0regs[rd]<<1;
@@ -1474,10 +1512,7 @@ public class Mips3 {
                             break;
 
                         case C0_ENTRYHI:
-                            this.c0regs[rd] = 0xC000_00FF_FFFF_8000L&(long)(int)this.regs[rt];
-                            if((this.c0regs[rd] & (1L<<39)) != 0) {
-                                this.c0regs[rd] |= 0x3FFF_FF00_0000_0000L;
-                            }
+                            this.c0regs[rd] = 0xC000_00FF_FFFF_E000L&(long)(int)this.regs[rt];
                             break;
 
                         case C0_STATUS:
@@ -1488,6 +1523,11 @@ public class Mips3 {
                             break;
                         case C0_CONFIG:
                             updateC0Config((long)(int)this.regs[rt]);
+                            break;
+
+                        case C0_XCONTEXT:
+                            this.c0regs[rd] = (this.c0regs[rd]&0xFFFFFFFFL)
+                                    |(((long)(int)this.c0regs[rt])&~0xFFFFFFFFL);
                             break;
 
                         case C0_EPC:
@@ -1519,6 +1559,11 @@ public class Mips3 {
                                 this.c0regs[rd] = 0x3FFF_FFFFL&this.regs[rt];
                                 break;
 
+                            case C0_CONTEXT:
+                                this.c0regs[rd] = (this.c0regs[rd]&0x007FFFFFL)
+                                        |(this.c0regs[rt]&~0x007FFFFFL);
+                                break;
+
                             case C0_PAGEMASK:
                                 this.c0regs[rd] = 0x0055_5000L&this.regs[rt];
                                 this.c0regs[rd] |= this.c0regs[rd]<<1;
@@ -1530,10 +1575,7 @@ public class Mips3 {
                                 break;
 
                             case C0_ENTRYHI:
-                                this.c0regs[rd] = 0xC000_00FF_FFFF_8000L&this.regs[rt];
-                                if((this.c0regs[rd] & (1L<<39)) != 0) {
-                                    this.c0regs[rd] |= 0x3FFF_FF00_0000_0000L;
-                                }
+                                this.c0regs[rd] = 0xC000_00FF_FFFF_E000L&this.regs[rt];
                                 break;
 
                             case C0_STATUS:
@@ -1544,6 +1586,11 @@ public class Mips3 {
                                 break;
                             case C0_CONFIG:
                                 updateC0Config(this.regs[rt]);
+                                break;
+
+                            case C0_XCONTEXT:
+                                this.c0regs[rd] = (this.c0regs[rd]&0xFFFFFFFFL)
+                                        |(this.c0regs[rt]&~0xFFFFFFFFL);
                                 break;
 
                             case C0_EPC:
@@ -1580,6 +1627,7 @@ public class Mips3 {
                         tlbWriteAt((int)this.c0regs[C0_INDEX]);
                         break;
                     case 6: // TLBWR
+                        //System.out.printf("TLBWR %d\n", this.c0regs[C0_RANDOM]);
                         tlbWriteAt((int)this.c0regs[C0_RANDOM]);
                         break;
                     case 8: { // TLBP
@@ -1789,6 +1837,8 @@ public class Mips3 {
             case 40: // SB
                 try {
                     writeData8(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
+                } catch (MipsTlbModException e) {
+                    fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsTlbMissException e) {
                     fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsAddressErrorException e) {
@@ -1799,6 +1849,8 @@ public class Mips3 {
             case 41: // SH
                 try {
                     writeData16(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
+                } catch (MipsTlbModException e) {
+                    fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsTlbMissException e) {
                     fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsAddressErrorException e) {
@@ -1809,6 +1861,8 @@ public class Mips3 {
             case 43: // SW
                 try {
                     writeData32(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
+                } catch (MipsTlbModException e) {
+                    fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsTlbMissException e) {
                     fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsAddressErrorException e) {
@@ -1850,6 +1904,8 @@ public class Mips3 {
                 }
                 try {
                     writeData64(this.regs[rs] + (long)(short)ex_op, this.regs[rt]);
+                } catch (MipsTlbModException e) {
+                    fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsTlbMissException e) {
                     fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsAddressErrorException e) {
@@ -1875,7 +1931,7 @@ public class Mips3 {
         if(this.fault_type != MFault.RI) {
             this.c0regs[C0_RANDOM]--;
             if(this.c0regs[C0_RANDOM] < this.c0regs[C0_WIRED]) {
-                this.c0regs[C0_RANDOM] = TLB_COUNT;
+                this.c0regs[C0_RANDOM] = TLB_COUNT-1;
             }
         }
 
