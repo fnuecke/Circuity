@@ -178,7 +178,7 @@ public class Mips3 {
 
     private void fault(MFault code, MPipelineStage stage, long pc, boolean bd) {
         // Faults from later stages take priority
-        if(stage.idx <= this.fault_stage.idx) {
+        if (stage.idx <= this.fault_stage.idx) {
             return;
         }
 
@@ -188,10 +188,13 @@ public class Mips3 {
         this.fault_pc = pc;
         this.fault_bd = bd;
 
+        // Track old EXL flags
+        boolean oldExl = (this.c0regs[C0_STATUS] & 2) != 0;
+
         // Set COP0 info
         this.c0regs[C0_STATUS] |= 2; // EXL
-        this.c0regs[C0_CAUSE] = (long)(int)((this.c0regs[C0_CAUSE] & 0x0000FF00)
-                | ((code.code&0x1F)<<2)
+        this.c0regs[C0_CAUSE] = (long) (int) ((this.c0regs[C0_CAUSE] & 0x0000FF00)
+                | ((code.code & 0x1F) << 2)
                 | (bd ? 0x80000000 : 0));
         this.c0regs[C0_EPC] = (bd ? pc - 4 : pc);
 
@@ -199,14 +202,52 @@ public class Mips3 {
         updateC0Cause(this.c0regs[C0_CAUSE]);
         updateC0Status(this.c0regs[C0_STATUS]);
 
-        // Spew fault into log
-        System.err.printf("MIPS FAULT:\n");
-        System.err.printf("- Cause: %s (%d)\n", code.name, code.code);
-        System.err.printf("- Pipeline stage: %s\n", stage.name);
-        System.err.printf("- PC: %016X (BD = %s)\n", pc, bd?"YES":"no");
-        System.err.printf("- c0_status:   %016X\n", this.c0regs[C0_STATUS]);
-        System.err.printf("- c0_cause:    %016X\n", this.c0regs[C0_CAUSE]);
-        System.err.printf("- c0_badvaddr: %016X\n", this.c0regs[C0_BADVADDR]);
+        // Branch
+        long bvec = (((this.c0regs[C0_STATUS] >> 22) & 1) != 0 // BEV
+                ? VECTOR_BASE_ROM
+                : VECTOR_BASE_RAM);
+
+        switch (code) {
+            case TLBL:
+            case TLBS:
+                // Determine if we use the 64-bit XTLB refill handler
+                if (oldExl) {
+                    // SPECIAL CASE: Exceptions use the main handler
+                    this.pc = bvec + 0x180;
+                } else if (kernelMode && ((this.c0regs[C0_STATUS] >> 7) & 1) != 0) {
+                    this.pc = bvec + 0x080;
+                } else if (superMode && ((this.c0regs[C0_STATUS] >> 6) & 1) != 0) {
+                    this.pc = bvec + 0x080;
+                } else if (((this.c0regs[C0_STATUS] >> 5) & 1) != 0) {
+                    this.pc = bvec + 0x080;
+                } else {
+                    // All failed. Use the 32-bit TLB refill handler instead
+                    this.pc = bvec + 0x000;
+                }
+                break;
+
+            default:
+                // Main handler
+                this.pc = bvec + 0x180;
+                break;
+        }
+
+        // DEBUG TOOL: print fault info
+        if(false) {
+            // Spew fault into log
+            System.err.printf("MIPS FAULT:\n");
+            System.err.printf("- Cause: %s (%d)\n", code.name, code.code);
+            System.err.printf("- Pipeline stage: %s\n", stage.name);
+            System.err.printf("- PC: %016X (BD = %s)\n", pc, bd ? "YES" : "no");
+            System.err.printf("- c0_status:   %016X\n", this.c0regs[C0_STATUS]);
+            System.err.printf("- c0_cause:    %016X\n", this.c0regs[C0_CAUSE]);
+            System.err.printf("- c0_badvaddr: %016X\n", this.c0regs[C0_BADVADDR]);
+
+            // Nuke cycle budget so we don't spam the console
+            if (this.cycleBudget > 0) {
+                this.cycleBudget = 0;
+            }
+        }
     }
 
     // "Immediate" reads and writes
@@ -580,6 +621,10 @@ public class Mips3 {
     private void runOp() {
         this.cycleBudget -= 1;
 
+        // Clear fault
+        this.fault_type = MFault.NONE;
+        this.fault_stage = MPipelineStage.NONE;
+
         // Fetch op
         long ic_pc = this.pc;
         int ic_op = 0;
@@ -700,21 +745,21 @@ public class Mips3 {
                             fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                             break;
                         }
-                        wb_result = (long)this.regs[rt] << (long)(this.regs[rs]&31);
+                        wb_result = (long)this.regs[rt] << (long)(this.regs[rs]&63);
                         break;
                     case 22: // DSRLV
                         if(!allow64) {
                             fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                             break;
                         }
-                        wb_result = (long)this.regs[rt] >>> (long)(this.regs[rs]&31);
+                        wb_result = (long)this.regs[rt] >>> (long)(this.regs[rs]&63);
                         break;
                     case 23: // DSRAV
                         if(!allow64) {
                             fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                             break;
                         }
-                        wb_result = (long)this.regs[rt] >> (long)(this.regs[rs]&31);
+                        wb_result = (long)this.regs[rt] >> (long)(this.regs[rs]&63);
                         break;
 
                     // Multivide
@@ -1245,6 +1290,7 @@ public class Mips3 {
                 switch(rs) {
                     // MFC0
                     case 0: switch(rd) {
+                        case C0_BADVADDR:
                         case C0_STATUS:
                         case C0_CAUSE:
                         case C0_EPC:
@@ -1265,6 +1311,7 @@ public class Mips3 {
                         break;
                     } else {
                         switch(rd) {
+                            case C0_BADVADDR:
                             case C0_STATUS:
                             case C0_CAUSE:
                             case C0_EPC:
@@ -1334,6 +1381,27 @@ public class Mips3 {
             } else {
                 int opcode_func = ex_op&63;
                 switch(opcode_func) {
+
+                    // 16 is RFE, which was REMOVED in MIPS3.
+
+                    case 24: // ERET
+                        if((this.c0regs[C0_STATUS]&4) != 0) {
+                            // return from error
+                            this.c0regs[C0_STATUS] &= ~4; // ERL
+                            this.pc = this.c0regs[C0_ERROREPC];
+                        } else {
+                            // return from exception
+                            this.c0regs[C0_STATUS] &= ~2; // EXL
+                            this.pc = this.c0regs[C0_EPC];
+                        }
+
+                        // TODO: clear LLbit (in other words, make any active LL/SC fail)
+
+                        // cancel next op
+                        this.pl0_op = 0;
+
+                        // done!
+                        break;
 
                     default:
                         System.err.printf("RI COP0: %d\n", opcode_func);
@@ -1608,6 +1676,9 @@ public class Mips3 {
             this.c0regs[C0_STATUS] |= (long)(int)0x00400004;
             this.c0regs[C0_RANDOM] = TLB_COUNT-1;
 
+            // This is also enforced anyway
+            this.c0regs[C0_PRID] = (long)(int)0x00002000; // R4600?
+
             // Update important flags
             updateC0Cause(this.c0regs[C0_CAUSE]);
             updateC0Status(this.c0regs[C0_STATUS]);
@@ -1625,13 +1696,8 @@ public class Mips3 {
             this.cycleBudget += cycles;
 
             while(this.cycleBudget > 0) {
-                // TODO!
-                if(this.fault_type == MFault.NONE) {
-                    //System.out.printf("PC = %016X / v0 = %016X\n", this.pc, this.regs[2]);
-                    runOp();
-                } else {
-                    this.cycleBudget -= 10000;
-                }
+                //System.out.printf("PC = %016X / v0 = %016X\n", this.pc, this.regs[2]);
+                runOp();
             }
         }
     }
