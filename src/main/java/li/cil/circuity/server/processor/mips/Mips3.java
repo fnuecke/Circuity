@@ -13,18 +13,22 @@ import li.cil.lib.api.serialization.Serialize;
  * - caches
  * - the entirety of COP0
  * - FPA (that is, COP1)
- * - 64-bit ops
  */
 public class Mips3 {
 
     public static final int TLB_COUNT = 48;
+
+    //public static final long VECTOR_BASE_RESET = 0xFFFFFFFFBFC00000L; // real location
+    public static final long VECTOR_BASE_RESET = 0xFFFFFFFFA0000000L; // temporary measure
+    public static final long VECTOR_BASE_RAM = 0xFFFFFFFF80000000L;
+    public static final long VECTOR_BASE_ROM = VECTOR_BASE_RESET + 0x100;
 
     private BusControllerAccess memory;
     private final Object lock = new Object();
 
     // Program counter
     @Serialize
-    private long pc = 0xFFFFFFFFBFC00000L;
+    private long pc = VECTOR_BASE_RESET;
 
     // Op fetched into pipeline
     @Serialize
@@ -151,9 +155,15 @@ public class Mips3 {
     @Serialize
     private int cycleBudget = 0;
 
-    // Masks for 32/64-bit stuff
+    // Mode masks
     @Serialize
     private boolean allow64 = true;
+    @Serialize
+    private boolean address64 = true;
+    @Serialize
+    private boolean kernelMode = true;
+    @Serialize
+    private boolean superMode = true;
 
     // Actual code!
 
@@ -181,15 +191,22 @@ public class Mips3 {
         // Set COP0 info
         this.c0regs[C0_STATUS] |= 2; // EXL
         this.c0regs[C0_CAUSE] = (long)(int)((this.c0regs[C0_CAUSE] & 0x0000FF00)
-                | ((code.code<<2)&0x1F)
+                | ((code.code&0x1F)<<2)
                 | (bd ? 0x80000000 : 0));
         this.c0regs[C0_EPC] = (bd ? pc - 4 : pc);
+
+        // Update important flags
+        updateC0Cause(this.c0regs[C0_CAUSE]);
+        updateC0Status(this.c0regs[C0_STATUS]);
 
         // Spew fault into log
         System.err.printf("MIPS FAULT:\n");
         System.err.printf("- Cause: %s (%d)\n", code.name, code.code);
         System.err.printf("- Pipeline stage: %s\n", stage.name);
         System.err.printf("- PC: %016X (BD = %s)\n", pc, bd?"YES":"no");
+        System.err.printf("- c0_status:   %016X\n", this.c0regs[C0_STATUS]);
+        System.err.printf("- c0_cause:    %016X\n", this.c0regs[C0_CAUSE]);
+        System.err.printf("- c0_badvaddr: %016X\n", this.c0regs[C0_BADVADDR]);
     }
 
     // "Immediate" reads and writes
@@ -254,7 +271,7 @@ public class Mips3 {
         } else if(vaddr >= -0x60000000L && vaddr < -0x40000000L) {
             // ckseg1
             return CACHE_NONE;
-        } else if(vaddr >= -0x8000000000000000L && vaddr < -0xA000000000000000L) {
+        } else if(vaddr >= -0x8000_0000_0000_0000L && vaddr < -0x4000_0000_0000_0000L) {
             // xkphys
             return 3&(int)(vaddr>>>59L);
         } else {
@@ -263,62 +280,93 @@ public class Mips3 {
     }
 
     private long virtToPhys64(long vaddr) throws MipsAddressErrorException {
-        // TODO: xkphys region (HALP)
-        // summary of xkphys:
-        // - top 3 bits select memory type (2 uncacheable, 0 sane cacheable)
-        // - bottom N bits select phys address (VR4300 uses 32 / R4600 uses 36)
-        // - if the middle 61-N bits are not 0, address error
+        if(!address64) {
+            vaddr = (long)(int)vaddr;
+        }
 
-        if(vaddr >= 0) { // 0x0000000000000000 to 0x000000007FFFFFFF
+        if(vaddr >= 0) { // 0x0000_0000_0000_0000 to 0x0000_0000_7FFF_FFFF
             // temp workaround: any jumps to the TLB space should fault
             // this makes it easier to squash bugs while we don't have a TLB
-            if(false && (vaddr&0x3FFFFFFFFFFFFFFFL) < 0x0000010000000000L) {
+            if(false && (vaddr&0x3FFF_FFFF_FFFF_FFFFL) < 0x0000_0100_0000_0000L) {
                 // TODO: TLB
-                // TODO: perm check (0=user+, 4=sup+)
-                // (other regions: 8=4GB phys (kern+), C=kern+ which is smaller in this case)
-                return (vaddr & 0x000000007FFFFFFFL);
+
+                if(vaddr >= 0x4000_0000_0000_0000L) {
+                    // xksseg
+                    if (!superMode) {
+                        // PERMISSION DENIED
+                        this.c0regs[C0_BADVADDR] = vaddr;
+                        throw new MipsAddressErrorException();
+                    }
+                }
+                // otherwise xkuseg/kuseg
+
+                return (vaddr & 0x0000_0000_7FFF_FFFFL);
             } else {
                 // INVALID!
+                this.c0regs[C0_BADVADDR] = vaddr;
                 throw new MipsAddressErrorException();
 
             }
 
-        } else if(vaddr < -0x40000000) { // 0xFFFFFFFFC0000000 to 0xFFFFFFFFFFFFFFFF
-            // TODO: perm check (kernel only)
-            if(vaddr >= -0x60000000) { // 0xFFFFFFFFA0000000 to 0xFFFFFFFFBFFFFFFF
-                // ckseg1
-                return (vaddr & 0x000000001FFFFFFFL);
+        } else if(vaddr < -0x40000000) { // 0xFFFF_FFFF_C000_0000 to 0xFFFF_FFFF_FFFF_FFFF
+            if(!kernelMode) {
+                // PERMISSION DENIED
+                this.c0regs[C0_BADVADDR] = vaddr;
+                throw new MipsAddressErrorException();
+            }
 
-            } else if(vaddr >= -0x80000000) { // 0xFFFFFFFF80000000 to 0xFFFFFFFF9FFFFFFF
-                // ckseg0
+            if(vaddr >= -0x60000000) { // 0xFFFF_FFFF_A000_0000 to 0xFFFF_FFFF_BFFF_FFFF
+                // ckseg1/kseg1
+                return (vaddr & 0x0000_0000_1FFF_FFFFL);
+
+            } else if(vaddr >= -0x80000000) { // 0xFFFF_FFFF_8000_0000 to 0xFFFF_FFFF_9FFF_FFFF
+                // ckseg0/kseg0
                 // TODO: cache
-                return (vaddr & 0x000000001FFFFFFFL);
+                return (vaddr & 0x0000_0000_1FFF_FFFFL);
 
-            } else if(vaddr >= -0x8000000000000000L && vaddr < -0xA000000000000000L) {
+            } else if(vaddr >= -0x8000_0000_0000_0000L && vaddr < -0x6000_0000_0000_0000L) {
                 // xkphys
                 // TODO: cache
-                if((vaddr & 0x07FFFFF000000000L) == 0) {
+                if((vaddr & 0x07FF_FFF0_0000_0000L) == 0) {
                     // valid (we support 36 physbits, partly to make Sangar's job harder --GM)
-                    return (vaddr & 0x0000000FFFFFFFFFL);
+                    return (vaddr & 0x0000_000F_FFFF_FFFFL);
                 } else {
                     // INVALID!
+                    this.c0regs[C0_BADVADDR] = vaddr;
                     throw new MipsAddressErrorException();
                 }
 
+            } else if(vaddr >= -0x4000_0000_0000_0000L && vaddr < -0x3FFF_FFFF_8000_0000L) {
+                // xkseg
+                return (vaddr & 0x0000_000F_FFFF_FFFFL);
+
             } else {
                 // INVALID!
+                this.c0regs[C0_BADVADDR] = vaddr;
                 throw new MipsAddressErrorException();
             }
 
-        } else if(vaddr < -0x20000000) { // 0xFFFFFFFFC0000000 to 0xFFFFFFFFDFFFFFFF
+        } else if(vaddr < -0x20000000) { // 0xFFFF_FFFF_C000_0000 to 0xFFFF_FFFF_DFFF_FFFF
+            // ckseg2/kseg2
+            if (!superMode) {
+                // PERMISSION DENIED
+                this.c0regs[C0_BADVADDR] = vaddr;
+                throw new MipsAddressErrorException();
+            }
+
             // TODO: TLB
-            // TODO: perm check (kernel and supervisor)
-            return (vaddr & 0x000000001FFFFFFFL);
+            return (vaddr & 0x0000_0000_1FFF_FFFFL);
 
         } else { // 0xE0000000 to 0xFFFFFFFF
+            // ckseg3/kseg3
+            if (!kernelMode) {
+                // PERMISSION DENIED
+                this.c0regs[C0_BADVADDR] = vaddr;
+                throw new MipsAddressErrorException();
+            }
+
             // TODO: TLB
-            // TODO: perm check (kernel only)
-            return (vaddr & 0x000000001FFFFFFFL);
+            return (vaddr & 0x0000_0000_1FFF_FFFFL);
         }
     }
 
@@ -327,6 +375,7 @@ public class Mips3 {
     private int readInstr(long vaddr) throws MipsAddressErrorException, MipsBusErrorException {
         // Ensure proper alignment
         if((vaddr&3)!= 0) {
+            this.c0regs[C0_BADVADDR] = vaddr;
             throw new MipsAddressErrorException();
         }
 
@@ -467,6 +516,65 @@ public class Mips3 {
         write64Imm(paddr, data);
     }
 
+    // COP0 updates
+
+    private void updateC0RegMasked(int idx, long v, long wmask)
+    {
+        v &= wmask;
+        this.c0regs[idx] &= ~wmask;
+        this.c0regs[idx] |= v;
+    }
+
+    private void updateC0Status(long v)
+    {
+        // bit 21 = TLB shutdown
+        //
+        // This does NOT trigger on an R4600
+        // but DOES on a VR4300
+        //
+        // Considering I (GM) never bothered to check on OCMIPS,
+        // it might as well just stay zero
+        //
+        // ...not to mention that you don't ever write to it here anyway
+
+        updateC0RegMasked(C0_STATUS, v, (long)(int)0xF657FFFF);
+
+        int sr = (int)this.c0regs[C0_STATUS];
+
+        // If modeBits is 3, behaviour is undefined
+        // Here we're just treating it as user mode to make it easier
+        int modeBits = (sr>>3)&3;
+        if(modeBits > 2) {
+            // Our calculations depend on this being in [0,2]
+            modeBits = 2;
+        }
+
+        boolean erl = ((sr>>2)&1) != 0;
+        boolean exl = ((sr>>1)&1) != 0;
+
+        kernelMode = (modeBits <= 0) || exl || erl;
+        superMode = (modeBits <= 1) || kernelMode;
+        address64 = ((sr>>(7-modeBits))&1) != 0;
+        allow64 = address64 || kernelMode;
+
+        System.err.printf("SR update: k=%c | s=%c | d=%c | a=%c\n"
+                , (kernelMode ? 'Y' : 'n')
+                , (superMode ? 'Y' : 'n')
+                , (allow64 ? 'Y' : 'n')
+                , (address64 ? 'Y' : 'n')
+                );
+    }
+
+    private void updateC0Cause(long v)
+    {
+        updateC0RegMasked(C0_CAUSE, v, (long)(int)0x00000300);
+    }
+
+    private void updateC0Config(long v)
+    {
+        updateC0RegMasked(C0_CONFIG, v, (long)(int)0x00000007);
+    }
+
     // Main run-op loop
 
     private void runOp() {
@@ -553,6 +661,23 @@ public class Mips3 {
                         this.pl0_bd = true;
                         break;
 
+                    // Software exceptions
+
+                    case 12: // SYSCALL
+                        fault(MFault.Syscall, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    case 13: // BREAK
+                        fault(MFault.Bp, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+
+                    // Sync
+
+                    case 15: // SYNC
+                        // we can't really do anything with this right now
+                        // but we can't RI it either
+                        // let's do nothing for now.
+                        break;
+
                     // LO/HI moves
 
                     case 16: // MFHI
@@ -571,12 +696,24 @@ public class Mips3 {
                     // 64-bit register shifts
 
                     case 20: // DSLLV
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = (long)this.regs[rt] << (long)(this.regs[rs]&31);
                         break;
                     case 22: // DSRLV
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = (long)this.regs[rt] >>> (long)(this.regs[rs]&31);
                         break;
                     case 23: // DSRAV
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = (long)this.regs[rt] >> (long)(this.regs[rs]&31);
                         break;
 
@@ -626,16 +763,28 @@ public class Mips3 {
                     // Multivide 64-bit
 
                     case 28: { // DMULT
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         long res = ((long)(int)this.regs[rs]) * (long)(int)this.regs[rt];
                         this.mdlo = (long)(int)res;
                         this.mdhi = (long)(int)(res>>32);
                     } break;
                     case 29: { // DMULTU
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         long res = (0xFFFFFFFFL&(long)(int)this.regs[rs]) * (0xFFFFFFFFL&(long)(int)this.regs[rt]);
                         this.mdlo = (long)(int)res;
                         this.mdhi = (long)(int)(res>>32);
                     } break;
                     case 30: { // DDIV
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         if(this.regs[rt] == 0) {
                             this.mdhi = this.regs[rs];
                             this.mdlo = (this.mdhi < 0 ? 1 : -1);
@@ -645,6 +794,10 @@ public class Mips3 {
                         }
                     } break;
                     case 31: { // DDIVU
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         if(this.regs[rt] == 0) {
                             this.mdlo = -1;
                             this.mdhi = this.regs[rs];
@@ -738,6 +891,10 @@ public class Mips3 {
                     // Register 64-bit arithmetricks
 
                     case 44: // DADD
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = this.regs[rs] + this.regs[rt];
                         if(this.regs[rt] >= 0
                                 ? wb_result < this.regs[rs]
@@ -749,9 +906,17 @@ public class Mips3 {
                         }
                         break;
                     case 45: // DADDU
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = this.regs[rs] + this.regs[rt];
                         break;
                     case 46: // DSUB
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = this.regs[rs] - this.regs[rt];
                         if(this.regs[rt] < 0
                                 ? wb_result < this.regs[rs]
@@ -763,6 +928,10 @@ public class Mips3 {
                         }
                         break;
                     case 47: // DSUBU
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = this.regs[rs] - this.regs[rt];
                         break;
 
@@ -802,22 +971,46 @@ public class Mips3 {
                     // 64-bit immediate shifts
 
                     case 56: // DSLL
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = (long)this.regs[rt] << (long)((ex_op>>>6)&31);
                         break;
                     case 58: // DSRL
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = (long)this.regs[rt] >>> (long)((ex_op>>>6)&31);
                         break;
                     case 59: // DSRA
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = (long)this.regs[rt] >> (long)((ex_op>>>6)&31);
                         break;
 
                     case 60: // DSLL32
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = (long)this.regs[rt] << (long)(32+((ex_op>>>6)&31));
                         break;
                     case 62: // DSRL32
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = (long)this.regs[rt] >>> (long)(32+((ex_op>>>6)&31));
                         break;
                     case 63: // DSRA32
+                        if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                        }
                         wb_result = (long)this.regs[rt] >> (long)(32+((ex_op>>>6)&31));
                         break;
 
@@ -1043,6 +1236,129 @@ public class Mips3 {
                 wb_result = (long)(int)(ex_op<<16);
                 break;
 
+            // COP0
+
+            case 16: if((this.c0regs[C0_STATUS]&(1<<28)) == 0 && !kernelMode) {
+                fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                this.c0regs[C0_CAUSE] |= 0<<28;
+            } else if(rs < 16) {
+                switch(rs) {
+                    // MFC0
+                    case 0: switch(rd) {
+                        case C0_STATUS:
+                        case C0_CAUSE:
+                        case C0_EPC:
+                        case C0_CONFIG:
+                            wb_result = (long)(int)this.c0regs[rd];
+                            rd = rt;
+                            break;
+
+                        default:
+                            System.err.printf("RI MFC0: %d\n", rd);
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                    } break;
+
+                    // DMFC0
+                    case 1: if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        switch(rd) {
+                            case C0_STATUS:
+                            case C0_CAUSE:
+                            case C0_EPC:
+                            case C0_CONFIG:
+                                wb_result = this.c0regs[rd];
+                                rd = rt;
+                                break;
+
+                            default:
+                                System.err.printf("RI DMFC0: %d\n", rd);
+                                fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                                break;
+                        }
+                    } break;
+
+                    // MTC0
+                    case 4: switch(rd) {
+                        case C0_STATUS:
+                            updateC0Status((long)(int)this.regs[rt]);
+                            break;
+                        case C0_CAUSE:
+                            updateC0Cause((long)(int)this.regs[rt]);
+                            break;
+                        case C0_CONFIG:
+                            updateC0Config((long)(int)this.regs[rt]);
+                            break;
+
+                        case C0_EPC:
+                        case C0_ERROREPC:
+                            this.c0regs[rd] = (long)(int)this.regs[rt];
+                            break;
+
+                        default:
+                            System.err.printf("RI MTC0: %d\n", rd);
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                    } break;
+
+                    // DMTC0
+                    case 5: if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        switch(rd) {
+                            case C0_STATUS:
+                                updateC0Status(this.regs[rt]);
+                                break;
+                            case C0_CAUSE:
+                                updateC0Cause(this.regs[rt]);
+                                break;
+                            case C0_CONFIG:
+                                updateC0Config(this.regs[rt]);
+                                break;
+
+                            case C0_EPC:
+                            case C0_ERROREPC:
+                                this.c0regs[rd] = this.regs[rt];
+                                break;
+
+                            default:
+                                System.err.printf("RI DMTC0: %d\n", rd);
+                                fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                                break;
+                        }
+                    } break;
+                }
+            } else {
+                int opcode_func = ex_op&63;
+                switch(opcode_func) {
+
+                    default:
+                        System.err.printf("RI COP0: %d\n", opcode_func);
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                }
+            } break;
+
+            // COP1
+
+            case 17:
+                // TODO!
+                fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                this.c0regs[C0_CAUSE] |= 1<<28;
+                break;
+
+            // COP2
+
+            case 18:
+                fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                this.c0regs[C0_CAUSE] |= 2<<28;
+                break;
+
+            // COP3 does not exist in MIPS3
+
             // Branches - Likely
 
             case 20: // BEQL
@@ -1081,6 +1397,10 @@ public class Mips3 {
             // Immediate 64-bit arithmetricks
 
             case 24: // DADDI
+                if(!allow64) {
+                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                    break;
+                }
                 rd = rt;
                 wb_result = this.regs[rs] + (long)(short)(ex_op);
                 if((short)ex_op >= 0
@@ -1094,6 +1414,10 @@ public class Mips3 {
                 break;
 
             case 25: // DADDIU
+                if(!allow64) {
+                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                    break;
+                }
                 rd = rt;
                 wb_result = this.regs[rs] + (long)(short)ex_op;
                 break;
@@ -1166,6 +1490,12 @@ public class Mips3 {
                 }
                 break;
 
+            // Load unaligned - TODO
+            // case 34: // LWL break;
+            // case 38: // LWR break;
+            // case 26: // LDL break;
+            // case 27: // LDR break;
+
             // Store primary
 
             case 40: // SB
@@ -1192,9 +1522,19 @@ public class Mips3 {
                 }
                 break;
 
+            // Store unaligned - TODO
+            // case 42: // SWL break;
+            // case 46: // SWR break;
+            // case 44: // SDL break;
+            // case 45: // SDR break;
+
             // Load fancy
 
             case 55: // LD
+                if(!allow64) {
+                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                    break;
+                }
                 try {
                     wb_result = readData64(this.regs[rs] + (long)(short)ex_op);
                     rd = rt;
@@ -1208,6 +1548,10 @@ public class Mips3 {
             // Store fancy
 
             case 63: // SD
+                if(!allow64) {
+                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                    break;
+                }
                 try {
                     writeData64(this.regs[rs] + (long)(short)ex_op, this.regs[rt]);
                 } catch (MipsAddressErrorException e) {
@@ -1238,9 +1582,7 @@ public class Mips3 {
 
     public void reset() {
         synchronized(lock) {
-            //this.pc = 0xFFFFFFFFBFC00000L; // ckseg1 (uncached) - actual normal reset vector
-            this.pc = 0xFFFFFFFFA0000000L; // ckseg1 (uncached)
-            //this.pc = 0x9000000000000000L; // xkphys uncached
+            this.pc = VECTOR_BASE_RESET;
 
             this.pl0_op = 0;
             this.pl0_pc = this.pc;
@@ -1250,7 +1592,7 @@ public class Mips3 {
             this.fault_pc = 0;
             this.fault_bd = false;
 
-            // extra stuff that doesn't normally get covered
+            // Extra stuff that doesn't normally get covered
             for(int i = 0; i < 32; i++) {
                 this.regs[i] = 0L;
             }
@@ -1258,13 +1600,17 @@ public class Mips3 {
                 this.c0regs[i] = 0L;
             }
 
-            this.c0regs[C0_STATUS] = (long)0x044000E0;
-            this.c0regs[C0_CAUSE] = (long)0x00000000;
-            this.c0regs[C0_CONFIG] = (long)0x1002649B;
+            this.c0regs[C0_STATUS] = (long)(int)0x040000E0;
+            this.c0regs[C0_CAUSE] = (long)(int)0x00000000;
+            this.c0regs[C0_CONFIG] = (long)(int)0x1002649B;
 
-            // however, this DOES happen during a reset!
-            this.c0regs[C0_STATUS] |= (long)0x00400004;
+            // However, this DOES happen during a reset!
+            this.c0regs[C0_STATUS] |= (long)(int)0x00400004;
             this.c0regs[C0_RANDOM] = TLB_COUNT-1;
+
+            // Update important flags
+            updateC0Cause(this.c0regs[C0_CAUSE]);
+            updateC0Status(this.c0regs[C0_STATUS]);
         }
     }
 
