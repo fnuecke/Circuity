@@ -1938,6 +1938,9 @@ public class Mips3 {
         // Set BD flag if IC stage faulted
         if(this.fault_stage == MPipelineStage.IC) {
             this.fault_bd = this.pl0_bd;
+        } else if(this.fault_stage != MPipelineStage.NONE) {
+            // Otherwise, clear the pipeline
+            this.pl0_op = 0;
         }
     }
 
