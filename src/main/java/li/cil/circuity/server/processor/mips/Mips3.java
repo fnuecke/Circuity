@@ -2100,6 +2100,8 @@ public class Mips3 {
                             this.pc = this.c0regs[C0_EPC];
                         }
 
+                        updateC0Status(this.c0regs[C0_STATUS]);
+
                         // TODO: clear LLbit (in other words, make any active LL/SC fail)
 
                         // cancel next op
