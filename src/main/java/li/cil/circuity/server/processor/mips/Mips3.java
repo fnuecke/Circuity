@@ -667,9 +667,29 @@ public class Mips3 {
         long d2 = read64Imm(pbase+16);
         long d3 = read64Imm(pbase+24);
 
-        // Set tag
+        // Get tag
         int ctidx = ((int)(vaddr>>5))&(DCACHE_SIZE_TAGS-1);
-        this.dCacheTags[ctidx] = ((int)(paddr>>12))|(1<<24);
+        int cdidx = ctidx<<2;
+        int tag = this.dCacheTags[ctidx];
+
+        // Evict properly if dirty + valid
+        if((tag&0x13000000) == 0x13000000) {
+            long opaddr = (((long)tag&0x00FFFFFFL)<<12) | (vaddr&0xFFF);
+
+            // TODO: get the limit properly
+            if((opaddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
+                throw new MipsBusErrorException();
+            }
+
+            write64Imm(opaddr + 0,  dCacheData[cdidx + 0]);
+            write64Imm(opaddr + 8,  dCacheData[cdidx + 1]);
+            write64Imm(opaddr + 16, dCacheData[cdidx + 2]);
+            write64Imm(opaddr + 24, dCacheData[cdidx + 3]);
+
+        }
+
+        // Set tag
+        this.dCacheTags[ctidx] = ((int)(paddr>>12))|0x13000000;
 
         // Stash into cache
         /*
@@ -678,7 +698,6 @@ public class Mips3 {
                 , d0, d1, d2, d3
         );
         */
-        int cdidx = ctidx<<2;
         dCacheData[cdidx + 0] = d0;
         dCacheData[cdidx + 1] = d1;
         dCacheData[cdidx + 2] = d2;
