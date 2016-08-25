@@ -173,6 +173,43 @@ public class Mips3 {
     @Serialize
     private long tlbRecentLo = 0;
 
+    // Caches
+    // cache size: I=16KB D=16KB
+    // line  size: I=32B  D=32B
+    public static final int ICACHE_SIZE_WORDS = 16*256;
+    public static final int DCACHE_SIZE_WORDS = 16*256;
+    public static final int ICACHE_SIZE_TAGS = 16*32;
+    public static final int DCACHE_SIZE_TAGS = 16*32;
+    @Serialize
+    private int[] iCacheData = new int[ICACHE_SIZE_WORDS];
+    @Serialize
+    private int[] dCacheData = new int[DCACHE_SIZE_WORDS];
+
+    // Cache tags
+
+    // Currently ignoring parity
+
+    // Similarities:
+    // 23:0 = PTag (paddr 35:12)
+    // 24 = valid
+    // 28 = writeback (0 on IC)
+
+    // ICache:
+    // 23:0 = PTag (paddr 35:12)
+    // 24,25,26,27 = valid,0,0,0
+    // x:28 = 0
+    @Serialize
+    private int[] iCacheTags = new int[ICACHE_SIZE_TAGS];
+
+    // DCache:
+    // 23:0 = PTag (paddr 35:12)
+    // 25:24 = Cache state (0=inval, 3=dirty-ex - COHERENCY PROTOCOLS *NOT* SUPPORTED!)
+    // 26,27,28,29 = 0,W,W,0 where W = writeback bit (read bit 28 please!)
+    // x:30 = 0
+
+    @Serialize
+    private int[] dCacheTags = new int[DCACHE_SIZE_TAGS];
+
     // Cycles for timing
     @Serialize
     private int cycleBudget = 0;
@@ -537,14 +574,59 @@ public class Mips3 {
             throw new MipsAddressErrorException();
         }
 
+        // TLB fetch!
         long paddr = virtToPhys64(vaddr);
 
+        // Check if cached (VIPT cache)
+        int ctidx = ((int)(vaddr>>5))&(ICACHE_SIZE_TAGS-1);
+        int tag = iCacheTags[ctidx];
+        if((tag&(1<<24)) != 0) {
+            // It is. Check if paddr matches.
+            if((tag&0x00FFFFFF) == (int)(paddr>>12)) {
+                // It does. Return the cache data.
+                return iCacheData[((int)(vaddr>>2))&(ICACHE_SIZE_WORDS-1)];
+            }
+        }
+
+        // Check if in range
         // TODO: get the limit properly
-        if((paddr+4) >= AbstractBusController.ADDRESS_COUNT) {
+        if((paddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
             throw new MipsBusErrorException();
         }
 
-        return read32Imm(paddr);
+        // Check if cacheable
+        if(((tlbRecentLo>>3)&3) == 2) {
+            // Uncacheable
+            return read32Imm(paddr);
+        } else {
+            // XXX: do we handle cache errors?
+            // Fetch 8 words / 4 dwords
+            long pbase = paddr&~31;
+            long d0 = read64Imm(pbase+0);
+            long d1 = read64Imm(pbase+8);
+            long d2 = read64Imm(pbase+16);
+            long d3 = read64Imm(pbase+24);
+
+            // Set tag
+            this.iCacheTags[ctidx] = ((int)(paddr>>12))|(1<<24);
+
+            // Stash into cache
+            System.out.printf("CI%04X = [%016X]->[%016X] %016X %016X %016X %016X\n"
+                    , ctidx<<5, vaddr, paddr
+                    , d0, d1, d2, d3
+            );
+            int cdidx = ctidx<<3;
+            iCacheData[cdidx + 0] = (int)(d0);
+            iCacheData[cdidx + 1] = (int)(d0>>32L);
+            iCacheData[cdidx + 2] = (int)(d1);
+            iCacheData[cdidx + 3] = (int)(d1>>32L);
+            iCacheData[cdidx + 4] = (int)(d2);
+            iCacheData[cdidx + 5] = (int)(d2>>32L);
+            iCacheData[cdidx + 6] = (int)(d3);
+            iCacheData[cdidx + 7] = (int)(d3>>32L);
+            return iCacheData[((int)(vaddr>>2))&(ICACHE_SIZE_WORDS-1)];
+        }
+
     }
 
     private int readData8(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
@@ -1964,6 +2046,12 @@ public class Mips3 {
             }
             for(int i = 0; i < 32; i++) {
                 this.c0regs[i] = 0L;
+            }
+            for(int i = 0; i < ICACHE_SIZE_TAGS; i++) {
+                this.iCacheTags[i] = 0;
+            }
+            for(int i = 0; i < DCACHE_SIZE_TAGS; i++) {
+                this.dCacheTags[i] = 0;
             }
 
             this.c0regs[C0_STATUS] = (long)(int)0x040000E0;
