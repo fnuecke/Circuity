@@ -565,70 +565,28 @@ public class Mips3 {
         }
     }
 
-    // Situational reads and writes
+    // Cache
 
-    private int readInstr(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
-        // Ensure proper alignment
-        if((vaddr&3)!= 0) {
-            this.c0regs[C0_BADVADDR] = vaddr;
-            throw new MipsAddressErrorException();
-        }
-
-        // TLB fetch!
-        long paddr = virtToPhys64(vaddr);
-
-        // Check if cached (VIPT cache)
-        int ctidx = ((int)(vaddr>>5))&(ICACHE_SIZE_TAGS-1);
-        int tag = iCacheTags[ctidx];
-        if((tag&(1<<24)) != 0) {
-            // It is. Check if paddr matches.
-            if((tag&0x00FFFFFF) == (int)(paddr>>12)) {
-                // It does. Return the cache data.
-                return iCacheData[((int)(vaddr>>2))&(ICACHE_SIZE_WORDS-1)];
-            }
-        }
-
+    private boolean isInICache(long vaddr, long paddr) throws MipsBusErrorException {
         // Check if in range
         // TODO: get the limit properly
         if((paddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
             throw new MipsBusErrorException();
         }
 
-        // Check if cacheable
-        if(((tlbRecentLo>>3)&3) == 2) {
-            // Uncacheable
-            return read32Imm(paddr);
-        } else {
-            // XXX: do we handle cache errors?
-            // Fetch 8 words / 4 dwords
-            long pbase = paddr&~31;
-            long d0 = read64Imm(pbase+0);
-            long d1 = read64Imm(pbase+8);
-            long d2 = read64Imm(pbase+16);
-            long d3 = read64Imm(pbase+24);
-
-            // Set tag
-            this.iCacheTags[ctidx] = ((int)(paddr>>12))|(1<<24);
-
-            // Stash into cache
-            /*
-            System.out.printf("CI%04X = [%016X]->[%016X] %016X %016X %016X %016X\n"
-                    , ctidx<<5, vaddr, paddr
-                    , d0, d1, d2, d3
-            );
-            */
-            int cdidx = ctidx<<3;
-            iCacheData[cdidx + 0] = (int)(d0);
-            iCacheData[cdidx + 1] = (int)(d0>>32L);
-            iCacheData[cdidx + 2] = (int)(d1);
-            iCacheData[cdidx + 3] = (int)(d1>>32L);
-            iCacheData[cdidx + 4] = (int)(d2);
-            iCacheData[cdidx + 5] = (int)(d2>>32L);
-            iCacheData[cdidx + 6] = (int)(d3);
-            iCacheData[cdidx + 7] = (int)(d3>>32L);
-            return iCacheData[((int)(vaddr>>2))&(ICACHE_SIZE_WORDS-1)];
+        // Check if cached (VIPT cache)
+        int ctidx = ((int)(vaddr>>5))&(ICACHE_SIZE_TAGS-1);
+        int tag = iCacheTags[ctidx];
+        if((tag&(3<<24)) != 0) {
+            // It is. Check if paddr matches.
+            if((tag&0x00FFFFFF) == (int)(paddr>>12)) {
+                // It does. Return.
+                return true;
+            }
         }
 
+        // Not in cache!
+        return false;
     }
 
     private boolean isInDCache(long vaddr, long paddr) throws MipsBusErrorException {
@@ -653,21 +611,7 @@ public class Mips3 {
         return false;
     }
 
-    private void fetchDCacheImm(long vaddr, long paddr) throws MipsBusErrorException {
-        // Check if cached
-        if(isInDCache(vaddr, paddr)) {
-            return;
-        }
-
-        // XXX: do we handle cache errors?
-        // Fetch 8 words / 4 dwords
-        long pbase = paddr&~31;
-        long d0 = read64Imm(pbase+0);
-        long d1 = read64Imm(pbase+8);
-        long d2 = read64Imm(pbase+16);
-        long d3 = read64Imm(pbase+24);
-
-        // Get tag
+    private void invalidateDCacheImm(long vaddr) throws MipsBusErrorException {
         int ctidx = ((int)(vaddr>>5))&(DCACHE_SIZE_TAGS-1);
         int cdidx = ctidx<<2;
         int tag = this.dCacheTags[ctidx];
@@ -685,10 +629,31 @@ public class Mips3 {
             write64Imm(opaddr + 8,  dCacheData[cdidx + 1]);
             write64Imm(opaddr + 16, dCacheData[cdidx + 2]);
             write64Imm(opaddr + 24, dCacheData[cdidx + 3]);
-
         }
 
+        dCacheTags[ctidx] &= ~0x13000000;
+    }
+
+    private void fetchDCacheImm(long vaddr, long paddr) throws MipsBusErrorException {
+        // Check if cached
+        if(isInDCache(vaddr, paddr)) {
+            return;
+        }
+
+        // XXX: do we handle cache errors?
+        // Fetch 8 words / 4 dwords
+        long pbase = paddr&~31;
+        long d0 = read64Imm(pbase+0);
+        long d1 = read64Imm(pbase+8);
+        long d2 = read64Imm(pbase+16);
+        long d3 = read64Imm(pbase+24);
+
+        // Invalidate
+        invalidateDCacheImm(vaddr);
+
         // Set tag
+        int ctidx = ((int)(vaddr>>5))&(DCACHE_SIZE_TAGS-1);
+        int cdidx = ctidx<<2;
         this.dCacheTags[ctidx] = ((int)(paddr>>12))|0x13000000;
 
         // Stash into cache
@@ -704,6 +669,188 @@ public class Mips3 {
         dCacheData[cdidx + 3] = d3;
 
         // Done!
+    }
+
+    private void invalidateICacheV(long vaddr) {
+        int ctidx = ((int)(vaddr>>5))&(ICACHE_SIZE_TAGS-1);
+        iCacheTags[ctidx] &= ~0x01000000;
+    }
+
+    private void invalidateDCacheV(long vaddr) throws MipsBusErrorException {
+        invalidateDCacheImm(vaddr);
+    }
+
+    private void invalidateICacheVHitNoWB(long vaddr) throws MipsAddressErrorException, MipsTlbMissException, MipsBusErrorException {
+        long paddr = virtToPhys64(vaddr);
+        if(isInICache(vaddr, paddr)) {
+            int ctidx = ((int) (vaddr >> 5)) & (ICACHE_SIZE_TAGS - 1);
+            iCacheTags[ctidx] &= ~0x01000000;
+        }
+    }
+
+    private void invalidateDCacheVHit(long vaddr) throws MipsAddressErrorException, MipsTlbMissException, MipsBusErrorException {
+        long paddr = virtToPhys64(vaddr);
+        if(isInDCache(vaddr, paddr)) {
+            invalidateDCacheV(vaddr);
+        }
+    }
+
+    private void createDirtyExclusiveDCache(long vaddr) throws MipsAddressErrorException, MipsTlbMissException, MipsBusErrorException {
+        long paddr = virtToPhys64(vaddr);
+        if(!isInDCache(vaddr, paddr)) {
+            invalidateDCacheV(vaddr);
+            this.dCacheTags[((int)vaddr>>5)&(DCACHE_SIZE_TAGS-1)]
+                = 0x13000000 | ((int)paddr & 0x00FFFFFF);
+        }
+    }
+
+    private void invalidateDCacheVHitNoWB(long vaddr) throws MipsAddressErrorException, MipsTlbMissException, MipsBusErrorException {
+        long paddr = virtToPhys64(vaddr);
+        if(isInDCache(vaddr, paddr)) {
+            int ctidx = ((int) (vaddr >> 5)) & (DCACHE_SIZE_TAGS - 1);
+            dCacheTags[ctidx] &= ~0x01000000;
+        }
+    }
+
+    private void writeBackICacheVHit(long vaddr) throws MipsAddressErrorException, MipsTlbMissException, MipsBusErrorException {
+        long paddr = virtToPhys64(vaddr);
+        if(isInICache(vaddr, paddr)) {
+            int ctidx = ((int) (vaddr >> 5)) & (ICACHE_SIZE_TAGS - 1);
+            int cdidx = ctidx<<2;
+            int tag = iCacheTags[ctidx];
+
+            if((tag&0x01000000) == 0x01000000) {
+                long opaddr = (((long)tag&0x00FFFFFFL)<<12) | (vaddr&0xFFF);
+
+                // TODO: get the limit properly
+                if((opaddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
+                    throw new MipsBusErrorException();
+                }
+
+                long w0a = 0xFFFFFFFFL&(long)dCacheData[cdidx + 0];
+                long w0b = 0xFFFFFFFFL&(long)dCacheData[cdidx + 1];
+                long w1a = 0xFFFFFFFFL&(long)dCacheData[cdidx + 2];
+                long w1b = 0xFFFFFFFFL&(long)dCacheData[cdidx + 3];
+                long w2a = 0xFFFFFFFFL&(long)dCacheData[cdidx + 4];
+                long w2b = 0xFFFFFFFFL&(long)dCacheData[cdidx + 5];
+                long w3a = 0xFFFFFFFFL&(long)dCacheData[cdidx + 6];
+                long w3b = 0xFFFFFFFFL&(long)dCacheData[cdidx + 7];
+                long d0 = w0a | (w0b<<32);
+                long d1 = w1a | (w1b<<32);
+                long d2 = w2a | (w2b<<32);
+                long d3 = w3a | (w3b<<32);
+
+                write64Imm(opaddr + 0,  d0);
+                write64Imm(opaddr + 8,  d1);
+                write64Imm(opaddr + 16, d2);
+                write64Imm(opaddr + 24, d3);
+            }
+        }
+    }
+
+    private void writeBackDCacheVHitDirty(long vaddr) throws MipsAddressErrorException, MipsTlbMissException, MipsBusErrorException {
+        long paddr = virtToPhys64(vaddr);
+        if(isInDCache(vaddr, paddr)) {
+            int ctidx = ((int) (vaddr >> 5)) & (DCACHE_SIZE_TAGS - 1);
+            int cdidx = ctidx<<2;
+            int tag = dCacheTags[ctidx];
+
+            if((tag&0x13000000) == 0x13000000) {
+                long opaddr = (((long)tag&0x00FFFFFFL)<<12) | (vaddr&0xFFF);
+
+                // TODO: get the limit properly
+                if((opaddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
+                    throw new MipsBusErrorException();
+                }
+
+                long d0 = dCacheData[cdidx + 0];
+                long d1 = dCacheData[cdidx + 1];
+                long d2 = dCacheData[cdidx + 2];
+                long d3 = dCacheData[cdidx + 3];
+
+                write64Imm(opaddr + 0,  d0);
+                write64Imm(opaddr + 8,  d1);
+                write64Imm(opaddr + 16, d2);
+                write64Imm(opaddr + 24, d3);
+
+                dCacheTags[ctidx] &= ~0x10000000;
+            }
+        }
+    }
+
+
+    // Situational reads and writes
+
+    private void fetchInstrLineImm(long vaddr, long paddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
+        // XXX: do we handle cache errors?
+        // Fetch 8 words / 4 dwords
+        long pbase = paddr&~31;
+        long d0 = read64Imm(pbase+0);
+        long d1 = read64Imm(pbase+8);
+        long d2 = read64Imm(pbase+16);
+        long d3 = read64Imm(pbase+24);
+
+        // Set tag
+        int ctidx = ((int)(vaddr>>5))&(ICACHE_SIZE_TAGS-1);
+        this.iCacheTags[ctidx] = ((int)(paddr>>12))|(1<<24);
+
+        // Stash into cache
+        int cdidx = ctidx<<3;
+        iCacheData[cdidx + 0] = (int)(d0);
+        iCacheData[cdidx + 1] = (int)(d0>>32L);
+        iCacheData[cdidx + 2] = (int)(d1);
+        iCacheData[cdidx + 3] = (int)(d1>>32L);
+        iCacheData[cdidx + 4] = (int)(d2);
+        iCacheData[cdidx + 5] = (int)(d2>>32L);
+        iCacheData[cdidx + 6] = (int)(d3);
+        iCacheData[cdidx + 7] = (int)(d3>>32L);
+
+    }
+
+    private void fetchInstrLine(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
+        // TLB fetch
+        long paddr = virtToPhys64(vaddr);
+
+        // Check if in range
+        // TODO: get the limit properly
+        if((paddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
+            throw new MipsBusErrorException();
+        }
+
+        // Actually do the fetch
+        fetchInstrLineImm(vaddr, paddr);
+    }
+
+    private int readInstr(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
+        // Ensure proper alignment
+        if((vaddr&3)!= 0) {
+            this.c0regs[C0_BADVADDR] = vaddr;
+            throw new MipsAddressErrorException();
+        }
+
+        // TLB fetch!
+        long paddr = virtToPhys64(vaddr);
+
+        // Check if cached (VIPT cache)
+        int ctidx = ((int)(vaddr>>5))&(ICACHE_SIZE_TAGS-1);
+        int tag = iCacheTags[ctidx];
+        if((tag&(1<<24)) != 0) {
+            // It is. Check if paddr matches.
+            if((tag&0x00FFFFFF) == (int)(paddr>>12)) {
+                // It does. Return the cache data.
+                return iCacheData[((int)(vaddr>>2))&(ICACHE_SIZE_WORDS-1)];
+            }
+        }
+
+        // Check if cacheable
+        if(((tlbRecentLo>>3)&3) == 2) {
+            // Uncacheable
+            return read32Imm(paddr);
+        } else {
+            fetchInstrLineImm(vaddr, paddr);
+            return iCacheData[((int)(vaddr>>2))&(ICACHE_SIZE_WORDS-1)];
+        }
+
     }
 
     private void fetchDCache(long vaddr, long paddr) throws MipsBusErrorException {
@@ -1725,6 +1872,8 @@ public class Mips3 {
                         case C0_EPC:
                         case C0_CONFIG:
                         case C0_XCONTEXT:
+                        case C0_TAGLO:
+                        case C0_TAGHI:
                             wb_result = (long)(int)this.c0regs[rd];
                             rd = rt;
                             break;
@@ -1755,6 +1904,8 @@ public class Mips3 {
                             case C0_EPC:
                             case C0_CONFIG:
                             case C0_XCONTEXT:
+                            case C0_TAGLO:
+                            case C0_TAGHI:
                                 wb_result = this.c0regs[rd];
                                 rd = rt;
                                 break;
@@ -1811,7 +1962,14 @@ public class Mips3 {
 
                         case C0_XCONTEXT:
                             this.c0regs[rd] = (this.c0regs[rd]&0xFFFFFFFFL)
-                                    |(((long)(int)this.c0regs[rt])&~0xFFFFFFFFL);
+                                |(((long)(int)this.c0regs[rt])&~0xFFFFFFFFL);
+                            break;
+
+                        case C0_TAGLO:
+                            this.c0regs[rd] = (long)(int)this.regs[rt];
+                            this.c0regs[rd] &= ~2;
+                            break;
+                        case C0_TAGHI:
                             break;
 
                         case C0_EPC:
@@ -1875,6 +2033,13 @@ public class Mips3 {
                             case C0_XCONTEXT:
                                 this.c0regs[rd] = (this.c0regs[rd]&0xFFFFFFFFL)
                                         |(this.c0regs[rt]&~0xFFFFFFFFL);
+                                break;
+
+                            case C0_TAGLO:
+                                this.c0regs[rd] = (long)(int)this.regs[rt];
+                                this.c0regs[rd] &= ~2;
+                                break;
+                            case C0_TAGHI:
                                 break;
 
                             case C0_EPC:
@@ -2165,6 +2330,139 @@ public class Mips3 {
             // case 46: // SWR break;
             // case 44: // SDL break;
             // case 45: // SDR break;
+
+            // Cache ops
+
+            case 47: if((this.c0regs[C0_STATUS]&(1<<28)) == 0 && !kernelMode) {
+                fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                this.c0regs[C0_CAUSE] |= 0<<28;
+            } else {
+                long vaddr = this.regs[rs] + (long)(short)ex_op;
+                if(!address64) {
+                    vaddr = (long)(int)vaddr;
+                }
+                switch(rt) {
+                    case 0: // Index Invalidate [I]
+                        invalidateICacheV(vaddr);
+                        break;
+                    case 1: // Index Write-Back Invalidate [D]
+                        try {
+                            invalidateDCacheV(vaddr);
+                        } catch (MipsBusErrorException e) {
+                            // TODO: cache fault
+                        }
+                        break;
+
+                    case 4: // Index Load Tag [I]
+                    {
+                        int tag = this.iCacheTags[((int)vaddr>>5)&(ICACHE_SIZE_TAGS-1)];
+                        int v = (int)this.c0regs[C0_TAGLO]&0x38;
+                        v |= tag<<8;
+                        if((tag&0x01000000)!=0) {
+                            v |= 0xC0;
+                        }
+                        this.c0regs[C0_TAGLO] = (long)v;
+                    } break;
+                    case 5: // Index Load Tag [D]
+                    {
+                        int tag = this.dCacheTags[((int)vaddr>>5)&(DCACHE_SIZE_TAGS-1)];
+                        int v = (int)this.c0regs[C0_TAGLO]&0x38;
+                        v |= tag<<8;
+                        v |= (tag&0x03000000)>>18;
+                        if((tag&0x01000000)!=0) {
+                            v |= 0xC0;
+                        }
+                        this.c0regs[C0_TAGLO] = (long)v;
+                    } break;
+
+                    case 8: // Index Store Tag [I]
+                    {
+                        int v = (int)this.c0regs[C0_TAGLO];
+                        int ctidx = ((int)vaddr>>5)&(ICACHE_SIZE_TAGS-1);
+                        int tag = this.iCacheTags[ctidx];
+                        tag &= 0x10000000;
+                        tag |= (v & 0xFFFFFF00)>>8;
+                        tag |= (v & 0xC0)<<18;
+                        this.iCacheTags[((int)vaddr>>5)&(ICACHE_SIZE_TAGS-1)] = tag;
+                    } break;
+                    case 9: // Index Store Tag [D]
+                    {
+                        int v = (int)this.c0regs[C0_TAGLO];
+                        int ctidx = ((int)vaddr>>5)&(DCACHE_SIZE_TAGS-1);
+                        int tag = this.dCacheTags[ctidx];
+                        tag &= 0x00000000;
+                        tag |= (v & 0xFFFFFF00)>>8;
+                        tag |= (v & 0x40)<<18;
+                        this.dCacheTags[((int)vaddr>>5)&(DCACHE_SIZE_TAGS-1)] = tag;
+                    } break;
+
+                    case 13: // Create Dirty Exclusive [D]
+                        try {
+                            createDirtyExclusiveDCache(vaddr);
+                        } catch (MipsAddressErrorException e) {
+                        } catch (MipsTlbMissException e) {
+                        } catch (MipsBusErrorException e) {
+                        }
+
+                    case 16: // Hit Invalidate [I]
+                        try {
+                            invalidateICacheVHitNoWB(vaddr);
+                        } catch (MipsAddressErrorException e) {
+                        } catch (MipsTlbMissException e) {
+                        } catch (MipsBusErrorException e) {
+                        }
+                        break;
+                    case 17: // Hit Invalidate [D]
+                        try {
+                            invalidateDCacheVHitNoWB(vaddr);
+                        } catch (MipsAddressErrorException e) {
+                        } catch (MipsTlbMissException e) {
+                        } catch (MipsBusErrorException e) {
+                        }
+                        break;
+
+                    case 20: // Fill [I]
+                        try {
+                            fetchInstrLine(vaddr);
+                        } catch (MipsAddressErrorException e) {
+                        } catch (MipsTlbMissException e) {
+                        } catch (MipsBusErrorException e) {
+                        }
+                        break;
+
+                    case 21: // Hit Write-Back Invalidate [D]
+                        try {
+                            invalidateDCacheVHit(vaddr);
+                        } catch (MipsAddressErrorException e) {
+                        } catch (MipsTlbMissException e) {
+                        } catch (MipsBusErrorException e) {
+                        }
+                        break;
+
+                    case 24: // Hit Write-Back [I] -- unconditional writeback from icache
+                        try {
+                            writeBackICacheVHit(vaddr);
+                        } catch (MipsAddressErrorException e) {
+                        } catch (MipsTlbMissException e) {
+                        } catch (MipsBusErrorException e) {
+                        }
+                        break;
+                    case 25: // Hit Write-Back [D]
+                        try {
+                            writeBackDCacheVHitDirty(vaddr);
+                        } catch (MipsAddressErrorException e) {
+                        } catch (MipsTlbMissException e) {
+                        } catch (MipsBusErrorException e) {
+                        }
+                        break;
+
+                    default:
+                        System.err.printf("RI CACHE: %d\n", rt);
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                }
+
+            } break;
 
             // Load fancy
 
