@@ -105,7 +105,7 @@ public class Mips3 {
         AdEL(4, "Address error load"), // Includes instruction fetches
         AdES(5, "Address error store"),
         IBE(6, "Bus error on ifetch"),
-        DBE(7, "Bus error on dfetch"), // DOES NOT HAPPEN ON STORES.
+        DBE(7, "Bus error on dfetch"), // Unlike MIPS1, this CAN happen on writes.
         Syscall(8, "SYSCALL instruction"),
         Bp(9, "BREAK instruction (breakpoint)"),
         RI(10, "Reserved instruction"),
@@ -177,13 +177,13 @@ public class Mips3 {
     // cache size: I=16KB D=16KB
     // line  size: I=32B  D=32B
     public static final int ICACHE_SIZE_WORDS = 16*256;
-    public static final int DCACHE_SIZE_WORDS = 16*256;
+    public static final int DCACHE_SIZE_DWORDS = 16*256;
     public static final int ICACHE_SIZE_TAGS = 16*32;
     public static final int DCACHE_SIZE_TAGS = 16*32;
     @Serialize
     private int[] iCacheData = new int[ICACHE_SIZE_WORDS];
     @Serialize
-    private int[] dCacheData = new int[DCACHE_SIZE_WORDS];
+    private long[] dCacheData = new long[DCACHE_SIZE_DWORDS];
 
     // Cache tags
 
@@ -611,10 +611,12 @@ public class Mips3 {
             this.iCacheTags[ctidx] = ((int)(paddr>>12))|(1<<24);
 
             // Stash into cache
+            /*
             System.out.printf("CI%04X = [%016X]->[%016X] %016X %016X %016X %016X\n"
                     , ctidx<<5, vaddr, paddr
                     , d0, d1, d2, d3
             );
+            */
             int cdidx = ctidx<<3;
             iCacheData[cdidx + 0] = (int)(d0);
             iCacheData[cdidx + 1] = (int)(d0>>32L);
@@ -629,15 +631,86 @@ public class Mips3 {
 
     }
 
-    private int readData8(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
-        long paddr = virtToPhys64(vaddr);
-
+    private boolean isInDCache(long vaddr, long paddr) throws MipsBusErrorException {
+        // Check if in range
         // TODO: get the limit properly
-        if((paddr+1) >= AbstractBusController.ADDRESS_COUNT) {
+        if((paddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
             throw new MipsBusErrorException();
         }
 
-        return read8Imm(paddr);
+        // Check if cached (VIPT cache)
+        int ctidx = ((int)(vaddr>>5))&(DCACHE_SIZE_TAGS-1);
+        int tag = dCacheTags[ctidx];
+        if((tag&(3<<24)) != 0) {
+            // It is. Check if paddr matches.
+            if((tag&0x00FFFFFF) == (int)(paddr>>12)) {
+                // It does. Return.
+                return true;
+            }
+        }
+
+        // Not in cache!
+        return false;
+    }
+
+    private void fetchDCacheImm(long vaddr, long paddr) throws MipsBusErrorException {
+        // Check if cached
+        if(isInDCache(vaddr, paddr)) {
+            return;
+        }
+
+        // XXX: do we handle cache errors?
+        // Fetch 8 words / 4 dwords
+        long pbase = paddr&~31;
+        long d0 = read64Imm(pbase+0);
+        long d1 = read64Imm(pbase+8);
+        long d2 = read64Imm(pbase+16);
+        long d3 = read64Imm(pbase+24);
+
+        // Set tag
+        int ctidx = ((int)(vaddr>>5))&(DCACHE_SIZE_TAGS-1);
+        this.dCacheTags[ctidx] = ((int)(paddr>>12))|(1<<24);
+
+        // Stash into cache
+        /*
+        System.out.printf("CD%04X = [%016X]->[%016X] %016X %016X %016X %016X\n"
+                , ctidx<<5, vaddr, paddr
+                , d0, d1, d2, d3
+        );
+        */
+        int cdidx = ctidx<<2;
+        dCacheData[cdidx + 0] = d0;
+        dCacheData[cdidx + 1] = d1;
+        dCacheData[cdidx + 2] = d2;
+        dCacheData[cdidx + 3] = d3;
+
+        // Done!
+    }
+
+    private void fetchDCache(long vaddr, long paddr) throws MipsBusErrorException {
+        // Check if cached
+        if (isInDCache(vaddr, paddr)) {
+            return;
+        }
+
+        // Fetch it
+        fetchDCacheImm(vaddr, paddr);
+    }
+
+    private int readData8(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
+        long paddr = virtToPhys64(vaddr);
+
+        if(((tlbRecentLo>>3)&3) == 2) {
+            // TODO: get the limit properly
+            if((paddr+1) >= AbstractBusController.ADDRESS_COUNT) {
+                throw new MipsBusErrorException();
+            }
+
+            return read8Imm(paddr);
+        } else {
+            fetchDCache(vaddr, paddr);
+            return 0xFF&(int)(dCacheData[((int)(vaddr>>3))&(DCACHE_SIZE_DWORDS-1)]>>((vaddr&7)<<3));
+        }
     }
 
     private int readData16(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
@@ -648,12 +721,17 @@ public class Mips3 {
 
         long paddr = virtToPhys64(vaddr);
 
-        // TODO: get the limit properly
-        if((paddr+2) >= AbstractBusController.ADDRESS_COUNT) {
-            throw new MipsBusErrorException();
-        }
+        if(((tlbRecentLo>>3)&3) == 2) {
+            // TODO: get the limit properly
+            if((paddr+2) >= AbstractBusController.ADDRESS_COUNT) {
+                throw new MipsBusErrorException();
+            }
 
-        return read16Imm(paddr);
+            return read16Imm(paddr);
+        } else {
+            fetchDCache(vaddr, paddr);
+            return 0xFFFF&(int)(dCacheData[((int)(vaddr>>3))&(DCACHE_SIZE_DWORDS-1)]>>((vaddr&6)<<3));
+        }
     }
 
     private int readData32(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
@@ -664,12 +742,17 @@ public class Mips3 {
 
         long paddr = virtToPhys64(vaddr);
 
-        // TODO: get the limit properly
-        if((paddr+4) >= AbstractBusController.ADDRESS_COUNT) {
-            throw new MipsBusErrorException();
-        }
+        if(((tlbRecentLo>>3)&3) == 2) {
+            // TODO: get the limit properly
+            if((paddr+4) >= AbstractBusController.ADDRESS_COUNT) {
+                throw new MipsBusErrorException();
+            }
 
-        return read32Imm(paddr);
+            return read32Imm(paddr);
+        } else {
+            fetchDCache(vaddr, paddr);
+            return (int)(dCacheData[((int)(vaddr>>3))&(DCACHE_SIZE_DWORDS-1)]>>((vaddr&4)<<3));
+        }
     }
 
     private long readData64(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
@@ -680,15 +763,20 @@ public class Mips3 {
 
         long paddr = virtToPhys64(vaddr);
 
-        // TODO: get the limit properly
-        if((paddr+8) >= AbstractBusController.ADDRESS_COUNT) {
-            throw new MipsBusErrorException();
-        }
+        if(((tlbRecentLo>>3)&3) == 2) {
+            // TODO: get the limit properly
+            if((paddr+8) >= AbstractBusController.ADDRESS_COUNT) {
+                throw new MipsBusErrorException();
+            }
 
-        return read64Imm(paddr);
+            return read64Imm(paddr);
+        } else {
+            fetchDCache(vaddr, paddr);
+            return dCacheData[((int)(vaddr>>3))&(DCACHE_SIZE_DWORDS-1)];
+        }
     }
 
-    private void writeData8(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException {
+    private void writeData8(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException, MipsBusErrorException {
         long paddr = virtToPhys64(vaddr);
 
         // Check dirty (writeable) bit
@@ -703,10 +791,35 @@ public class Mips3 {
             return;
         }
 
-        write8Imm(paddr, data);
+        // Fetch dcache if write-allocate
+        boolean writeToCache;
+        if((((int)tlbRecentLo>>3)&1) == 1) {
+            fetchDCache(vaddr, paddr);
+            writeToCache = true;
+        } else if((((int)tlbRecentLo>>3)&3) == 0) {
+            writeToCache = isInDCache(vaddr, paddr);
+        } else {
+            writeToCache = false;
+
+        }
+
+        // Write if not write-back cached
+        if((((int)tlbRecentLo>>3)&3) != 3) {
+            write8Imm(paddr, data);
+        }
+
+        // Write to cache where sensible
+        if(writeToCache) {
+            int cdidx = ((int)vaddr>>3)&(DCACHE_SIZE_DWORDS-1);
+            int shift = (((int)vaddr&7)<<3);
+            long mask = (0xFFL<<shift);
+            data &= 0xFF;
+            this.dCacheData[cdidx] &= ~mask;
+            this.dCacheData[cdidx] |= ((long)data)<<shift;
+        }
     }
 
-    private void writeData16(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException {
+    private void writeData16(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException, MipsBusErrorException {
         // Ensure proper alignment
         if((vaddr&1)!= 0) {
             throw new MipsAddressErrorException();
@@ -726,10 +839,35 @@ public class Mips3 {
             return;
         }
 
-        write16Imm(paddr, data);
+        // Fetch dcache if write-allocate
+        boolean writeToCache;
+        if((((int)tlbRecentLo>>3)&1) == 1) {
+            fetchDCache(vaddr, paddr);
+            writeToCache = true;
+        } else if((((int)tlbRecentLo>>3)&3) == 0) {
+            writeToCache = isInDCache(vaddr, paddr);
+        } else {
+            writeToCache = false;
+
+        }
+
+        // Write if not write-back cached
+        if((((int)tlbRecentLo>>3)&3) != 3) {
+            write16Imm(paddr, data);
+        }
+
+        // Write to cache where sensible
+        if(writeToCache) {
+            int cdidx = ((int)vaddr>>3)&(DCACHE_SIZE_DWORDS-1);
+            int shift = (((int)vaddr&7)<<3);
+            long mask = (0xFFFFL<<shift);
+            data &= 0xFFFF;
+            this.dCacheData[cdidx] &= ~mask;
+            this.dCacheData[cdidx] |= ((long)data)<<shift;
+        }
     }
 
-    private void writeData32(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException {
+    private void writeData32(long vaddr, int data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException, MipsBusErrorException {
         // Ensure proper alignment
         if((vaddr&3)!= 0) {
             throw new MipsAddressErrorException();
@@ -749,10 +887,34 @@ public class Mips3 {
             return;
         }
 
-        write32Imm(paddr, data);
+        // Fetch dcache if write-allocate
+        boolean writeToCache;
+        if((((int)tlbRecentLo>>3)&1) == 1) {
+            fetchDCache(vaddr, paddr);
+            writeToCache = true;
+        } else if((((int)tlbRecentLo>>3)&3) == 0) {
+            writeToCache = isInDCache(vaddr, paddr);
+        } else {
+            writeToCache = false;
+
+        }
+
+        // Write if not write-back cached
+        if((((int)tlbRecentLo>>3)&3) != 3) {
+            write32Imm(paddr, data);
+        }
+
+        // Write to cache where sensible
+        if(writeToCache) {
+            int cdidx = ((int)vaddr>>3)&(DCACHE_SIZE_DWORDS-1);
+            int shift = (((int)vaddr&7)<<3);
+            long mask = (0xFFFFFFFFL<<shift);
+            this.dCacheData[cdidx] &= ~mask;
+            this.dCacheData[cdidx] |= (0xFFFFFFFFL&(long)data)<<shift;
+        }
     }
 
-    private void writeData64(long vaddr, long data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException {
+    private void writeData64(long vaddr, long data) throws MipsAddressErrorException, MipsTlbMissException, MipsTlbModException, MipsBusErrorException {
         // Ensure proper alignment
         if((vaddr&7)!= 0) {
             throw new MipsAddressErrorException();
@@ -772,7 +934,28 @@ public class Mips3 {
             return;
         }
 
-        write64Imm(paddr, data);
+        // Fetch dcache if write-allocate
+        boolean writeToCache;
+        if((((int)tlbRecentLo>>3)&1) == 1) {
+            fetchDCache(vaddr, paddr);
+            writeToCache = true;
+        } else if((((int)tlbRecentLo>>3)&3) == 0) {
+            writeToCache = isInDCache(vaddr, paddr);
+        } else {
+            writeToCache = false;
+
+        }
+
+        // Write if not write-back cached
+        if((((int)tlbRecentLo>>3)&3) != 3) {
+            write64Imm(paddr, data);
+        }
+
+        // Write to cache where sensible
+        if(writeToCache) {
+            int cdidx = ((int)vaddr>>3)&(DCACHE_SIZE_DWORDS-1);
+            this.dCacheData[cdidx] = data;
+        }
     }
 
     // COP0 updates
@@ -1925,6 +2108,8 @@ public class Mips3 {
                     fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsAddressErrorException e) {
                     fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                } catch (MipsBusErrorException e) {
+                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
                 }
                 break;
 
@@ -1937,6 +2122,8 @@ public class Mips3 {
                     fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsAddressErrorException e) {
                     fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                } catch (MipsBusErrorException e) {
+                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
                 }
                 break;
 
@@ -1949,6 +2136,8 @@ public class Mips3 {
                     fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsAddressErrorException e) {
                     fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                } catch (MipsBusErrorException e) {
+                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
                 }
                 break;
 
@@ -1992,6 +2181,8 @@ public class Mips3 {
                     fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
                 } catch (MipsAddressErrorException e) {
                     fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                } catch (MipsBusErrorException e) {
+                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
                 }
                 break;
 
