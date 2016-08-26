@@ -338,7 +338,11 @@ public class Mips3 {
     private int read8Imm(final long addr) {
         // XXX: pending wider bus support
         this.cycleBudget -= 1;
-        return 0xFF&(int)memory.read((int)addr);
+        try {
+            return 0xFF&(int)memory.read((int)addr);
+        } catch(ArrayIndexOutOfBoundsException e) {
+            return 0xFF;
+        }
     }
 
     private int read16Imm(final long addr) {
@@ -361,7 +365,11 @@ public class Mips3 {
 
     private void write8Imm(final long addr, final int data) {
         // XXX: pending wider data bus support
-        memory.write((int)addr, 0xFF&(int)data);
+        this.cycleBudget -= 1;
+        try {
+            memory.write((int)addr, 0xFF&(int)data);
+        } catch(ArrayIndexOutOfBoundsException e) {
+        }
     }
 
     private void write16Imm(final long addr, final int data) {
@@ -568,12 +576,6 @@ public class Mips3 {
     // Cache
 
     private boolean isInICache(long vaddr, long paddr) throws MipsBusErrorException {
-        // Check if in range
-        // TODO: get the limit properly
-        if((paddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
-            throw new MipsBusErrorException();
-        }
-
         // Check if cached (VIPT cache)
         int ctidx = ((int)(vaddr>>5))&(ICACHE_SIZE_TAGS-1);
         int tag = iCacheTags[ctidx];
@@ -590,12 +592,6 @@ public class Mips3 {
     }
 
     private boolean isInDCache(long vaddr, long paddr) throws MipsBusErrorException {
-        // Check if in range
-        // TODO: get the limit properly
-        if((paddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
-            throw new MipsBusErrorException();
-        }
-
         // Check if cached (VIPT cache)
         int ctidx = ((int)(vaddr>>5))&(DCACHE_SIZE_TAGS-1);
         int tag = dCacheTags[ctidx];
@@ -619,11 +615,6 @@ public class Mips3 {
         // Evict properly if dirty + valid
         if((tag&0x13000000) == 0x13000000) {
             long opaddr = (((long)tag&0x00FFFFFFL)<<12) | (vaddr&0xFFF);
-
-            // TODO: get the limit properly
-            if((opaddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
-                throw new MipsBusErrorException();
-            }
 
             write64Imm(opaddr + 0,  dCacheData[cdidx + 0]);
             write64Imm(opaddr + 8,  dCacheData[cdidx + 1]);
@@ -722,11 +713,6 @@ public class Mips3 {
             if((tag&0x01000000) == 0x01000000) {
                 long opaddr = (((long)tag&0x00FFFFFFL)<<12) | (vaddr&0xFFF);
 
-                // TODO: get the limit properly
-                if((opaddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
-                    throw new MipsBusErrorException();
-                }
-
                 long w0a = 0xFFFFFFFFL&(long)dCacheData[cdidx + 0];
                 long w0b = 0xFFFFFFFFL&(long)dCacheData[cdidx + 1];
                 long w1a = 0xFFFFFFFFL&(long)dCacheData[cdidx + 2];
@@ -757,11 +743,6 @@ public class Mips3 {
 
             if((tag&0x13000000) == 0x13000000) {
                 long opaddr = (((long)tag&0x00FFFFFFL)<<12) | (vaddr&0xFFF);
-
-                // TODO: get the limit properly
-                if((opaddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
-                    throw new MipsBusErrorException();
-                }
 
                 long d0 = dCacheData[cdidx + 0];
                 long d1 = dCacheData[cdidx + 1];
@@ -810,12 +791,6 @@ public class Mips3 {
     private void fetchInstrLine(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
         // TLB fetch
         long paddr = virtToPhys64(vaddr);
-
-        // Check if in range
-        // TODO: get the limit properly
-        if((paddr|31) >= AbstractBusController.ADDRESS_COUNT-1) {
-            throw new MipsBusErrorException();
-        }
 
         // Actually do the fetch
         fetchInstrLineImm(vaddr, paddr);
@@ -867,11 +842,6 @@ public class Mips3 {
         long paddr = virtToPhys64(vaddr);
 
         if(((tlbRecentLo>>3)&3) == 2) {
-            // TODO: get the limit properly
-            if((paddr+1) >= AbstractBusController.ADDRESS_COUNT) {
-                throw new MipsBusErrorException();
-            }
-
             return read8Imm(paddr);
         } else {
             fetchDCache(vaddr, paddr);
@@ -888,11 +858,6 @@ public class Mips3 {
         long paddr = virtToPhys64(vaddr);
 
         if(((tlbRecentLo>>3)&3) == 2) {
-            // TODO: get the limit properly
-            if((paddr+2) >= AbstractBusController.ADDRESS_COUNT) {
-                throw new MipsBusErrorException();
-            }
-
             return read16Imm(paddr);
         } else {
             fetchDCache(vaddr, paddr);
@@ -909,11 +874,6 @@ public class Mips3 {
         long paddr = virtToPhys64(vaddr);
 
         if(((tlbRecentLo>>3)&3) == 2) {
-            // TODO: get the limit properly
-            if((paddr+4) >= AbstractBusController.ADDRESS_COUNT) {
-                throw new MipsBusErrorException();
-            }
-
             return read32Imm(paddr);
         } else {
             fetchDCache(vaddr, paddr);
@@ -930,11 +890,6 @@ public class Mips3 {
         long paddr = virtToPhys64(vaddr);
 
         if(((tlbRecentLo>>3)&3) == 2) {
-            // TODO: get the limit properly
-            if((paddr+8) >= AbstractBusController.ADDRESS_COUNT) {
-                throw new MipsBusErrorException();
-            }
-
             return read64Imm(paddr);
         } else {
             fetchDCache(vaddr, paddr);
@@ -950,11 +905,6 @@ public class Mips3 {
             // PERMISSION DENIED
             this.c0regs[C0_BADVADDR] = vaddr;
             throw new MipsTlbModException();
-        }
-
-        // TODO: get the limit properly
-        if((paddr+1) >= AbstractBusController.ADDRESS_COUNT) {
-            return;
         }
 
         // Fetch dcache if write-allocate
@@ -1000,11 +950,6 @@ public class Mips3 {
             throw new MipsTlbModException();
         }
 
-        // TODO: get the limit properly
-        if((paddr+2) >= AbstractBusController.ADDRESS_COUNT) {
-            return;
-        }
-
         // Fetch dcache if write-allocate
         boolean writeToCache;
         if((((int)tlbRecentLo>>3)&1) == 1) {
@@ -1048,11 +993,6 @@ public class Mips3 {
             throw new MipsTlbModException();
         }
 
-        // TODO: get the limit properly
-        if((paddr+4) >= AbstractBusController.ADDRESS_COUNT) {
-            return;
-        }
-
         // Fetch dcache if write-allocate
         boolean writeToCache;
         if((((int)tlbRecentLo>>3)&1) == 1) {
@@ -1093,11 +1033,6 @@ public class Mips3 {
             // PERMISSION DENIED
             this.c0regs[C0_BADVADDR] = vaddr;
             throw new MipsTlbModException();
-        }
-
-        // TODO: get the limit properly
-        if((paddr+8) >= AbstractBusController.ADDRESS_COUNT) {
-            return;
         }
 
         // Fetch dcache if write-allocate
