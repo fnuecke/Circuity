@@ -45,7 +45,7 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
 
     // --------------------------------------------------------------------- //
 
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.REDSTONE_CONTROLLER_NAME);
+    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.REDSTONE_CONTROLLER, Constants.DeviceInfo.REDSTONE_CONTROLLER_NAME);
 
     private final class RedstoneControllerImpl extends AbstractAddressable implements AddressHint {
         // --------------------------------------------------------------------- //
