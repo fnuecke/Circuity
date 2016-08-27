@@ -24,9 +24,9 @@ import net.minecraft.world.IBlockAccess;
 import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 public class BlockEntityContainer extends BlockWithTileEntity {
     public BlockEntityContainer(final Material material, final MapColor mapColor) {
@@ -49,13 +49,13 @@ public class BlockEntityContainer extends BlockWithTileEntity {
         return Optional.empty();
     }
 
-    public static <T> Stream<T> getComponents(final IBlockAccess world, final BlockPos pos, final Class<T> clazz) {
+    public static <T> Iterable<T> getComponents(final IBlockAccess world, final BlockPos pos, final Class<T> clazz) {
         final TileEntity tileEntity = world.getTileEntity(pos);
         if (tileEntity instanceof EntityContainer) {
             final EntityContainer container = (EntityContainer) tileEntity;
             return container.getComponents(clazz);
         }
-        return Stream.empty();
+        return Collections.emptyList();
     }
 
     // --------------------------------------------------------------------- //
@@ -96,49 +96,53 @@ public class BlockEntityContainer extends BlockWithTileEntity {
 
     @Override
     public void breakBlock(final World world, final BlockPos pos, final IBlockState state) {
-        final Stream<ContainerDestructionListener> listeners = getComponents(world, pos, ContainerDestructionListener.class);
+        final Iterable<ContainerDestructionListener> listeners = getComponents(world, pos, ContainerDestructionListener.class);
         listeners.forEach(ContainerDestructionListener::handleContainerDestruction);
         super.breakBlock(world, pos, state);
     }
 
     @Override
     public void onNeighborChange(final IBlockAccess world, final BlockPos pos, final BlockPos neighbor) {
-        final Stream<NeighborChangeListener> listeners = getComponents(world, pos, NeighborChangeListener.class);
+        final Iterable<NeighborChangeListener> listeners = getComponents(world, pos, NeighborChangeListener.class);
         listeners.forEach(listener -> listener.handleNeighborChange(neighbor));
         super.onNeighborChange(world, pos, neighbor);
     }
 
     @Override
     public void neighborChanged(final IBlockState state, final World world, final BlockPos pos, final Block block) {
-        final Stream<NeighborChangeListener> listeners = getComponents(world, pos, NeighborChangeListener.class);
+        final Iterable<NeighborChangeListener> listeners = getComponents(world, pos, NeighborChangeListener.class);
         listeners.forEach(listener -> listener.handleNeighborChange(null));
         super.neighborChanged(state, world, pos, block);
     }
 
     @Override
     public boolean onBlockActivated(final World world, final BlockPos pos, final IBlockState state, final EntityPlayer player, final EnumHand hand, @Nullable final ItemStack heldItem, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
-        final Stream<ActivationListener> listeners = getComponents(world, pos, ActivationListener.class);
-        return listeners.anyMatch(listener -> listener.handleActivated(player, hand, heldItem, side, hitX, hitY, hitZ)) ||
-                super.onBlockActivated(world, pos, state, player, hand, heldItem, side, hitX, hitY, hitZ);
+        final Iterable<ActivationListener> listeners = getComponents(world, pos, ActivationListener.class);
+        for (final ActivationListener listener : listeners) {
+            if (listener.handleActivated(player, hand, heldItem, side, hitX, hitY, hitZ)) {
+                return true;
+            }
+        }
+        return super.onBlockActivated(world, pos, state, player, hand, heldItem, side, hitX, hitY, hitZ);
     }
 
     @Override
     public void onEntityWalk(final World world, final BlockPos pos, final Entity entity) {
-        final Stream<EntityWalkListener> listeners = getComponents(world, pos, EntityWalkListener.class);
+        final Iterable<EntityWalkListener> listeners = getComponents(world, pos, EntityWalkListener.class);
         listeners.forEach(listener -> listener.handleEntityWalk(entity));
         super.onEntityWalk(world, pos, entity);
     }
 
     @Override
     public void onBlockClicked(final World world, final BlockPos pos, final EntityPlayer player) {
-        final Stream<ClickListener> listeners = getComponents(world, pos, ClickListener.class);
+        final Iterable<ClickListener> listeners = getComponents(world, pos, ClickListener.class);
         listeners.forEach(listener -> listener.handleClicked(player));
         super.onBlockClicked(world, pos, player);
     }
 
     @Override
     public void onEntityCollidedWithBlock(final World world, final BlockPos pos, final IBlockState state, final Entity entity) {
-        final Stream<EntityCollisionListener> listeners = getComponents(world, pos, EntityCollisionListener.class);
+        final Iterable<EntityCollisionListener> listeners = getComponents(world, pos, EntityCollisionListener.class);
         listeners.forEach(listener -> listener.handleEntityCollided(entity));
         super.onEntityCollidedWithBlock(world, pos, state, entity);
     }

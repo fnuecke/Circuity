@@ -4,7 +4,6 @@ import li.cil.lib.api.ecs.component.Component;
 
 import java.util.Collections;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 public interface EntityContainerProxy extends EntityContainer {
     @Override
@@ -23,12 +22,12 @@ public interface EntityContainerProxy extends EntityContainer {
     }
 
     @Override
-    default <T> Stream<T> getComponents(final Class<T> clazz) {
+    default <T> Iterable<T> getComponents(final Class<T> clazz) {
         final long entity = getEntity();
         if (entity != 0) {
             return getManager().getComponents(getEntity(), clazz);
         } else {
-            return Stream.empty();
+            return Collections.emptyList();
         }
     }
 

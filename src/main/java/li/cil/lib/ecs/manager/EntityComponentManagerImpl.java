@@ -14,19 +14,20 @@ import net.minecraft.world.World;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
 
 public final class EntityComponentManagerImpl implements EntityComponentManager, ITickable, LateTickable {
     private static final Comparator<ITickable> TICKABLE_COMPARATOR = Comparator.comparing(t -> ((Component) t).getId());
@@ -38,7 +39,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
     private long lastId = 0;
     private final HashSet<Long> entities = new HashSet<>();
     private final HashMap<Long, List<Component>> componentsByEntity = new HashMap<>();
-    private final HashMap<Long, HashMap<Class<? extends Component>, List<? extends Component>>> componentsByEntityAndType = new HashMap<>();
+    private final HashMap<Long, HashMap<Class<?>, List<Component>>> componentsByEntityAndType = new HashMap<>();
     private final HashMap<Long, Component> componentsById = new HashMap<>();
     private final HashMap<Class<?>, List<Component>> componentsByType = new HashMap<>();
     private final List<ITickable> updatingComponents = new ArrayList<>();
@@ -118,7 +119,12 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
             }
 
             try {
-                final T component = clazz.getConstructor(EntityComponentManager.class, long.class, long.class).newInstance(this, entity, id);
+                final Constructor<T> constructor = clazz.getConstructor(EntityComponentManager.class, long.class, long.class);
+                if (constructor == null) {
+                    throw new IllegalArgumentException("Component type does not have constructor with required signature (EntityComponentManager, long, long).");
+                }
+                constructor.setAccessible(true);
+                final T component = constructor.newInstance(this, entity, id);
                 componentsById.
                         put(id, component);
                 collectTypes(clazz, type -> componentsByType.
@@ -127,10 +133,10 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
                 componentsByEntity.
                         computeIfAbsent(entity, k -> new ArrayList<>()).
                         add(component);
-                ((List<T>) componentsByEntityAndType.
+                collectTypes(clazz, type -> componentsByEntityAndType.
                         computeIfAbsent(entity, k -> new HashMap<>()).
-                        computeIfAbsent(clazz, k -> new ArrayList<T>())).
-                        add(component);
+                        computeIfAbsent(type, k -> new ArrayList<>()).
+                        add(component));
 
                 if (component instanceof ITickable) {
                     addedUpdatingComponents.add((ITickable) component);
@@ -274,17 +280,23 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
 
     @Override
     public <T> Optional<T> getComponent(final long entity, final Class<T> clazz) {
-        return getComponents(entity, clazz).findFirst();
+        final Iterable<T> components = getComponents(entity, clazz);
+        final Iterator<T> iterator = components.iterator();
+        if (iterator.hasNext()) {
+            return Optional.of(iterator.next());
+        } else {
+            return Optional.empty();
+        }
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> Stream<T> getComponents(final long entity, final Class<T> clazz) {
+    public <T> Iterable<T> getComponents(final long entity, final Class<T> clazz) {
         if (componentsByEntityAndType.containsKey(entity)) {
-            final HashMap<Class<? extends Component>, List<? extends Component>> componentTypes = componentsByEntityAndType.get(entity);
-            return componentTypes.entrySet().stream().filter(e -> clazz.isAssignableFrom(e.getKey())).flatMap(e -> ((List<T>) e.getValue()).stream());
+            final HashMap<Class<?>, List<Component>> componentTypes = componentsByEntityAndType.get(entity);
+            return (Iterable<T>) componentTypes.getOrDefault(clazz, Collections.emptyList());
         } else {
-            return Stream.empty();
+            return Collections.emptyList();
         }
     }
 

@@ -7,7 +7,6 @@ import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import net.minecraft.world.World;
 
 import java.util.Optional;
-import java.util.stream.Stream;
 
 public abstract class AbstractComponent implements Component {
     private final EntityComponentManager manager;
@@ -58,7 +57,7 @@ public abstract class AbstractComponent implements Component {
         return getManager().getComponent(getEntity(), clazz);
     }
 
-    public <T> Stream<T> getComponents(final Class<T> clazz) {
+    public <T> Iterable<T> getComponents(final Class<T> clazz) {
         return getManager().getComponents(getEntity(), clazz);
     }
 
@@ -74,7 +73,6 @@ public abstract class AbstractComponent implements Component {
     }
 
     public void markChanged() {
-        final Optional<ChangeListener> listener = getComponent(ChangeListener.class);
-        listener.ifPresent(ChangeListener::markChanged);
+        getComponents(ChangeListener.class).forEach(ChangeListener::markChanged);
     }
 }

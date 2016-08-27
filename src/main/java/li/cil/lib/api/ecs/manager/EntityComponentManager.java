@@ -8,7 +8,6 @@ import li.cil.lib.api.synchronization.SynchronizationManagerClient;
 
 import javax.annotation.Nullable;
 import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
  * A manager keeping track of a list of entities and their components.
@@ -157,7 +156,7 @@ public interface EntityComponentManager {
      * @param <T>    the generic type of the components to get.
      * @return the list of components of the specified type on the entity.
      */
-    <T> Stream<T> getComponents(final long entity, final Class<T> clazz);
+    <T> Iterable<T> getComponents(final long entity, final Class<T> clazz);
 
     /**
      * Get a list of all components on the specified entity.
