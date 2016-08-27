@@ -7,7 +7,8 @@ public enum DeviceType {
     READ_ONLY_MEMORY,
     FLOPPY_DISK_DRIVE,
     HARD_DISK_DRIVE,
-    SERIAL_INTERFACE;
+    SERIAL_INTERFACE,
+    REDSTONE_CONTROLLER;
 
     public final int id;
 
