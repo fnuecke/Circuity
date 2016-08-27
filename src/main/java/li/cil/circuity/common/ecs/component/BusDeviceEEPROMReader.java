@@ -25,7 +25,7 @@ import net.minecraftforge.items.IItemHandler;
 import javax.annotation.Nullable;
 
 @Serializable
-public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements InventoryChangeListener {
+public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements InventoryChangeListener {
     @Serialize
     private final EEPROMImpl device = new EEPROMImpl();
 
@@ -59,7 +59,7 @@ public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements
     // AbstractComponentBusDevice
 
     @Override
-    protected BusDevice getDevice() {
+    public BusDevice getDevice() {
         return device;
     }
 
@@ -99,9 +99,9 @@ public class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements
         }
     }
 
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_ONLY_MEMORY, Constants.DeviceInfo.EEPROM_READER_NAME);
+    public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_ONLY_MEMORY, Constants.DeviceInfo.EEPROM_READER_NAME);
 
-    private final class EEPROMImpl extends AbstractAddressable implements AddressHint {
+    public final class EEPROMImpl extends AbstractAddressable implements AddressHint {
         // --------------------------------------------------------------------- //
         // AbstractAddressable
 

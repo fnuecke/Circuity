@@ -15,7 +15,7 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentTranslation;
 
 @Serializable
-public class BusDeviceZ80Processor extends AbstractComponentBusDevice {
+public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
     private static final int CYCLES_PER_TICK = 2_000_000 / 20;
 
     @Serialize
@@ -31,7 +31,7 @@ public class BusDeviceZ80Processor extends AbstractComponentBusDevice {
     // AbstractComponentBusDevice
 
     @Override
-    protected BusDevice getDevice() {
+    public BusDevice getDevice() {
         return device;
     }
 
@@ -39,9 +39,9 @@ public class BusDeviceZ80Processor extends AbstractComponentBusDevice {
     // ActivationListener
 
     @Serializable
-    private class BusDeviceZ80Impl extends AbstractInterruptSink implements BusStateAware, AsyncTickable {
+    public final class BusDeviceZ80Impl extends AbstractInterruptSink implements BusStateAware, AsyncTickable {
         @Serialize
-        private final Z80 z80;
+        public final Z80 z80;
 
         // --------------------------------------------------------------------- //
 
@@ -80,12 +80,6 @@ public class BusDeviceZ80Processor extends AbstractComponentBusDevice {
 
         @Override
         public void handleBusOnline() {
-            // TODO Configurable address.
-            final int eepromAddress = 0xC100;
-            for (int offset = 0; offset < 4 * 1024; offset++) {
-                final int value = controller.mapAndRead(eepromAddress + offset);
-                controller.mapAndWrite(offset, value);
-            }
         }
 
         @Override

@@ -47,7 +47,7 @@ public abstract class BusNeighborAware extends AbstractComponentBusDevice implem
     @Nullable
     protected abstract BusController getController();
 
-    protected final boolean getDevices(final Collection<BusDevice> devices) {
+    protected boolean getDevices(final Collection<BusDevice> devices) {
         final Optional<Location> location = getComponent(Location.class);
         return !location.isPresent() || getDevicesAt(location.get(), devices);
     }

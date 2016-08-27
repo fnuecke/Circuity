@@ -23,7 +23,7 @@ import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
 
-public class BusDeviceHardDiskDrive extends AbstractComponentBusDevice implements InventoryChangeListener {
+public final class BusDeviceHardDiskDrive extends AbstractComponentBusDevice implements InventoryChangeListener {
     @Serialize
     private final HardDiskDriveImpl device = new HardDiskDriveImpl();
 
@@ -40,7 +40,7 @@ public class BusDeviceHardDiskDrive extends AbstractComponentBusDevice implement
     // AbstractComponentBusDevice
 
     @Override
-    protected BusDevice getDevice() {
+    public BusDevice getDevice() {
         return null;
     }
 
@@ -80,9 +80,9 @@ public class BusDeviceHardDiskDrive extends AbstractComponentBusDevice implement
         }
     }
 
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.HARD_DISK_DRIVE, Constants.DeviceInfo.HARD_DISK_DRIVE_NAME);
+    public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.HARD_DISK_DRIVE, Constants.DeviceInfo.HARD_DISK_DRIVE_NAME);
 
-    private final class HardDiskDriveImpl extends AbstractAddressable implements AddressHint {
+    public final class HardDiskDriveImpl extends AbstractAddressable implements AddressHint {
         // --------------------------------------------------------------------- //
         // AbstractAddressable
 

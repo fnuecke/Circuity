@@ -51,15 +51,15 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
     // AbstractComponentBusDevice
 
     @Override
-    protected BusDevice getDevice() {
+    public BusDevice getDevice() {
         return device;
     }
 
     // --------------------------------------------------------------------- //
 
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_WRITE_MEMORY, Constants.DeviceInfo.RANDOM_ACCESS_MEMORY_NAME);
+    public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_WRITE_MEMORY, Constants.DeviceInfo.RANDOM_ACCESS_MEMORY_NAME);
 
-    private final class RandomAccessMemoryImpl extends AbstractAddressable implements AddressHint, BusStateAware {
+    public final class RandomAccessMemoryImpl extends AbstractAddressable implements AddressHint, BusStateAware {
         // --------------------------------------------------------------------- //
         // AbstractAddressable
 

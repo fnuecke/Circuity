@@ -34,7 +34,7 @@ public final class BusSegmentBlock extends BusNeighborAware {
     // AbstractComponentBusDevice
 
     @Override
-    protected BusDevice getDevice() {
+    public BusDevice getDevice() {
         return segment;
     }
 
@@ -49,7 +49,7 @@ public final class BusSegmentBlock extends BusNeighborAware {
 
     // --------------------------------------------------------------------- //
 
-    private final class BlockBusSegmentImpl extends AbstractBusDevice implements BusSegment {
+    public final class BlockBusSegmentImpl extends AbstractBusDevice implements BusSegment {
         @Override
         public boolean getDevices(final Collection<BusDevice> devices) {
             return BusSegmentBlock.this.getDevices(devices);

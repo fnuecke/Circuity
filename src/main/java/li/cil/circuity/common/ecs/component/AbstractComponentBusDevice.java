@@ -15,7 +15,7 @@ public abstract class AbstractComponentBusDevice extends AbstractComponent imple
         super(manager, entity, id);
     }
 
-    protected abstract BusDevice getDevice();
+    public abstract BusDevice getDevice();
 
     @Override
     public boolean hasCapability(final Capability<?> capability, @Nullable final EnumFacing facing) {

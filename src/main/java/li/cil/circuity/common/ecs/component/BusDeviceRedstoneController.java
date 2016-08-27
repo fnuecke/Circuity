@@ -39,15 +39,15 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
     // AbstractComponentBusDevice
 
     @Override
-    protected BusDevice getDevice() {
+    public BusDevice getDevice() {
         return device;
     }
 
     // --------------------------------------------------------------------- //
 
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.REDSTONE_CONTROLLER_NAME);
+    public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.REDSTONE_CONTROLLER_NAME);
 
-    private final class RedstoneControllerImpl extends AbstractAddressable implements AddressHint {
+    public final class RedstoneControllerImpl extends AbstractAddressable implements AddressHint {
         // --------------------------------------------------------------------- //
         // AbstractAddressable
 

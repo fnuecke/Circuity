@@ -1,140 +1,173 @@
 package li.cil.circuity.server.processor.z80;
 
-import li.cil.circuity.api.bus.BusController;
-import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.device.AddressBlock;
-import li.cil.circuity.api.bus.device.Addressable;
-import li.cil.circuity.api.bus.device.InterruptSink;
-import li.cil.circuity.api.bus.device.InterruptSource;
-import li.cil.circuity.server.processor.BusControllerAccess;
+import li.cil.circuity.common.ecs.component.BusDeviceRandomAccessMemory;
+import li.cil.circuity.common.ecs.component.BusDeviceZ80Processor;
+import li.cil.lib.Manager;
+import li.cil.lib.Scheduler;
+import li.cil.lib.Serialization;
+import li.cil.lib.Synchronization;
+import li.cil.lib.api.SillyBeeAPI;
+import li.cil.lib.api.ecs.manager.EntityComponentManager;
+import net.minecraft.init.Bootstrap;
+import net.minecraft.profiler.Profiler;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.management.PlayerList;
+import net.minecraft.util.datafix.DataFixer;
+import net.minecraft.world.EnumDifficulty;
+import net.minecraft.world.GameType;
+import net.minecraft.world.WorldServer;
+import net.minecraft.world.WorldSettings;
+import net.minecraft.world.WorldType;
+import net.minecraft.world.storage.WorldInfo;
+import net.minecraftforge.fml.common.Loader;
+import net.minecraftforge.fml.common.gameevent.TickEvent;
+import org.junit.Before;
 import org.junit.Test;
 
-import javax.annotation.Nullable;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.Collection;
-import java.util.PrimitiveIterator;
+import java.io.File;
+import java.io.IOException;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
 public class Z80Test {
-    @Test
-    public void runDiag() throws Exception {
-        if (true) return;
+    @Before
+    public void setup() {
+        Loader.instance();
+        Bootstrap.register();
 
-        final BusControllerWithMemory controller = new BusControllerWithMemory();
-
-        final Z80 cpu = new Z80(new BusControllerAccess(controller, 0), new BusControllerAccess(controller, 0x10000));
-        controller.setCPU(cpu);
-
-        final int diagnosticsOffset = 0x100;
-        final byte[] diagnosticsRom = Files.readAllBytes(Paths.get("src/test/resources/zexdoc.com"));
-
-        for (int address = diagnosticsOffset, end = Math.min(0xFFFF, diagnosticsOffset + diagnosticsRom.length); address < end; ++address) {
-            controller.mapAndWrite(address, diagnosticsRom[address - diagnosticsOffset] & 0xFF);
-        }
-
-        final int biosOffset = 0x00;
-        final byte[] biosRom = {
-                (byte) 0x76,       /* HLT */
-                0x00,
-                0x00,
-                0x00,
-                0x00,
-                (byte) 0xDB,       /* IN A, N */
-                (byte) 0x00,
-                (byte) 0xC9        /* RET */
-        };
-        for (int address = biosOffset, end = Math.min(0xFFFF, biosOffset + biosRom.length); address < end; ++address) {
-            controller.mapAndWrite(address, biosRom[address - biosOffset] & 0xFF);
-        }
-
-        final int mhz = 2_000_000;
-        final int tps = 20;
-        final int cps = mhz / tps;
-
-        cpu.reset(diagnosticsOffset);
-        while (cpu.run(cps)) {
-        }
-
-        assertTrue(!controller.serialConsole.toString().trim().contains("ERROR"));
+        SillyBeeAPI.manager = Manager.INSTANCE;
+        SillyBeeAPI.scheduler = Scheduler.INSTANCE;
+        SillyBeeAPI.serialization = Serialization.INSTANCE;
+        SillyBeeAPI.synchronization = Synchronization.INSTANCE;
     }
 
-    private class BusControllerWithMemory implements BusController {
-        final byte[] memory = new byte[0x10000];
-        final StringBuilder serialConsole = new StringBuilder();
-        private Z80 cpu;
+    @Test
+    public void test() {
+        final WorldSettings settings = new WorldSettings(0, GameType.CREATIVE, false, false, WorldType.FLAT);
+        final WorldInfo info = new WorldInfo(settings, "test");
+        final TestServer server = new TestServer();
+        final WorldServer world = new WorldServer(server, new TestSaveHandler(info), info, 0, new Profiler());
+
+        final EntityComponentManager manager = SillyBeeAPI.manager.getManager(world);
+
+        final long entity = manager.addEntity();
+        manager.addComponent(entity, TestLocation.class).setWorld(world);
+        final TestRedstone redstone = manager.addComponent(entity, TestRedstone.class);
+
+        // 64K
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+        manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
+
+        final BusDeviceZ80Processor cpu = manager.addComponent(entity, BusDeviceZ80Processor.class);
+        final TestBusController controller = manager.addComponent(entity, TestBusController.class);
+        final TestHooks hooks = manager.addComponent(entity, TestHooks.class);
+
+        final Z80 z80 = ((BusDeviceZ80Processor.BusDeviceZ80Impl) cpu.getDevice()).z80;
+        hooks.device.setCpu(z80);
+
+        for (int i = 0; i < 10; i++) {
+            tick();
+        }
+
+        redstone.setInput(15);
+        z80.reset(0x100);
+
+        while (z80.run(0)) {
+            tick();
+        }
+
+        assertFalse(hooks.device.getOutput().contains("ERROR"));
+    }
+
+    private static final class TestServer extends MinecraftServer {
+        public TestServer() {
+            super(new File("nope"), null, new DataFixer(0), null, null, null, null);
+            setPlayerList(new PlayerList(this) {
+            });
+        }
 
         @Override
-        public boolean isOnline() {
+        public boolean startServer() throws IOException {
+            return false;
+        }
+
+        @Override
+        public boolean canStructuresSpawn() {
+            return false;
+        }
+
+        @Override
+        public GameType getGameType() {
+            return GameType.SURVIVAL;
+        }
+
+        @Override
+        public EnumDifficulty getDifficulty() {
+            return EnumDifficulty.NORMAL;
+        }
+
+        @Override
+        public boolean isHardcore() {
+            return false;
+        }
+
+        @Override
+        public int getOpPermissionLevel() {
+            return 0;
+        }
+
+        @Override
+        public boolean shouldBroadcastRconToOps() {
+            return false;
+        }
+
+        @Override
+        public boolean shouldBroadcastConsoleToOps() {
+            return false;
+        }
+
+        @Override
+        public boolean isDedicatedServer() {
             return true;
         }
 
         @Override
-        public void scheduleScan() {
+        public boolean shouldUseNativeTransport() {
+            return false;
         }
 
-        @Nullable
         @Override
-        public AddressBlock getAddress(final Addressable device) {
+        public boolean isCommandBlockEnabled() {
+            return false;
+        }
+
+        @Override
+        public String shareToLAN(final GameType type, final boolean allowCheats) {
             return null;
         }
+    }
 
-        @Override
-        public PrimitiveIterator.OfInt getInterruptSourceIds(final InterruptSource device) {
-            return null;
-        }
+    private static final TickEvent.ServerTickEvent TICK_START = new TickEvent.ServerTickEvent(TickEvent.Phase.START);
+    private static final TickEvent.ServerTickEvent TICK_END = new TickEvent.ServerTickEvent(TickEvent.Phase.END);
 
-        @Override
-        public PrimitiveIterator.OfInt getInterruptSinkIds(final InterruptSink device) {
-            return null;
-        }
-
-        @Override
-        public void interrupt(final int interruptId, final int data) {
-        }
-
-        @Override
-        public void mapAndWrite(final int address, final int value) throws IndexOutOfBoundsException {
-            memory[address] = (byte) value;
-        }
-
-        @Override
-        public int mapAndRead(final int address) throws IndexOutOfBoundsException {
-            if (address == 0x10000) {
-                if (cpu.C() == 2) {
-                    serialConsole.append((char) cpu.E());
-                    System.out.print((char) cpu.E());
-                } else if (cpu.C() == 9) {
-                    for (int i = cpu.DE() & 0xFFFF; memory[i] != '$'; ++i) {
-                        serialConsole.append((char) memory[i]);
-                        System.out.print((char) memory[i]);
-                    }
-                }
-                System.out.flush();
-                return 0;
-            } else {
-                return memory[address] & 0xFF;
-            }
-        }
-
-        @Nullable
-        @Override
-        public BusController getBusController() {
-            return null;
-        }
-
-        @Override
-        public void setBusController(@Nullable final BusController controller) {
-        }
-
-        @Override
-        public boolean getDevices(final Collection<BusDevice> devices) {
-            return true;
-        }
-
-        public void setCPU(final Z80 CPU) {
-            this.cpu = CPU;
-        }
+    private static void tick() {
+        Manager.INSTANCE.handleServerTick(TICK_START);
+        Scheduler.INSTANCE.handleServerTick(TICK_START);
+        Manager.INSTANCE.handleServerTick(TICK_END);
+        Scheduler.INSTANCE.handleServerTick(TICK_END);
     }
 }

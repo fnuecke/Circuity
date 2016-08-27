@@ -20,10 +20,9 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import org.apache.logging.log4j.Logger;
 
-@Mod(modid = SillyBeeAPI.MOD_ID, name = ModSillyBee.MOD_NAME, version = ModSillyBee.MOD_VERSION)
+@Mod(modid = SillyBeeAPI.MOD_ID, name = ModSillyBee.MOD_NAME, version = SillyBeeAPI.MOD_VERSION)
 public final class ModSillyBee {
     public static final String MOD_NAME = "SillyBee";
-    public static final String MOD_VERSION = "@VERSION_LIB@";
 
     @CapabilityInject(IItemHandler.class)
     public static Capability<IItemHandler> ITEM_HANDLER_CAPABILITY = null;

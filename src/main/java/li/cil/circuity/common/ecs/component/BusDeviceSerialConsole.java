@@ -15,7 +15,7 @@ import net.minecraft.util.text.TextComponentTranslation;
 
 import javax.annotation.Nullable;
 
-public class BusDeviceSerialConsole extends AbstractComponentBusDevice {
+public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
     @Serialize
     private final SerialConsoleImpl device = new SerialConsoleImpl();
 
@@ -26,15 +26,15 @@ public class BusDeviceSerialConsole extends AbstractComponentBusDevice {
     // --------------------------------------------------------------------- //
 
     @Override
-    protected BusDevice getDevice() {
+    public BusDevice getDevice() {
         return device;
     }
 
     // --------------------------------------------------------------------- //
 
-    private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.SERIAL_CONSOLE_NAME);
+    public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.SERIAL_CONSOLE_NAME);
 
-    private static final class SerialConsoleImpl extends AbstractAddressableInterruptSource implements AddressHint {
+    public static final class SerialConsoleImpl extends AbstractAddressableInterruptSource implements AddressHint {
         // --------------------------------------------------------------------- //
         // AbstractAddressableInterruptSource
 

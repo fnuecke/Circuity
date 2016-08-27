@@ -131,12 +131,12 @@ public final class Z80 {
             if (status == Status.HALTED) return false;
             cycleBudget += cycles;
             for (; ; ) {
+                if (cycleBudget <= 0) return true;
                 R = (byte) ((R & 0b10000000) | ((R + 1) & 0b01111111));
                 final byte opcode = read8();
                 cycleBudget -= 1;
                 execute(opcode);
                 if (status == Status.HALTED) return false;
-                if (cycleBudget <= 0) return true;
             }
         }
     }

@@ -29,7 +29,7 @@ import java.util.Collection;
 import java.util.Optional;
 
 @Serializable
-public final class BusControllerBlock extends BusNeighborAware implements ITickable, LateTickable, ActivationListener {
+public class BusControllerBlock extends BusNeighborAware implements ITickable, LateTickable, ActivationListener {
     @Serialize
     private final BlockBusControllerImpl controller = new BlockBusControllerImpl();
 
@@ -69,7 +69,7 @@ public final class BusControllerBlock extends BusNeighborAware implements ITicka
     // AbstractComponentBusDevice
 
     @Override
-    protected BusDevice getDevice() {
+    public BusDevice getDevice() {
         return controller;
     }
 
@@ -172,7 +172,7 @@ public final class BusControllerBlock extends BusNeighborAware implements ITicka
 
     // --------------------------------------------------------------------- //
 
-    private final class BlockBusControllerImpl extends AbstractBusController {
+    public final class BlockBusControllerImpl extends AbstractBusController {
         @Override
         protected World getBusWorld() {
             return BusControllerBlock.this.getWorld();
