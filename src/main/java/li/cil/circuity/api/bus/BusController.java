@@ -95,7 +95,7 @@ public interface BusController extends BusSegment {
      * @param value   the value to write.
      * @throws IndexOutOfBoundsException if the address is unsupported.
      */
-    void mapAndWrite(final int address, final int value) throws IndexOutOfBoundsException;
+    void mapAndWrite(final long address, final int value) throws IndexOutOfBoundsException;
 
     /**
      * Read a value from the specified global address.
@@ -122,7 +122,7 @@ public interface BusController extends BusSegment {
      * @return the value read.
      * @throws IndexOutOfBoundsException if the address is unsupported.
      */
-    int mapAndRead(final int address) throws IndexOutOfBoundsException;
+    int mapAndRead(final long address) throws IndexOutOfBoundsException;
 
     // --------------------------------------------------------------------- //
 

@@ -208,7 +208,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
      * to find gaps for newly assigned address blocks. Also has the nice
      * side-effect of a less terrible worst-case remove time.
      */
-    private final Comparator<Addressable> addressComparator = Comparator.comparingInt(addressable -> addressBlocks.get(addressable).getOffset());
+    private final Comparator<Addressable> addressComparator = Comparator.comparingLong(addressable -> addressBlocks.get(addressable).getOffset());
 
     /**
      * The list of occupied interrupt source IDs. These IDs get assigned to
@@ -319,7 +319,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 } else {
                     final Addressable device = addressables.get(selected);
                     final AddressBlock memory = addressBlocks.get(device);
-                    return (memory.getOffset() >>> ((address - 8) * FULL_ADDRESS_BLOCK.getWordSize())) & 0xFF;
+                    return (int) (memory.getOffset() >>> ((address - 8) * FULL_ADDRESS_BLOCK.getWordSize())) & 0xFF;
                 }
             }
             case 12: // Reset device name pointer.
@@ -360,6 +360,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 nameIndex = 0;
                 break;
             case 12: // Reset device name pointer.
+                nameIndex = 0;
                 break;
         }
     }
@@ -411,11 +412,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     }
 
     @Override
-    public void mapAndWrite(final int address, final int value) {
-        final Addressable device = addresses[address];
+    public void mapAndWrite(final long address, final int value) {
+        final Addressable device = addresses[(int) address];
         if (device != null) {
             final AddressBlock memory = addressBlocks.get(device);
-            final int mappedAddress = address - memory.getOffset();
+            final int mappedAddress = (int) (address - memory.getOffset());
             device.write(mappedAddress, value);
         } else {
             segfault();
@@ -423,11 +424,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     }
 
     @Override
-    public int mapAndRead(final int address) {
-        final Addressable device = addresses[address];
+    public int mapAndRead(final long address) {
+        final Addressable device = addresses[(int) address];
         if (device != null) {
             final AddressBlock memory = addressBlocks.get(device);
-            final int mappedAddress = address - memory.getOffset();
+            final int mappedAddress = (int) (address - memory.getOffset());
             return device.read(mappedAddress);
         } else {
             segfault();
@@ -924,8 +925,8 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             final AddressBlock memory1 = addressBlocks.get(addressable1);
             final AddressBlock memory2 = addressBlocks.get(addressable2);
 
-            final int end1 = memory1.getOffset() + memory1.getLength();
-            if (end1 > ADDRESS_COUNT) {
+            final long end1 = memory1.getOffset() - ADDRESS_COUNT + memory1.getLength();
+            if (end1 > 0) {
                 return true;
             }
 
@@ -937,15 +938,15 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     }
 
     private void setAddressMap(final AddressBlock memory, @Nullable final Addressable addressable) {
-        for (int address = memory.getOffset(), end = memory.getOffset() + memory.getLength(); address < end; address++) {
-            addresses[address] = addressable;
+        for (long address = memory.getOffset(), end = memory.getOffset() + memory.getLength(); address < end; address++) {
+            addresses[(int) address] = addressable;
         }
     }
 
     private AddressBlock getFreeAddress(final Addressable newAddressable) {
         // Addressable devices are ordered by address, find gaps, specifically
         // find a gap that's large enough to fit the specified device.
-        int address = 0;
+        long address = 0;
         for (final Addressable addressable : addressables) {
             final AddressBlock memory = addressBlocks.get(addressable);
 
@@ -953,7 +954,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             // called while remapping all devices on the bus.
             if (memory == null) continue;
 
-            final int available = memory.getOffset() - address;
+            final int available = (int) (Math.min(memory.getOffset() - address, Integer.MAX_VALUE));
             if (available > 0) {
                 final AddressBlock candidate = new AddressBlock(address, available, FULL_ADDRESS_BLOCK.getWordSize());
                 final AddressBlock requested = newAddressable.getMemory(candidate);
@@ -975,7 +976,8 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         // Either we failed to find a gap, or we're at the empty space after the
         // last currently mapped addressable device. Use that space, even if it
         // means overlap.
-        return newAddressable.getMemory(new AddressBlock(address, FULL_ADDRESS_BLOCK.getLength() - address, FULL_ADDRESS_BLOCK.getWordSize()));
+        final int available = (int) (Math.min(FULL_ADDRESS_BLOCK.getLength() - address, Integer.MAX_VALUE));
+        return newAddressable.getMemory(new AddressBlock(address, available, FULL_ADDRESS_BLOCK.getWordSize()));
     }
 
     private static int compareAddressHints(final Addressable a1, final Addressable a2) {

@@ -27,7 +27,7 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
     // --------------------------------------------------------------------- //
 
     @Serialize
-    private int offset;
+    private long offset;
 
     @Serialize
     private int length;
@@ -37,7 +37,7 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
 
     // --------------------------------------------------------------------- //
 
-    public AddressBlock(final int offset, final int length, final int wordSize) {
+    public AddressBlock(final long offset, final int length, final int wordSize) {
         if (offset < 0) {
             throw new IllegalArgumentException("Offset must not be negative.");
         }
@@ -58,7 +58,7 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
 
     // --------------------------------------------------------------------- //
 
-    public int getOffset() {
+    public long getOffset() {
         return offset;
     }
 
@@ -83,11 +83,11 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
 
     // --------------------------------------------------------------------- //
 
-    public AddressBlock take(final int bits) {
+    public AddressBlock take(final long bits) {
         return new AddressBlock(offset, (int) Math.ceil(bits / (double) wordSize), wordSize);
     }
 
-    public AddressBlock take(final int minOffset, final int bits) {
+    public AddressBlock take(final long minOffset, final int bits) {
         return new AddressBlock(Math.max(offset, minOffset), (int) Math.ceil(bits / (double) wordSize), wordSize);
     }
 
@@ -97,7 +97,7 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
     @Override
     public NBTTagCompound serializeNBT() {
         final NBTTagCompound nbt = new NBTTagCompound();
-        nbt.setInteger(OFFSET_TAG, offset);
+        nbt.setLong(OFFSET_TAG, offset);
         nbt.setInteger(LENGTH_TAG, length);
         nbt.setInteger(WORD_SIZE_TAG, wordSize);
         return nbt;
@@ -105,7 +105,7 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
 
     @Override
     public void deserializeNBT(final NBTTagCompound nbt) {
-        offset = Math.max(0, nbt.getInteger(OFFSET_TAG));
+        offset = Math.max(0, nbt.getLong(OFFSET_TAG));
         length = Math.max(0, nbt.getInteger(LENGTH_TAG));
         wordSize = Math.max(0, nbt.getInteger(WORD_SIZE_TAG));
     }

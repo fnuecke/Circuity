@@ -91,8 +91,8 @@ public interface Addressable extends BusDevice {
      * the device that it is no longer bound to an address.
      * <p>
      * After being bound to an address, other devices on the same bus may read
-     * from and write to the device via the bus controller's {@link BusController#mapAndRead(int)}
-     * and {@link BusController#mapAndWrite(int, int)} methods, which will
+     * from and write to the device via the bus controller's {@link BusController#mapAndRead(long)}
+     * and {@link BusController#mapAndWrite(long, int)} methods, which will
      * convert the passed address to a local address and call this device's
      * {@link #read(int)} and {@link #write(int, int)} methods.
      * <p>

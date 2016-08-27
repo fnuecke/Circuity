@@ -128,7 +128,7 @@ public class ItemConfigurator extends Item {
                         return EnumActionResult.SUCCESS;
                     }
 
-                    tag.setInteger(ADDRESS_TAG, memory.getOffset());
+                    tag.setLong(ADDRESS_TAG, memory.getOffset());
 
                     player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_ADDRESS_SELECTED, String.format("%04X", memory.getOffset())));
                 }
