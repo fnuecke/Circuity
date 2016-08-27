@@ -39,7 +39,7 @@ public class BusDeviceMips3Processor extends AbstractComponentBusDevice {
     // AbstractComponentBusDevice
 
     @Override
-    protected BusDevice getDevice() {
+    public BusDevice getDevice() {
         return device;
     }
 
