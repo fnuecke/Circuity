@@ -9,7 +9,6 @@ import li.cil.lib.api.serialization.Serialize;
  * What's missing:
  * - probably still quite a few things
  * - big-endian mode (little-endian is used exclusively)
- * - caches
  * - FPA (that is, COP1)
  */
 public class Mips3 {
@@ -214,7 +213,7 @@ public class Mips3 {
     @Serialize
     private int cycleBudget = 0;
 
-    // Mode masks
+    // Optimisation stuff
     @Serialize
     private boolean allow64 = true;
     @Serialize
@@ -223,6 +222,12 @@ public class Mips3 {
     private boolean kernelMode = true;
     @Serialize
     private boolean superMode = true;
+    @Serialize
+    private long k0base = 0x1C;
+
+    // Benchmarking
+    private long benchAccum = 0;
+    private int benchTicksLeft = 20;
 
     // Actual code!
 
@@ -484,93 +489,87 @@ public class Mips3 {
 
     // Address remapping
 
-    private long virtToPhys64(long vaddr) throws MipsAddressErrorException, MipsTlbMissException {
+    private long virtToPhys64(long inVaddr) throws MipsAddressErrorException, MipsTlbMissException {
+        // Back up argument
+        long vaddr = inVaddr;
+
         // Clamp if we are in 32-bit address mode
         if(!address64) {
             vaddr = (long)(int)vaddr;
         }
 
-        if(vaddr >= 0) { // 0x0000_0000_0000_0000 to 0x0000_0000_7FFF_FFFF
-            if((vaddr&0x3FFF_FFFF_FFFF_FFFFL) < 0x0000_0100_0000_0000L) {
-                if(vaddr >= 0x4000_0000_0000_0000L) {
-                    // xksseg
-                    if (!superMode) {
-                        // PERMISSION DENIED
-                        this.c0regs[C0_BADVADDR] = vaddr;
-                        throw new MipsAddressErrorException();
-                    }
+        // Check if we need to remap csegs
+        if((vaddr>>31) == -1) {
+            if(kernelMode || (superMode && (vaddr >= -0x40000000L && vaddr < -0x20000000L))) {
+                switch (3&((int)(vaddr>>29L))) {
+                    case 3: // 0xE0000000 - kernel TLB
+                        vaddr = vaddr + 0xC000_0000_2000_0000L;
+                        break;
+
+                    case 2: // 0xC0000000 - supervisor TLB
+                        vaddr = vaddr + 0x4000_0000_4000_0000L;
+                        break;
+
+                    case 1: // 0xA0000000 - kernel uncached unmapped
+                        tlbRecentLo = 0x14;
+                        return vaddr & 0x1FFFFFFFL;
+
+                    case 0: // 0x80000000 - kernel cached unmapped
+                        tlbRecentLo = this.k0base;
+                        return vaddr & 0x1FFFFFFFL;
                 }
-                // otherwise xkuseg/kuseg
-
-                return getTlbPhysAddress(vaddr);
             } else {
-                // INVALID!
-                this.c0regs[C0_BADVADDR] = vaddr;
-                throw new MipsAddressErrorException();
-
-            }
-
-        } else if(vaddr < -0x40000000) { // 0xFFFF_FFFF_C000_0000 to 0xFFFF_FFFF_FFFF_FFFF
-            if(!kernelMode) {
-                // PERMISSION DENIED
-                this.c0regs[C0_BADVADDR] = vaddr;
+                this.c0regs[C0_BADVADDR] = inVaddr;
                 throw new MipsAddressErrorException();
             }
-
-            if(vaddr >= -0x60000000) { // 0xFFFF_FFFF_A000_0000 to 0xFFFF_FFFF_BFFF_FFFF
-                // ckseg1/kseg1
-                tlbRecentLo = 0x7|(0x2<<3);
-                return (vaddr & 0x0000_0000_1FFF_FFFFL);
-
-            } else if(vaddr >= -0x80000000) { // 0xFFFF_FFFF_8000_0000 to 0xFFFF_FFFF_9FFF_FFFF
-                // ckseg0/kseg0
-                // TODO: cache
-                tlbRecentLo = 0x7|((this.c0regs[C0_CONFIG]&0x3)<<3);
-                return (vaddr & 0x0000_0000_1FFF_FFFFL);
-
-            } else if(vaddr >= -0x8000_0000_0000_0000L && vaddr < -0x6000_0000_0000_0000L) {
-                // xkphys
-                // TODO: cache
-                if((vaddr & 0x07FF_FFF0_0000_0000L) == 0) {
-                    // valid (we support 36 physbits, partly to make Sangar's job harder --GM)
-                    tlbRecentLo = 0x7|(((vaddr>>59)&3)<<3);
-                    return (vaddr & 0x0000_000F_FFFF_FFFFL);
-                } else {
-                    // INVALID!
-                    this.c0regs[C0_BADVADDR] = vaddr;
-                    throw new MipsAddressErrorException();
-                }
-
-            } else if(vaddr >= -0x4000_0000_0000_0000L && vaddr < -0x3FFF_FFFF_8000_0000L) {
-                // xkseg
-                return getTlbPhysAddress(vaddr);
-
-            } else {
-                // INVALID!
-                this.c0regs[C0_BADVADDR] = vaddr;
-                throw new MipsAddressErrorException();
-            }
-
-        } else if(vaddr < -0x20000000) { // 0xFFFF_FFFF_C000_0000 to 0xFFFF_FFFF_DFFF_FFFF
-            // ckseg2/kseg2
-            if (!superMode) {
-                // PERMISSION DENIED
-                this.c0regs[C0_BADVADDR] = vaddr;
-                throw new MipsAddressErrorException();
-            }
-
-            return getTlbPhysAddress((vaddr&0x1FFFFFFFL)|(1L<<62));
-
-        } else { // 0xE0000000 to 0xFFFFFFFF
-            // ckseg3/kseg3
-            if (!kernelMode) {
-                // PERMISSION DENIED
-                this.c0regs[C0_BADVADDR] = vaddr;
-                throw new MipsAddressErrorException();
-            }
-
-            return getTlbPhysAddress((vaddr&0x1FFFFFFFL)|(3L<<62));
         }
+
+        switch((int)(vaddr>>62)) {
+            case 0: // User mode, TLB mapped
+                if(((vaddr<<2)>>>40) != 0) {
+                    break;
+                }
+                return getTlbPhysAddress(vaddr);
+
+            case 1: // Supervisor mode, TLB mapped
+                if(!superMode) {
+                    break;
+                }
+                if(((vaddr<<2)>>>40) != 0) {
+                    break;
+                }
+                return getTlbPhysAddress(vaddr);
+
+            case 2: // Physical
+                if(!kernelMode) {
+                    break;
+                } else {
+                    long paddr = (vaddr<<3)>>>3;
+                    if((paddr>>36) != 0) {
+                        break;
+                    }
+
+                    long lo = (vaddr>>(59-3))&0x18;
+                    tlbRecentLo = lo|4;
+                    return paddr;
+                }
+
+            case 3: // Kernel mode, TLB mapped
+                if(!kernelMode) {
+                    break;
+                }
+                if(((vaddr<<2)>>>39) != 0) {
+                    if(vaddr >= 0xC000_00FF_8000_0000L) {
+                        break;
+                    }
+                    break;
+                }
+                return getTlbPhysAddress(vaddr);
+        }
+
+        // ADDRESS ERROR
+        this.c0regs[C0_BADVADDR] = inVaddr;
+        throw new MipsAddressErrorException();
     }
 
     // Cache
@@ -1116,6 +1115,7 @@ public class Mips3 {
     private void updateC0Config(long v)
     {
         updateC0RegMasked(C0_CONFIG, v, (long)(int)0x00000007);
+        this.k0base = ((v<<3)&0x18)|0x04;
     }
 
     // Main run-op loop
@@ -2526,9 +2526,21 @@ public class Mips3 {
         synchronized(lock) {
             this.cycleBudget += cycles;
 
+            long timeBeg = System.currentTimeMillis();
             while(this.cycleBudget > 0) {
                 //System.out.printf("PC = %016X / v0 = %016X\n", this.pc, this.regs[2]);
                 runOp();
+            }
+            long timeEnd = System.currentTimeMillis();
+            if(false) {
+                benchAccum += (timeEnd-timeBeg);
+                benchTicksLeft--;
+                if(benchTicksLeft <= 0) {
+                    double cpuLoad = benchAccum/1000.0;
+                    System.out.printf("[LOAD: %5.3f]\n", cpuLoad);
+                    benchAccum = 0;
+                    benchTicksLeft = 20;
+                }
             }
         }
     }
