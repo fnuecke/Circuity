@@ -22,6 +22,7 @@ import net.minecraft.world.storage.WorldInfo;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -41,6 +42,7 @@ public class Z80Test {
         SillyBeeAPI.synchronization = Synchronization.INSTANCE;
     }
 
+    @Ignore("Super time consuming, enable as necessary.")
     @Test
     public void test() {
         final WorldSettings settings = new WorldSettings(0, GameType.CREATIVE, false, false, WorldType.FLAT);
