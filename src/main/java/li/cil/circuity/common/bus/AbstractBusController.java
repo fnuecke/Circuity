@@ -21,6 +21,7 @@ import li.cil.circuity.common.Constants;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.scheduler.ScheduledCallback;
 import li.cil.lib.api.serialization.Serialize;
+import li.cil.lib.util.RangeMap;
 import net.minecraft.util.ITickable;
 import net.minecraft.world.World;
 
@@ -84,7 +85,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     /**
      * The number of addressable words via this buses address space.
      */
-    public static final int ADDRESS_COUNT = 0xFFFFF;
+    public static final int ADDRESS_COUNT = 0x100000;
 
     /**
      * The interval in which to re-scan the bus in case multiple controllers
@@ -181,13 +182,9 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     private final List<Addressable> addressables = new ArrayList<>();
 
     /**
-     * Mapping of addresses to devices, the brain-dead way.
-     * <p>
-     * Direct mapping of address location to device at that location. This is
-     * obviously not feasible for buses with a higher address bus width, but
-     * for our purposes the used memory is acceptable.
+     * Mapping of addresses to devices.
      */
-    private final Addressable[] addresses = new Addressable[ADDRESS_COUNT];
+    private final RangeMap<Addressable> addresses = new RangeMap<>(ADDRESS_COUNT);
 
     /**
      * Mapping of addressable devices to the address block they're assigned to.
@@ -413,7 +410,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
     @Override
     public void mapAndWrite(final long address, final int value) {
-        final Addressable device = addresses[(int) address];
+        final Addressable device = addresses.get(address);
         if (device != null) {
             final AddressBlock memory = addressBlocks.get(device);
             final int mappedAddress = (int) (address - memory.getOffset());
@@ -425,7 +422,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
     @Override
     public int mapAndRead(final long address) {
-        final Addressable device = addresses[(int) address];
+        final Addressable device = addresses.get(address);
         if (device != null) {
             final AddressBlock memory = addressBlocks.get(device);
             final int mappedAddress = (int) (address - memory.getOffset());
@@ -571,7 +568,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         // which may happen during a tick, i.e. while async update is running.
         synchronized (lock) {
             if (!doAnyAddressesOverlap()) {
-                Arrays.fill(addresses, null);
+                addresses.clear();
                 for (final Addressable addressable : addressables) {
                     addressable.setMemory(null);
                 }
@@ -809,10 +806,6 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
                 final int index = Collections.binarySearch(addressables, addressable, addressComparator);
                 addressables.add(index >= 0 ? index : ~index, addressable);
-
-                if (!didAnyAddressesOverlap) {
-                    setAddressMap(memory, addressable);
-                }
             }
 
             if (device instanceof InterruptSource) {
@@ -861,14 +854,12 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 if (device instanceof Addressable) {
                     final Addressable addressable = (Addressable) device;
                     final AddressBlock memory = addressBlocks.get(addressable);
-                    if (didAnyAddressesOverlap) {
-                        setAddressMap(memory, addressable);
-                    }
+                    setAddressMap(memory, addressable);
                     addressable.setMemory(memory);
                 }
             }
         } else if (!didAnyAddressesOverlap) {
-            Arrays.fill(addresses, null);
+            addresses.clear();
             for (final Addressable addressable : addressables) {
                 if (!newDevices.contains(addressable)) {
                     addressable.setMemory(null);
@@ -938,8 +929,9 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     }
 
     private void setAddressMap(final AddressBlock memory, @Nullable final Addressable addressable) {
-        for (long address = memory.getOffset(), end = memory.getOffset() + memory.getLength(); address < end; address++) {
-            addresses[(int) address] = addressable;
+        addresses.remove(memory.getOffset());
+        if (addressable != null) {
+            addresses.add(addressable, memory.getOffset(), memory.getLength());
         }
     }
 
