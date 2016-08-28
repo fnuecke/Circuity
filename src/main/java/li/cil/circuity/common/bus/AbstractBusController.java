@@ -69,17 +69,12 @@ import java.util.concurrent.Future;
  * <tr><td>1</td><td>Number of mapped devices. Read-only.</td></tr>
  * <tr><td>2</td><td>Selected device. Read-write.</td></tr>
  * <tr><td>3</td><td>Type identifier of the device. Read-only.</td></tr>
- * <tr><td>4-5</td><td>Size of the device, in words<sup>2</sup>. Read-only.</td></tr>
- * <tr><td>6-9</td><td>Address the device is mapped to<sup>3</sup>. Read-only.</td></tr>
- * <tr><td>10</td><td>Reset device name pointer. It will automatically reset when changing the selected device. Write-only.</td></tr>
- * <tr><td>11</td><td>Read a single character of the name of the selected device. Call until it returns zero to read the full name. Read-only.</td></tr>
+ * <tr><td>4</td><td>Read a single word of the address the selected device is mapped to (low to high). Writing resets the shift.</td></tr>
+ * <tr><td>5</td><td>Read a single word of the size of the selected device (low to high). Writing resets the shift.</td></tr>
+ * <tr><td>6</td><td>Read a single character of the name of the selected device. Call until it returns zero to read the full name. Writing resets the offset.</td></tr>
  * </table>
  * <p>
  * <sup>1)</sup> This is guaranteed to be the first port. The initially selected device is guaranteed to be the bus controller itself. This way software may query the bus controller's API version before having to actually use the API.
- * <p>
- * <sup>2)</sup> E.g. if a device has 3 ports this is 3, if it's 1024 bytes of memory on an 16-bit data bus it's 512.
- * <p>
- * <sup>3)</sup> How these fields are used depends on the bus width. For an 8-bit data bus, they will hold the 4 bytes of the full 32-bit integer address. For a 16-bit dat bus the two first ports will always be zero, the last two will return the high and low 16 bits of the 32-bit integer address, e.g.
  */
 public abstract class AbstractBusController extends AbstractAddressable implements ConfigurableBusController, AddressHint, BusStateAware {
     /**
@@ -96,12 +91,12 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     /**
      * Version of the controller's serial interface API version.
      */
-    private static final int API_VERSION = 0;
+    private static final int API_VERSION = 1;
 
     /**
      * Address block representing the full address space of the bus.
      */
-    private static final AddressBlock FULL_ADDRESS_BLOCK = new AddressBlock(0, ADDRESS_COUNT, 8);
+    private static final AddressBlock FULL_ADDRESS_BLOCK = new AddressBlock(0, ADDRESS_COUNT);
 
     /**
      * General device information about this bus controller.
@@ -254,6 +249,14 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     private Future currentUpdate;
 
     /**
+     * The currently set word size of the bus.
+     * <p>
+     * This is the width of the data bus.
+     */
+    @Serialize
+    private byte wordSize = 8;
+
+    /**
      * Whether the bus is currently powered. Stored to notify newly connected
      * devices.
      */
@@ -272,12 +275,24 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     @Serialize
     private int nameIndex;
 
+    /**
+     * Current index/shift of the address of the selected device for serial interface.
+     */
+    @Serialize
+    private int addressShift;
+
+    /**
+     * Current index/shift of the size of the selected device for serial interface.
+     */
+    @Serialize
+    private int sizeShift;
+
     // --------------------------------------------------------------------- //
     // AbstractAddressable
 
     @Override
     protected AddressBlock validateAddress(final AddressBlock memory) {
-        return memory.take(Constants.BUS_CONTROLLER_ADDRESS, 20);
+        return memory.take(Constants.BUS_CONTROLLER_ADDRESS, 7);
     }
 
     // --------------------------------------------------------------------- //
@@ -292,11 +307,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     @Override
     public int read(final int address) {
         switch (address) {
-            case 0:
+            case 0: // Version of this serial API.
                 return API_VERSION;
             case 1: // Number of addressable devices.
                 return addressables.size();
-            case 2: // Select device.
+            case 2: // Selected device.
                 return selected;
             case 3: { // Type identifier of selected addressable device.
                 if (selected < 0 || selected >= addressables.size()) {
@@ -307,41 +322,32 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     return info != null ? info.type.id : 0;
                 }
             }
-            case 8:
-            case 9:
-            case 10:
-            case 11: { // Address the device is mapped to.
+            case 4: { // Read a byte of the address the device is mapped to.
                 if (selected < 0 || selected >= addressables.size()) {
                     return 0;
                 } else {
                     final Addressable device = addressables.get(selected);
                     final AddressBlock memory = addressBlocks.get(device);
-                    return (int) ((memory.getOffset() >>> ((address - 8) * FULL_ADDRESS_BLOCK.getWordSize())) & 0xFF);
+                    return (int) ((memory.getOffset() >>> (addressShift++ * getWordSize())) & getWordMask());
                 }
             }
-            case 12: // Reset device name pointer.
-                nameIndex = 0;
-                break;
-            case 13: { // Read a single character of the name of the selected device.
+            case 5: { // Read a byte of the size of the device.
+                if (selected < 0 || selected >= addressables.size()) {
+                    return 0;
+                } else {
+                    final Addressable device = addressables.get(selected);
+                    final AddressBlock memory = addressBlocks.get(device);
+                    return (int) ((memory.getLength() >>> (sizeShift++ * getWordSize())) & getWordMask());
+                }
+            }
+            case 6: { // Read a single character of the name of the selected device.
                 if (selected < 0 || selected >= addressables.size()) {
                     return 0;
                 } else {
                     final Addressable device = addressables.get(selected);
                     final DeviceInfo info = device.getDeviceInfo();
                     final String name = info != null ? info.name : null;
-                    return name != null && nameIndex < name.length() ? (name.charAt(nameIndex++) & 0xFF) : 0;
-                }
-            }
-            case 16:
-            case 17:
-            case 18:
-            case 19: { // Size of the device.
-                if (selected < 0 || selected >= addressables.size()) {
-                    return 0;
-                } else {
-                    final Addressable device = addressables.get(selected);
-                    final AddressBlock memory = addressBlocks.get(device);
-                    return (int) ((memory.getLength() >>> (address - 16) * 8) & 0xFF);
+                    return name != null && nameIndex < name.length() ? (name.charAt(nameIndex++) & getWordMask()) : 0;
                 }
             }
         }
@@ -353,9 +359,17 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         switch (address) {
             case 2: // Select device.
                 selected = value;
+                addressShift = 0;
+                sizeShift = 0;
                 nameIndex = 0;
                 break;
-            case 12: // Reset device name pointer.
+            case 4: // Reset address shift.
+                addressShift = 0;
+                break;
+            case 5: // Reset size shift.
+                sizeShift = 0;
+                break;
+            case 6: // Reset device name pointer.
                 nameIndex = 0;
                 break;
         }
@@ -399,6 +413,16 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 state = State.SCANNING;
             }
         }
+    }
+
+    @Override
+    public int getWordSize() {
+        return wordSize;
+    }
+
+    @Override
+    public int getWordMask() {
+        return 0xFFFFFFFF >>> (32 - wordSize);
     }
 
     @Nullable
@@ -483,6 +507,23 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
      */
     public State getState() {
         return state;
+    }
+
+    /**
+     * Set the data bus width.
+     * <p>
+     * Note that changing this value completely resets the bus controller.
+     * <p>
+     * This method is thread safe.
+     *
+     * @param value the new data bus width.
+     */
+    public void setWordSize(final byte value) {
+        synchronized (lock) {
+            this.wordSize = value;
+            clear();
+            scheduleScan();
+        }
     }
 
     /**
@@ -947,7 +988,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
             final int available = (int) (Math.min(memory.getOffset() - address, Integer.MAX_VALUE));
             if (available > 0) {
-                final AddressBlock candidate = new AddressBlock(address, available, FULL_ADDRESS_BLOCK.getWordSize());
+                final AddressBlock candidate = new AddressBlock(address, available);
                 final AddressBlock requested = newAddressable.getMemory(candidate);
                 if (requested.getOffset() >= candidate.getOffset() && requested.getOffset() + requested.getLength() <= candidate.getOffset() + candidate.getLength()) {
                     return requested;
@@ -968,7 +1009,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         // last currently mapped addressable device. Use that space, even if it
         // means overlap.
         final int available = (int) (Math.min(FULL_ADDRESS_BLOCK.getLength() - address, Integer.MAX_VALUE));
-        return newAddressable.getMemory(new AddressBlock(address, available, FULL_ADDRESS_BLOCK.getWordSize()));
+        return newAddressable.getMemory(new AddressBlock(address, available));
     }
 
     private static int compareAddressHints(final Addressable a1, final Addressable a2) {

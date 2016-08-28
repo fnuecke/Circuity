@@ -51,6 +51,23 @@ public interface BusController extends BusSegment {
      */
     void scheduleScan();
 
+    /**
+     * The word size of the data bus in bits.
+     *
+     * @return the word size of the data bus.
+     */
+    int getWordSize();
+
+    /**
+     * Get the word mask of the data bus.
+     * <p>
+     * This mask can be used to extract just as much data from a value as is
+     * supported by the word size.
+     *
+     * @return the mask based on the word size.
+     */
+    int getWordMask();
+
     // --------------------------------------------------------------------- //
 
     /**
