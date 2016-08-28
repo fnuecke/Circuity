@@ -108,7 +108,7 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
             final int size = data != null ? data.capacity() : 0;
-            return memory.take(Constants.EEPROM_ADDRESS, size * 8);
+            return memory.take(Constants.EEPROM_ADDRESS, size);
         }
 
         // --------------------------------------------------------------------- //

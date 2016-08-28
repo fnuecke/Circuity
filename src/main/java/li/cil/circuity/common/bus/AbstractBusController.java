@@ -277,7 +277,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
     @Override
     protected AddressBlock validateAddress(final AddressBlock memory) {
-        return memory.take(Constants.BUS_CONTROLLER_ADDRESS, 20 * 8);
+        return memory.take(Constants.BUS_CONTROLLER_ADDRESS, 20);
     }
 
     // --------------------------------------------------------------------- //
@@ -332,7 +332,6 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     return name != null && nameIndex < name.length() ? (name.charAt(nameIndex++) & 0xFF) : 0;
                 }
             }
-
             case 16:
             case 17:
             case 18:

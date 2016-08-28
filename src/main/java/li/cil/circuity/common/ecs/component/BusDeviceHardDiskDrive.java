@@ -89,7 +89,7 @@ public final class BusDeviceHardDiskDrive extends AbstractComponentBusDevice imp
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
             final int size = data != null ? data.capacity() : 0;
-            return memory.take(Constants.DISK_DRIVE_ADDRESS, size * 8);
+            return memory.take(Constants.DISK_DRIVE_ADDRESS, size);
         }
 
         // --------------------------------------------------------------------- //

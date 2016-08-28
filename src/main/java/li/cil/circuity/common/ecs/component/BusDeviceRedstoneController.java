@@ -53,7 +53,7 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
 
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
-            return memory.take(Constants.REDSTONE_CONTROLLER_ADDRESS, 2 * 8);
+            return memory.take(Constants.REDSTONE_CONTROLLER_ADDRESS, 2);
         }
 
         // --------------------------------------------------------------------- //

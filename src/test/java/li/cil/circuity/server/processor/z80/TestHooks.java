@@ -40,7 +40,7 @@ public final class TestHooks extends AbstractComponentBusDevice {
 
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
-            return memory.take(0x10030, 8);
+            return memory.take(0x10030, 1);
         }
 
         @Nullable

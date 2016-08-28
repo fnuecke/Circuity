@@ -65,7 +65,7 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
-            return memory.take(Constants.MEMORY_ADDRESS, BusDeviceRandomAccessMemory.this.memory.length * 8);
+            return memory.take(Constants.MEMORY_ADDRESS, BusDeviceRandomAccessMemory.this.memory.length);
         }
 
         // --------------------------------------------------------------------- //

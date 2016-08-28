@@ -46,7 +46,7 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
 
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
-            return memory.take(Constants.SERIAL_CONSOLE_ADDRESS, 8);
+            return memory.take(Constants.SERIAL_CONSOLE_ADDRESS, 1);
         }
 
         @Override
