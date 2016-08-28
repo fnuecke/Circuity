@@ -607,44 +607,46 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         // Needs to be synchronized as it may be called when owner is disposed,
         // which may happen during a tick, i.e. while async update is running.
         synchronized (lock) {
-            if (!doAnyAddressesOverlap()) {
-                addresses.clear();
-                for (final Addressable addressable : addressables) {
-                    addressable.setMemory(null);
+            try {
+                if (!doAnyAddressesOverlap()) {
+                    addresses.clear();
+                    for (final Addressable addressable : addressables) {
+                        addressable.setMemory(null);
+                    }
                 }
-            }
 
-            for (final InterruptSink sink : interruptSinks) {
-                if (sink != null) {
-                    sink.setAcceptedInterrupts(null);
+                for (final InterruptSink sink : interruptSinks) {
+                    if (sink != null) {
+                        sink.setAcceptedInterrupts(null);
+                    }
                 }
-            }
 
-            for (final InterruptSource source : interruptSources) {
-                if (source != null) {
-                    source.setEmittedInterrupts(null);
+                for (final InterruptSource source : interruptSources) {
+                    if (source != null) {
+                        source.setEmittedInterrupts(null);
+                    }
                 }
-            }
 
-            for (final BusDevice device : devices) {
-                device.setBusController(null);
-            }
+                for (final BusDevice device : devices) {
+                    device.setBusController(null);
+                }
+            } finally {
+                devices.clear();
+                stateAwares.clear();
+                tickables.clear();
+                addressables.clear();
+                addressBlocks.clear();
+                interruptSourceIds.clear();
+                interruptSinkIds.clear();
+                interruptSources.clear();
+                interruptSinks.clear();
 
-            devices.clear();
-            stateAwares.clear();
-            tickables.clear();
-            addressables.clear();
-            addressBlocks.clear();
-            interruptSourceIds.clear();
-            interruptSinkIds.clear();
-            interruptSources.clear();
-            interruptSinks.clear();
+                Arrays.fill(interruptMap, -1);
 
-            Arrays.fill(interruptMap, -1);
-
-            if (scheduledScan != null) {
-                SillyBeeAPI.scheduler.cancel(getBusWorld(), scheduledScan);
-                scheduledScan = null;
+                if (scheduledScan != null) {
+                    SillyBeeAPI.scheduler.cancel(getBusWorld(), scheduledScan);
+                    scheduledScan = null;
+                }
             }
         }
     }
@@ -760,8 +762,39 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     if (device instanceof Addressable) {
                         final Addressable addressable = (Addressable) device;
 
+                        // Binary search can find any one of a list of equal
+                        // address offsets, so refine the search if necessary
+                        // by searching left and right starting from the seed
+                        // index we get from the binary search.
                         int index = Collections.binarySearch(addressables, addressable, addressComparator);
-                        while (addressables.get(index) != addressable) index++;
+                        if (addressables.get(index) != addressable) {
+                            boolean searchingLeft = true, searchingRight = true;
+                            for (int i = 1; searchingLeft || searchingRight; i++) {
+                                if (searchingLeft) {
+                                    final int j = index - i;
+                                    if (j >= 0) {
+                                        if (addressables.get(j) == addressable) {
+                                            index = j;
+                                            break;
+                                        }
+                                    } else {
+                                        searchingLeft = false;
+                                    }
+                                }
+
+                                if (searchingRight) {
+                                    final int j = index + i;
+                                    if (j < addressables.size()) {
+                                        if (addressables.get(j) == addressable) {
+                                            index = j;
+                                            break;
+                                        }
+                                    } else {
+                                        searchingRight = false;
+                                    }
+                                }
+                            }
+                        }
                         addressables.remove(index);
 
                         final AddressBlock memory = addressBlocks.remove(addressable);
@@ -840,12 +873,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
             if (device instanceof Addressable) {
                 final Addressable addressable = (Addressable) device;
-                final AddressBlock memory = getFreeAddress(addressable);
-
-                addressBlocks.put(addressable, memory);
-
-                final int index = Collections.binarySearch(addressables, addressable, addressComparator);
-                addressables.add(index >= 0 ? index : ~index, addressable);
+                setAddress(addressable, getFreeAddress(addressable));
             }
 
             if (device instanceof InterruptSource) {
@@ -912,18 +940,20 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         // a slot for a previously overlapping device).
         if (doAnyAddressesOverlap) {
             // Clear to allow assigning everything to anything.
+            final List<Addressable> unaddressed = new ArrayList<>(addressables);
+            addressables.clear();
             addressBlocks.clear();
 
             // Look for devices with sort hints, add them in the order given.
-            addressables.stream().
+            unaddressed.stream().
                     filter(a -> a instanceof AddressHint).
                     sorted(AbstractBusController::compareAddressHints).
-                    forEach(a -> addressBlocks.put(a, getFreeAddress(a)));
+                    forEach(addressable -> setAddress(addressable, getFreeAddress(addressable)));
 
             // Then add the remaining devices.
-            for (final Addressable addressable : addressables) {
+            for (final Addressable addressable : unaddressed) {
                 if (addressable instanceof AddressHint) continue;
-                addressBlocks.put(addressable, getFreeAddress(addressable));
+                setAddress(addressable, getFreeAddress(addressable));
             }
 
             // If we could resolve the overlap, notify all addressable devices
@@ -961,11 +991,18 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 return true;
             }
 
-            if (end1 > memory2.getOffset()) {
+            if (end1 > memory2.getOffset() - ADDRESS_COUNT) {
                 return true;
             }
         }
         return false;
+    }
+
+    private void setAddress(final Addressable addressable, final AddressBlock memory) {
+        addressBlocks.put(addressable, memory);
+
+        final int index = Collections.binarySearch(addressables, addressable, addressComparator);
+        addressables.add(index >= 0 ? index : ~index, addressable);
     }
 
     private void setAddressMap(final AddressBlock memory, @Nullable final Addressable addressable) {
