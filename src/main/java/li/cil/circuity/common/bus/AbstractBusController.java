@@ -85,7 +85,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     /**
      * The number of addressable words via this buses address space.
      */
-    public static final int ADDRESS_COUNT = 0x100000;
+    public static final long ADDRESS_COUNT = 0x100000L;
 
     /**
      * The interval in which to re-scan the bus in case multiple controllers
@@ -316,7 +316,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 } else {
                     final Addressable device = addressables.get(selected);
                     final AddressBlock memory = addressBlocks.get(device);
-                    return (int) (memory.getOffset() >>> ((address - 8) * FULL_ADDRESS_BLOCK.getWordSize())) & 0xFF;
+                    return (int) ((memory.getOffset() >>> ((address - 8) * FULL_ADDRESS_BLOCK.getWordSize())) & 0xFF);
                 }
             }
             case 12: // Reset device name pointer.
@@ -341,7 +341,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 } else {
                     final Addressable device = addressables.get(selected);
                     final AddressBlock memory = addressBlocks.get(device);
-                    return (memory.getLength() >>> ((address - 16) * 8)) & 0xFF;
+                    return (int) ((memory.getLength() >>> (address - 16) * 8) & 0xFF);
                 }
             }
         }
