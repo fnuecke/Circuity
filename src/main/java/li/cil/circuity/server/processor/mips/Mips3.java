@@ -128,16 +128,6 @@ public class Mips3 {
         }
     }
 
-    // Fault info strobes
-    @Serialize
-    private MFault fault_type = MFault.NONE;
-    @Serialize
-    private long fault_pc = 0;
-    @Serialize
-    private MPipelineStage fault_stage = MPipelineStage.NONE;
-    @Serialize
-    private boolean fault_bd = false;
-
     // Cache policy
     public static final int CACHE_WTHRU_NOWALLOC = 0x0;
     public static final int CACHE_WTHRU_WALLOC = 0x1;
@@ -250,12 +240,6 @@ public class Mips3 {
     // Faults
 
     private void fault(MFault code, MPipelineStage stage, long pc, boolean bd) {
-        // Set fault data
-        this.fault_stage = stage;
-        this.fault_type = code;
-        this.fault_pc = pc;
-        this.fault_bd = bd;
-
         // Track old EXL flags
         boolean oldExl = (this.c0regs[C0_STATUS] & 2) != 0;
 
@@ -339,26 +323,34 @@ public class Mips3 {
     // They also completely bypass the cache,
     // and use physical addresses.
 
-    private int read8Imm(final long addr) {
+    private int read8Bus(final long addr) {
         // XXX: pending wider bus support
-        this.cycleBudget -= 1;
-        try {
+        //try {
             return 0xFF&(int)memory.read((int)addr);
-        } catch(ArrayIndexOutOfBoundsException e) {
-            return 0xFF;
-        }
+        //} catch(ArrayIndexOutOfBoundsException e) {
+            //return 0xFF;
+        //}
+    }
+
+    private int read8Imm(final long addr) {
+        this.cycleBudget -= 1;
+        return read8Bus(addr);
     }
 
     private int read16Imm(final long addr) {
-        int v0 = read8Imm(addr+0);
-        int v1 = read8Imm(addr+1);
-        return (v0 & 0xFF) | (v1<<8);
+        this.cycleBudget -= 2;
+        int v0 = read8Bus(addr+0);
+        int v1 = read8Bus(addr+1);
+        return v0 | (v1<<8);
     }
 
     private int read32Imm(final long addr) {
-        int v0 = read16Imm(addr+0);
-        int v1 = read16Imm(addr+2);
-        return (v0 & 0xFFFF) | (v1<<16);
+        this.cycleBudget -= 4;
+        int v0 = read8Bus(addr+0);
+        int v1 = read8Bus(addr+1);
+        int v2 = read8Bus(addr+2);
+        int v3 = read8Bus(addr+3);
+        return v0 | (v1<<8) | (v2<<16) | (v3<<24);
     }
 
     private long read64Imm(final long addr) {
@@ -395,7 +387,7 @@ public class Mips3 {
 
     private int getTlbIndex(long vaddr) {
         // Scan the TLB
-        vaddr &= 0xC000_00FF_FFFF_FFFFL;
+        vaddr &= 0xC000_00FF_FFFF_F000L;
         for(int c = 0, i = tlbFirst; c < TLB_COUNT; c++, i = tlbNext[i]) {
             // Check if we hit
             if((vaddr & ~tlbPageMask[i]) == tlbBase[i]) {
@@ -557,10 +549,7 @@ public class Mips3 {
                 if(!kernelMode) {
                     break;
                 }
-                if(((vaddr<<2)>>>39) != 0) {
-                    if(vaddr >= 0xC000_00FF_8000_0000L) {
-                        break;
-                    }
+                if(vaddr >= 0xC000_00FF_8000_0000L) {
                     break;
                 }
                 return getTlbPhysAddress(vaddr);
@@ -1121,12 +1110,15 @@ public class Mips3 {
 
     private void skipInstruction() {
         this.cycleBudget -= 1;
+        // omitted for speed
+        /*
         try {
             readInstr(this.pcNext);
         } catch (MipsAddressErrorException e) {
         } catch (MipsBusErrorException e) {
         } catch (MipsTlbMissException e) {
         }
+        */
         this.pcBranchDelay = false;
         this.pcNext = this.pcAfter;
         this.pcAfter += 4;
@@ -1172,10 +1164,6 @@ public class Mips3 {
         this.pcBranchDelay = false;
 
         // Execute op (RF/EX)
-        int rs = (ex_op>>>21)&31;
-        int rt = (ex_op>>>16)&31;
-        int rd = (ex_op>>>11)&31;
-
         // immu == ex_op&0xFFFF
         // imms == (int)(short)ex_op
         // shamt == (ex_op>>>6)&31
@@ -1184,137 +1172,137 @@ public class Mips3 {
         long wb_result;
 
         this.regs[0] = 0;
-        int opcode_type = (ex_op>>>26)&63;
-        switch(opcode_type) {
+        int opcode_type = (ex_op >>> 26) & 63;
+        int rs = (ex_op >>> 21) & 31;
+        int rt = (ex_op >>> 16) & 31;
+        if(opcode_type == 0) {
+            int opcode_func = ex_op&63;
+            int rd = (ex_op >>> 11) & 31;
 
-            // Special
+            switch (opcode_func) {
 
-            case 0: {
-                int opcode_func = ex_op&63;
-                switch (opcode_func) {
+                // Shifts
 
-                    // Shifts
+                case 0: // SLL
+                    this.regs[rd] = (long)(((int)this.regs[rt]) << ((ex_op>>>6)&31));
+                    break;
+                case 2: // SRL
+                    this.regs[rd] = (long)(((int)this.regs[rt]) >>> ((ex_op>>>6)&31));
+                    break;
+                case 3: // SRA
+                    this.regs[rd] = (long)(((int)this.regs[rt]) >> ((ex_op>>>6)&31));
+                    break;
 
-                    case 0: // SLL
-                        this.regs[rd] = (long)(((int)this.regs[rt]) << ((ex_op>>>6)&31));
-                        break;
-                    case 2: // SRL
-                        this.regs[rd] = (long)(((int)this.regs[rt]) >>> ((ex_op>>>6)&31));
-                        break;
-                    case 3: // SRA
-                        this.regs[rd] = (long)(((int)this.regs[rt]) >> ((ex_op>>>6)&31));
-                        break;
+                case 4: // SLLV
+                    this.regs[rd] = (long)(((int)this.regs[rt]) << (this.regs[rs]&31));
+                    break;
+                case 6: // SRLV
+                    this.regs[rd] = (long)(((int)this.regs[rt]) >>> (this.regs[rs]&31));
+                    break;
+                case 7: // SRAV
+                    this.regs[rd] = (long)(((int)this.regs[rt]) >> (this.regs[rs]&31));
+                    break;
 
-                    case 4: // SLLV
-                        this.regs[rd] = (long)(((int)this.regs[rt]) << (this.regs[rs]&31));
-                        break;
-                    case 6: // SRLV
-                        this.regs[rd] = (long)(((int)this.regs[rt]) >>> (this.regs[rs]&31));
-                        break;
-                    case 7: // SRAV
-                        this.regs[rd] = (long)(((int)this.regs[rt]) >> (this.regs[rs]&31));
-                        break;
+                // Register branches
 
-                    // Register branches
+                case 9: // JALR
+                    this.regs[rd] = ex_pc+8;
+                    // *** FALL THROUGH
+                case 8: // JR
+                    this.pcAfter = this.regs[rs];
+                    this.pcBranchDelay = true;
+                    break;
 
-                    case 9: // JALR
-                        this.regs[rd] = ex_pc+8;
-                        // *** FALL THROUGH
-                    case 8: // JR
-                        this.pcAfter = this.regs[rs];
-                        this.pcBranchDelay = true;
-                        break;
+                // Software exceptions
 
-                    // Software exceptions
+                case 12: // SYSCALL
+                    fault(MFault.Syscall, MPipelineStage.EX, ex_pc, ex_bd);
+                    break;
+                case 13: // BREAK
+                    fault(MFault.Bp, MPipelineStage.EX, ex_pc, ex_bd);
+                    break;
 
-                    case 12: // SYSCALL
-                        fault(MFault.Syscall, MPipelineStage.EX, ex_pc, ex_bd);
-                        break;
-                    case 13: // BREAK
-                        fault(MFault.Bp, MPipelineStage.EX, ex_pc, ex_bd);
-                        break;
+                // Sync
 
-                    // Sync
+                case 15: // SYNC
+                    memoryFence();
+                    break;
 
-                    case 15: // SYNC
-                        memoryFence();
-                        break;
+                // LO/HI moves
 
-                    // LO/HI moves
+                case 16: // MFHI
+                    this.regs[rd] = this.mdhi;
+                    break;
+                case 17: // MTHI
+                    this.mdhi = this.regs[rs];
+                    break;
+                case 18: // MFLO
+                    this.regs[rd] = this.mdlo;
+                    break;
+                case 19: // MTLO
+                    this.mdlo = this.regs[rs];
+                    break;
 
-                    case 16: // MFHI
-                        this.regs[rd] = this.mdhi;
-                        break;
-                    case 17: // MTHI
-                        this.mdhi = this.regs[rs];
-                        break;
-                    case 18: // MFLO
-                        this.regs[rd] = this.mdlo;
-                        break;
-                    case 19: // MTLO
-                        this.mdlo = this.regs[rs];
-                        break;
+                // 64-bit register shifts
 
-                    // 64-bit register shifts
-
-                    case 20: // DSLLV
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = this.regs[rt] << (this.regs[rs]&63);
-                        }
+                case 20: // DSLLV
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                         break;
-                    case 22: // DSRLV
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = this.regs[rt] >>> (this.regs[rs]&63);
-                        }
+                    } else {
+                        this.regs[rd] = this.regs[rt] << (this.regs[rs]&63);
+                    }
+                    break;
+                case 22: // DSRLV
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                         break;
-                    case 23: // DSRAV
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = this.regs[rt] >> (this.regs[rs]&63);
-                        }
+                    } else {
+                        this.regs[rd] = this.regs[rt] >>> (this.regs[rs]&63);
+                    }
+                    break;
+                case 23: // DSRAV
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                         break;
+                    } else {
+                        this.regs[rd] = this.regs[rt] >> (this.regs[rs]&63);
+                    }
+                    break;
 
-                    // Multivide
+                // Multivide
 
-                    case 24: { // MULT
-                        long res = ((long)(int)this.regs[rs]) * (long)(int)this.regs[rt];
-                        this.mdlo = (long)(int)res;
-                        this.mdhi = (long)(int)(res>>32);
-                    } break;
-                    case 25: { // MULTU
-                        long res = (0xFFFFFFFFL&(long)(int)this.regs[rs]) * (0xFFFFFFFFL&(long)(int)this.regs[rt]);
-                        this.mdlo = (long)(int)res;
-                        this.mdhi = (long)(int)(res>>32);
-                    } break;
-                    case 26: { // DIV
-                        if(((int)this.regs[rt]) == 0) {
-                            this.mdhi = (long)(int)this.regs[rs];
-                            this.mdlo = (this.mdhi < 0 ? 1 : -1);
-                        } else {
-                            this.mdlo = ((long)(int)this.regs[rs]) / (long)(int)this.regs[rt];
-                            this.mdhi = ((long)(int)this.regs[rs]) % (long)(int)this.regs[rt];
-                        }
-                        this.mdlo = (long)(int)this.mdlo;
-                        this.mdhi = (long)(int)this.mdhi;
-                    } break;
-                    case 27: { // DIVU
-                        if(((int)this.regs[rt]) == 0) {
-                            this.mdlo = -1;
-                            this.mdhi = (long)(int)this.regs[rs];
-                        } else {
-                            this.mdlo = (0xFFFFFFFFL&(long)(int)this.regs[rs]) / (0xFFFFFFFFL&(long)(int)this.regs[rt]);
-                            this.mdhi = (0xFFFFFFFFL&(long)(int)this.regs[rs]) % (0xFFFFFFFFL&(long)(int)this.regs[rt]);
-                        }
-                        this.mdlo = (long)(int)this.mdlo;
-                        this.mdhi = (long)(int)this.mdhi;
+                case 24: { // MULT
+                    long res = ((long)(int)this.regs[rs]) * (long)(int)this.regs[rt];
+                    this.mdlo = (long)(int)res;
+                    this.mdhi = (long)(int)(res>>32);
+                } break;
+                case 25: { // MULTU
+                    long res = (0xFFFFFFFFL&(long)(int)this.regs[rs]) * (0xFFFFFFFFL&(long)(int)this.regs[rt]);
+                    this.mdlo = (long)(int)res;
+                    this.mdhi = (long)(int)(res>>32);
+                } break;
+                case 26: { // DIV
+                    if(((int)this.regs[rt]) == 0) {
+                        this.mdhi = (long)(int)this.regs[rs];
+                        this.mdlo = (this.mdhi < 0 ? 1 : -1);
+                    } else {
+                        this.mdlo = ((long)(int)this.regs[rs]) / (long)(int)this.regs[rt];
+                        this.mdhi = ((long)(int)this.regs[rs]) % (long)(int)this.regs[rt];
+                    }
+                    this.mdlo = (long)(int)this.mdlo;
+                    this.mdhi = (long)(int)this.mdhi;
+                } break;
+                case 27: { // DIVU
+                    if(((int)this.regs[rt]) == 0) {
+                        this.mdlo = -1;
+                        this.mdhi = (long)(int)this.regs[rs];
+                    } else {
+                        this.mdlo = (0xFFFFFFFFL&(long)(int)this.regs[rs]) / (0xFFFFFFFFL&(long)(int)this.regs[rt]);
+                        this.mdhi = (0xFFFFFFFFL&(long)(int)this.regs[rs]) % (0xFFFFFFFFL&(long)(int)this.regs[rt]);
+                    }
+                    this.mdlo = (long)(int)this.mdlo;
+                    this.mdhi = (long)(int)this.mdhi;
                         /*
                         System.out.printf("%d/%d -> %d rem %d\n"
                                 , (int)this.regs[rs]
@@ -1323,377 +1311,269 @@ public class Mips3 {
                                 , (int)this.mdhi
                         );
                         */
-                    } break;
+                } break;
 
-                    // Multivide 64-bit
+                // Multivide 64-bit
 
-                    case 28: { // DMULT
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        }
-                        long res = ((long)(int)this.regs[rs]) * (long)(int)this.regs[rt];
-                        this.mdlo = (long)(int)res;
-                        this.mdhi = (long)(int)(res>>32);
-                    } break;
-                    case 29: { // DMULTU
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        }
-                        long res = (0xFFFFFFFFL&(long)(int)this.regs[rs]) * (0xFFFFFFFFL&(long)(int)this.regs[rt]);
-                        this.mdlo = (long)(int)res;
-                        this.mdhi = (long)(int)(res>>32);
-                    } break;
-                    case 30: { // DDIV
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        }
-                        if(this.regs[rt] == 0) {
-                            this.mdhi = this.regs[rs];
-                            this.mdlo = (this.mdhi < 0 ? 1 : -1);
-                        } else {
-                            this.mdlo = (this.regs[rs]) / this.regs[rt];
-                            this.mdhi = (this.regs[rs]) % this.regs[rt];
-                        }
-                    } break;
-                    case 31: { // DDIVU
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        }
-                        if(this.regs[rt] == 0) {
-                            this.mdlo = -1;
-                            this.mdhi = this.regs[rs];
-                        } else if(this.regs[rt] < 0) { // *rt >= (1<<63)
-                            if(this.regs[rs] < 0 && this.regs[rs] >= this.regs[rt]) { // rt >= (1<<63)
-                                this.mdlo = 1;
-                                this.mdhi = this.regs[rs] - this.regs[rt];
-                            } else {
-                                this.mdlo = 0;
-                                this.mdhi = this.regs[rs];
-                            }
-                        } else if(this.regs[rt] == 1) {
-                            this.mdlo = this.regs[rs];
-                            this.mdhi = 0;
-                        } else if(this.regs[rt] == 2) {
-                            this.mdlo = this.regs[rs]>>1L;
-                            this.mdhi = this.regs[rs]&1L;
-                        } else {
-                            // we should hopefully be OK by now
-                            // we are dividing by numbers no smaller than 3
-                            long sh = 0xFFFFFFFFL&(long)(int)(this.regs[rs]>>32L);
-                            long sl = 0xFFFFFFFFL&(long)(int)(this.regs[rs]);
-                            long tx = this.regs[rt];
-
-                            long qh = sh/tx;
-                            long rh = sh%tx;
-                            sl += rh<<32L;
-                            long ql = sl/tx;
-                            long rl = sl%tx;
-
-                            this.mdlo = (qh<<32L)+ql;
-                            this.mdhi = rl;
-                        }
-                    } break;
-
-                    // Register arithmetricks
-
-                    case 32: // ADD
-                        wb_result = (long)(int)(((int)this.regs[rs]) + (int)this.regs[rt]);
-                        if(this.regs[rt] >= 0
-                                ? wb_result < (int)this.regs[rs]
-                                : wb_result > (int)this.regs[rs]
-                                ) {
-                            fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = wb_result;
-                        }
-                        break;
-                    case 33: // ADDU
-                        this.regs[rd] = (long)(int)(((int)this.regs[rs]) + (int)this.regs[rt]);
-                        break;
-                    case 34: // SUB
-                        wb_result = (long)(int)(((int)this.regs[rs]) - (int)this.regs[rt]);
-                        if(this.regs[rt] < 0
-                                ? wb_result < (int)this.regs[rs]
-                                : wb_result > (int)this.regs[rs]
-                                ) {
-                            rd = 0;
-                            fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = wb_result;
-                        }
-                        break;
-                    case 35: // SUBU
-                        this.regs[rd] = (long)(int)(((int)this.regs[rs]) - (int)this.regs[rt]);
-                        break;
-                    case 36: // AND
-                        this.regs[rd] = this.regs[rs] & this.regs[rt];
-                        break;
-                    case 37: // OR
-                        this.regs[rd] = this.regs[rs] | this.regs[rt];
-                        break;
-                    case 38: // XOR
-                        this.regs[rd] = this.regs[rs] ^ this.regs[rt];
-                        break;
-                    case 39: // NOR
-                        this.regs[rd] = ~(this.regs[rs] | this.regs[rt]);
-                        break;
-
-                    case 42: // SLT
-                        this.regs[rd] = (this.regs[rs]) < (this.regs[rt]) ? 1 : 0;
-                        break;
-                    case 43: // SLTU
-                        this.regs[rd] = ((this.regs[rs])^0x8000000000000000L) <
-                                ((this.regs[rt])^0x8000000000000000L) ? 1 : 0;
-                        break;
-
-                    // Register 64-bit arithmetricks
-
-                    case 44: // DADD
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        }
-                        wb_result = this.regs[rs] + this.regs[rt];
-                        if(this.regs[rt] >= 0
-                                ? wb_result < this.regs[rs]
-                                : wb_result > this.regs[rs]
-                                ) {
-                            fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = wb_result;
-                        }
-                        break;
-                    case 45: // DADDU
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = this.regs[rs] + this.regs[rt];
-                        }
-                        break;
-                    case 46: // DSUB
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        }
-                        wb_result = this.regs[rs] - this.regs[rt];
-                        if(this.regs[rt] < 0
-                                ? wb_result < this.regs[rs]
-                                : wb_result > this.regs[rs]
-                                ) {
-                            fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = wb_result;
-                        }
-                        break;
-                    case 47: // DSUBU
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = this.regs[rs] - this.regs[rt];
-                        }
-                        break;
-
-                    // Conditional traps
-
-                    case 48: // TGE
-                        if(this.regs[rs] >= this.regs[rt]) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
-                        }
-                        break;
-                    case 49: // TGEU
-                        if((this.regs[rs]^0x8000000000000000L) >= (this.regs[rt]^0x8000000000000000L)) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
-                        }
-                        break;
-                    case 50: // TLT
-                        if(this.regs[rs] < this.regs[rt]) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
-                        }
-                        break;
-                    case 51: // TLTU
-                        if((this.regs[rs]^0x8000000000000000L) < (this.regs[rt]^0x8000000000000000L)) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
-                        }
-                        break;
-                    case 52: // TEQ
-                        if(this.regs[rs] == this.regs[rt]) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
-                        }
-                        break;
-                    case 54: // TNE
-                        if(this.regs[rs] != this.regs[rt]) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
-                        }
-                        break;
-
-                    // 64-bit immediate shifts
-
-                    case 56: // DSLL
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = this.regs[rt] << ((ex_op>>>6)&31);
-                        }
-
-                        break;
-                    case 58: // DSRL
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = this.regs[rt] >>> ((ex_op>>>6)&31);
-                        }
-                        break;
-                    case 59: // DSRA
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = this.regs[rt] >> ((ex_op>>>6)&31);
-                        }
-                        break;
-
-                    case 60: // DSLL32
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = this.regs[rt] << (32+((ex_op>>>6)&31));
-                        }
-                        break;
-                    case 62: // DSRL32
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = this.regs[rt] >>> (32+((ex_op>>>6)&31));
-                        }
-                        break;
-                    case 63: // DSRA32
-                        if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                        } else {
-                            this.regs[rd] = this.regs[rt] >> (32+((ex_op>>>6)&31));
-                        }
-                        break;
-
-                    // Reserved instruction fault
-
-                    default:
-                        if(ex_op == 0) {
-                            break;
-                        }
-
-                        System.err.printf("RI Special: %d\n", opcode_func);
+                case 28: { // DMULT
+                    if(!allow64) {
                         fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                         break;
-                }
-            } break;
-
-            // REGIMM
-
-            case 1: switch(rt) {
-
-                // Branches
-
-                case 0: // BLTZ
-                    if(this.regs[rs] < 0) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
                     }
-                    break;
-                case 1: // BGEZ
-                    if(this.regs[rs] >= 0) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                    long res = ((long)(int)this.regs[rs]) * (long)(int)this.regs[rt];
+                    this.mdlo = (long)(int)res;
+                    this.mdhi = (long)(int)(res>>32);
+                } break;
+                case 29: { // DMULTU
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
                     }
-                    break;
-                case 2: // BLTZL
-                    if(this.regs[rs] < 0) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                    long res = (0xFFFFFFFFL&(long)(int)this.regs[rs]) * (0xFFFFFFFFL&(long)(int)this.regs[rt]);
+                    this.mdlo = (long)(int)res;
+                    this.mdhi = (long)(int)(res>>32);
+                } break;
+                case 30: { // DDIV
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    }
+                    if(this.regs[rt] == 0) {
+                        this.mdhi = this.regs[rs];
+                        this.mdlo = (this.mdhi < 0 ? 1 : -1);
                     } else {
-                        skipInstruction();
+                        this.mdlo = (this.regs[rs]) / this.regs[rt];
+                        this.mdhi = (this.regs[rs]) % this.regs[rt];
                     }
-                    break;
-                case 3: // BGEZL
-                    if(this.regs[rs] >= 0) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                } break;
+                case 31: { // DDIVU
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    }
+                    if(this.regs[rt] == 0) {
+                        this.mdlo = -1;
+                        this.mdhi = this.regs[rs];
+                    } else if(this.regs[rt] < 0) { // *rt >= (1<<63)
+                        if(this.regs[rs] < 0 && this.regs[rs] >= this.regs[rt]) { // rt >= (1<<63)
+                            this.mdlo = 1;
+                            this.mdhi = this.regs[rs] - this.regs[rt];
+                        } else {
+                            this.mdlo = 0;
+                            this.mdhi = this.regs[rs];
+                        }
+                    } else if(this.regs[rt] == 1) {
+                        this.mdlo = this.regs[rs];
+                        this.mdhi = 0;
+                    } else if(this.regs[rt] == 2) {
+                        this.mdlo = this.regs[rs]>>1L;
+                        this.mdhi = this.regs[rs]&1L;
                     } else {
-                        skipInstruction();
-                    }
-                    break;
+                        // we should hopefully be OK by now
+                        // we are dividing by numbers no smaller than 3
+                        long sh = 0xFFFFFFFFL&(long)(int)(this.regs[rs]>>32L);
+                        long sl = 0xFFFFFFFFL&(long)(int)(this.regs[rs]);
+                        long tx = this.regs[rt];
 
-                // Immediate conditional traps
+                        long qh = sh/tx;
+                        long rh = sh%tx;
+                        sl += rh<<32L;
+                        long ql = sl/tx;
+                        long rl = sl%tx;
 
-                case 8: // TGEI
-                    if(this.regs[rs] >= (long)(short)ex_op) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        this.mdlo = (qh<<32L)+ql;
+                        this.mdhi = rl;
                     }
-                    break;
-                case 9: // TGEIU
-                    if((this.regs[rs]^0x8000000000000000L) >= (0x8000000000000000L^(long)(short)ex_op)) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
-                    }
-                    break;
-                case 10: // TLTI
-                    if(this.regs[rs] < (long)(short)ex_op) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
-                    }
-                    break;
-                case 11: // TLTIU
-                    if((this.regs[rs]^0x8000000000000000L) < (0x8000000000000000L^(long)(short)ex_op)) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
-                    }
-                    break;
-                case 12: // TEQ
-                    if(this.regs[rs] == (long)(short)ex_op) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
-                    }
-                    break;
-                case 14: // TNE
-                    if(this.regs[rs] != (long)(short)ex_op) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
-                    }
-                    break;
+                } break;
 
-                // Branch and link
+                // Register arithmetricks
 
-                case 16: // BLTZAL
-                    if(this.regs[rs] < 0) {
-                        this.regs[31] = ex_pc+8;
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
-                    }
-                    break;
-                case 17: // BGEZAL
-                    if(this.regs[rs] >= 0) {
-                        this.regs[31] = ex_pc+8;
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
-                    }
-                    break;
-                case 18: // BLTZALL
-                    if(this.regs[rs] < 0) {
-                        this.regs[31] = ex_pc+8;
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                case 32: // ADD
+                    wb_result = (long)(int)(((int)this.regs[rs]) + (int)this.regs[rt]);
+                    if(this.regs[rt] >= 0
+                            ? wb_result < (int)this.regs[rs]
+                            : wb_result > (int)this.regs[rs]
+                            ) {
+                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
                     } else {
-                        skipInstruction();
+                        this.regs[rd] = wb_result;
                     }
                     break;
-                case 19: // BGEZALL
-                    if(this.regs[rs] >= 0) {
-                        this.regs[31] = ex_pc+8;
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                case 33: // ADDU
+                    this.regs[rd] = (long)(int)(((int)this.regs[rs]) + (int)this.regs[rt]);
+                    break;
+                case 34: // SUB
+                    wb_result = (long)(int)(((int)this.regs[rs]) - (int)this.regs[rt]);
+                    if(this.regs[rt] < 0
+                            ? wb_result < (int)this.regs[rs]
+                            : wb_result > (int)this.regs[rs]
+                            ) {
+                        rd = 0;
+                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
                     } else {
-                        skipInstruction();
+                        this.regs[rd] = wb_result;
+                    }
+                    break;
+                case 35: // SUBU
+                    this.regs[rd] = (long)(int)(((int)this.regs[rs]) - (int)this.regs[rt]);
+                    break;
+                case 36: // AND
+                    this.regs[rd] = this.regs[rs] & this.regs[rt];
+                    break;
+                case 37: // OR
+                    this.regs[rd] = this.regs[rs] | this.regs[rt];
+                    break;
+                case 38: // XOR
+                    this.regs[rd] = this.regs[rs] ^ this.regs[rt];
+                    break;
+                case 39: // NOR
+                    this.regs[rd] = ~(this.regs[rs] | this.regs[rt]);
+                    break;
+
+                case 42: // SLT
+                    this.regs[rd] = (this.regs[rs]) < (this.regs[rt]) ? 1 : 0;
+                    break;
+                case 43: // SLTU
+                    this.regs[rd] = ((this.regs[rs])^0x8000000000000000L) <
+                            ((this.regs[rt])^0x8000000000000000L) ? 1 : 0;
+                    break;
+
+                // Register 64-bit arithmetricks
+
+                case 44: // DADD
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    }
+                    wb_result = this.regs[rs] + this.regs[rt];
+                    if(this.regs[rt] >= 0
+                            ? wb_result < this.regs[rs]
+                            : wb_result > this.regs[rs]
+                            ) {
+                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        this.regs[rd] = wb_result;
+                    }
+                    break;
+                case 45: // DADDU
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        this.regs[rd] = this.regs[rs] + this.regs[rt];
+                    }
+                    break;
+                case 46: // DSUB
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    }
+                    wb_result = this.regs[rs] - this.regs[rt];
+                    if(this.regs[rt] < 0
+                            ? wb_result < this.regs[rs]
+                            : wb_result > this.regs[rs]
+                            ) {
+                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        this.regs[rd] = wb_result;
+                    }
+                    break;
+                case 47: // DSUBU
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        this.regs[rd] = this.regs[rs] - this.regs[rt];
+                    }
+                    break;
+
+                // Conditional traps
+
+                case 48: // TGE
+                    if(this.regs[rs] >= this.regs[rt]) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+                case 49: // TGEU
+                    if((this.regs[rs]^0x8000000000000000L) >= (this.regs[rt]^0x8000000000000000L)) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+                case 50: // TLT
+                    if(this.regs[rs] < this.regs[rt]) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+                case 51: // TLTU
+                    if((this.regs[rs]^0x8000000000000000L) < (this.regs[rt]^0x8000000000000000L)) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+                case 52: // TEQ
+                    if(this.regs[rs] == this.regs[rt]) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+                case 54: // TNE
+                    if(this.regs[rs] != this.regs[rt]) {
+                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    break;
+
+                // 64-bit immediate shifts
+
+                case 56: // DSLL
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        this.regs[rd] = this.regs[rt] << ((ex_op>>>6)&31);
+                    }
+
+                    break;
+                case 58: // DSRL
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        this.regs[rd] = this.regs[rt] >>> ((ex_op>>>6)&31);
+                    }
+                    break;
+                case 59: // DSRA
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        this.regs[rd] = this.regs[rt] >> ((ex_op>>>6)&31);
+                    }
+                    break;
+
+                case 60: // DSLL32
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        this.regs[rd] = this.regs[rt] << (32+((ex_op>>>6)&31));
+                    }
+                    break;
+                case 62: // DSRL32
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        this.regs[rd] = this.regs[rt] >>> (32+((ex_op>>>6)&31));
+                    }
+                    break;
+                case 63: // DSRA32
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        this.regs[rd] = this.regs[rt] >> (32+((ex_op>>>6)&31));
                     }
                     break;
 
@@ -1704,127 +1584,206 @@ public class Mips3 {
                         break;
                     }
 
-                    System.err.printf("RI RegImm: %d\n", rt);
+                    System.err.printf("RI Special: %d\n", opcode_func);
                     fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                     break;
-            } break;
+            }
+        } else {
+            switch(opcode_type) {
 
-            // Jumps
+                // REGIMM
 
-            case 3: // JAL
-                this.regs[31] = ex_pc+8;
-                // *** FALL THROUGH
-            case 2: // J
-                branchTo((ex_pc & ~0x0FFFFFFFL) | (long)((ex_op<<2)&0x0FFFFFFF));
-                break;
+                case 1: switch(rt) {
 
-            // Branches
+                    // Branches
 
-            case 4: // BEQ
-                if(this.regs[rs] == this.regs[rt]) {
-                    branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
-                }
-                break;
-            case 5: // BNE
-                if(this.regs[rs] != this.regs[rt]) {
-                    branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
-                }
-                break;
-            case 6: // BLEZ
-                if(this.regs[rs] <= 0) {
-                    branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
-                }
-                break;
-            case 7: // BGTZ
-                if(this.regs[rs] > 0) {
-                    branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
-                }
-                break;
+                    case 0: // BLTZ
+                        if(this.regs[rs] < 0) {
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        }
+                        break;
+                    case 1: // BGEZ
+                        if(this.regs[rs] >= 0) {
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        }
+                        break;
+                    case 2: // BLTZL
+                        if(this.regs[rs] < 0) {
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        } else {
+                            skipInstruction();
+                        }
+                        break;
+                    case 3: // BGEZL
+                        if(this.regs[rs] >= 0) {
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        } else {
+                            skipInstruction();
+                        }
+                        break;
 
-            // Immediate arithmetricks
+                    // Immediate conditional traps
 
-            case 8: // ADDI
-                wb_result = (long)(int)(((int)this.regs[rs]) + (int)(short)(ex_op));
-                if((short)ex_op >= 0
-                        ? wb_result < (int)this.regs[rs]
-                        : wb_result > (int)this.regs[rs]
-                            ) {
-                    fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
-                    break;
-                } else {
-                    this.regs[rt] = wb_result;
-                }
-                break;
+                    case 8: // TGEI
+                        if(this.regs[rs] >= (long)(short)ex_op) {
+                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        }
+                        break;
+                    case 9: // TGEIU
+                        if((this.regs[rs]^0x8000000000000000L) >= (0x8000000000000000L^(long)(short)ex_op)) {
+                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        }
+                        break;
+                    case 10: // TLTI
+                        if(this.regs[rs] < (long)(short)ex_op) {
+                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        }
+                        break;
+                    case 11: // TLTIU
+                        if((this.regs[rs]^0x8000000000000000L) < (0x8000000000000000L^(long)(short)ex_op)) {
+                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        }
+                        break;
+                    case 12: // TEQ
+                        if(this.regs[rs] == (long)(short)ex_op) {
+                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        }
+                        break;
+                    case 14: // TNE
+                        if(this.regs[rs] != (long)(short)ex_op) {
+                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        }
+                        break;
 
-            case 9: // ADDIU
-                this.regs[rt] = (long)(int)(((int)this.regs[rs]) + (int)(short)(ex_op));
-                break;
+                    // Branch and link
 
-            case 10: // SLTI
-                this.regs[rt] = (this.regs[rs]) < (long)(short)(ex_op) ? 1 : 0;
-                break;
-            case 11: // SLTIU
-                // If I had a dollar for every time I wished this were C,
-                // ...at the time of writing I think I'm up to $2
-                // UPDATE: I'm at about $5 now.
-                this.regs[rt] = ((this.regs[rs])^0x8000000000000000L) <
-                        (((long)(short)(ex_op))^0x8000000000000000L) ? 1 : 0;
-                break;
+                    case 16: // BLTZAL
+                        if(this.regs[rs] < 0) {
+                            this.regs[31] = ex_pc+8;
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        }
+                        break;
+                    case 17: // BGEZAL
+                        if(this.regs[rs] >= 0) {
+                            this.regs[31] = ex_pc+8;
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        }
+                        break;
+                    case 18: // BLTZALL
+                        if(this.regs[rs] < 0) {
+                            this.regs[31] = ex_pc+8;
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        } else {
+                            skipInstruction();
+                        }
+                        break;
+                    case 19: // BGEZALL
+                        if(this.regs[rs] >= 0) {
+                            this.regs[31] = ex_pc+8;
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        } else {
+                            skipInstruction();
+                        }
+                        break;
 
-            case 12: // ANDI
-                this.regs[rt] = this.regs[rs] & (0xFFFF&(long)(ex_op));
-                break;
-            case 13: // ORI
-                this.regs[rt] = this.regs[rs] | (0xFFFF&(long)(ex_op));
-                break;
-            case 14: // XORI
-                this.regs[rt] = this.regs[rs] ^ (0xFFFF&(long)(ex_op));
-                break;
+                    // Reserved instruction fault
 
-            case 15: // LUI
-                this.regs[rt] = (long)(int)(ex_op<<16);
-                break;
-
-            // COP0
-
-            case 16: if((this.c0regs[C0_STATUS]&(1<<28)) == 0 && !kernelMode) {
-                fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
-                this.c0regs[C0_CAUSE] |= 0<<28;
-            } else if(rs < 16) {
-                switch(rs) {
-                    // MFC0
-                    case 0: switch(rd) {
-                        case C0_INDEX:
-                        case C0_RANDOM:
-                        case C0_ENTRYLO0:
-                        case C0_ENTRYLO1:
-                        case C0_CONTEXT:
-                        case C0_PAGEMASK:
-                        case C0_WIRED:
-                        case C0_BADVADDR:
-                        case C0_ENTRYHI:
-                        case C0_STATUS:
-                        case C0_CAUSE:
-                        case C0_EPC:
-                        case C0_CONFIG:
-                        case C0_XCONTEXT:
-                        case C0_TAGLO:
-                        case C0_TAGHI:
-                            this.regs[rt] = (long)(int)this.c0regs[rd];
+                    default:
+                        if(ex_op == 0) {
                             break;
+                        }
 
-                        default:
-                            System.err.printf("RI MFC0: %d\n", rd);
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                            break;
-                    } break;
-
-                    // DMFC0
-                    case 1: if(!allow64) {
+                        System.err.printf("RI RegImm: %d\n", rt);
                         fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                         break;
+                } break;
+
+                // Jumps
+
+                case 3: // JAL
+                    this.regs[31] = ex_pc+8;
+                    // *** FALL THROUGH
+                case 2: // J
+                    branchTo((ex_pc & ~0x0FFFFFFFL) | (long)((ex_op<<2)&0x0FFFFFFF));
+                    break;
+
+                // Branches
+
+                case 4: // BEQ
+                    if(this.regs[rs] == this.regs[rt]) {
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                    }
+                    break;
+                case 5: // BNE
+                    if(this.regs[rs] != this.regs[rt]) {
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                    }
+                    break;
+                case 6: // BLEZ
+                    if(this.regs[rs] <= 0) {
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                    }
+                    break;
+                case 7: // BGTZ
+                    if(this.regs[rs] > 0) {
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                    }
+                    break;
+
+                // Immediate arithmetricks
+
+                case 8: // ADDI
+                    wb_result = (long)(int)(((int)this.regs[rs]) + (int)(short)(ex_op));
+                    if((short)ex_op >= 0
+                            ? wb_result < (int)this.regs[rs]
+                            : wb_result > (int)this.regs[rs]
+                            ) {
+                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
                     } else {
-                        switch(rd) {
+                        this.regs[rt] = wb_result;
+                    }
+                    break;
+
+                case 9: // ADDIU
+                    this.regs[rt] = (long)(int)(((int)this.regs[rs]) + (int)(short)(ex_op));
+                    break;
+
+                case 10: // SLTI
+                    this.regs[rt] = (this.regs[rs]) < (long)(short)(ex_op) ? 1 : 0;
+                    break;
+                case 11: // SLTIU
+                    // If I had a dollar for every time I wished this were C,
+                    // ...at the time of writing I think I'm up to $2
+                    // UPDATE: I'm at about $5 now.
+                    this.regs[rt] = ((this.regs[rs])^0x8000000000000000L) <
+                            (((long)(short)(ex_op))^0x8000000000000000L) ? 1 : 0;
+                    break;
+
+                case 12: // ANDI
+                    this.regs[rt] = this.regs[rs] & (0xFFFF&(long)(ex_op));
+                    break;
+                case 13: // ORI
+                    this.regs[rt] = this.regs[rs] | (0xFFFF&(long)(ex_op));
+                    break;
+                case 14: // XORI
+                    this.regs[rt] = this.regs[rs] ^ (0xFFFF&(long)(ex_op));
+                    break;
+
+                case 15: // LUI
+                    this.regs[rt] = (long)(int)(ex_op<<16);
+                    break;
+
+                // COP0
+
+                case 16: if((this.c0regs[C0_STATUS]&(1<<28)) == 0 && !kernelMode) {
+                    fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                    this.c0regs[C0_CAUSE] |= 0<<28;
+                } else if(rs < 16) {
+                    int rd = (ex_op >>> 11) & 31;
+                    switch(rs) {
+                        // MFC0
+                        case 0: switch(rd) {
                             case C0_INDEX:
                             case C0_RANDOM:
                             case C0_ENTRYLO0:
@@ -1841,88 +1800,49 @@ public class Mips3 {
                             case C0_XCONTEXT:
                             case C0_TAGLO:
                             case C0_TAGHI:
-                                this.regs[rt] = this.c0regs[rd];
+                                this.regs[rt] = (long)(int)this.c0regs[rd];
                                 break;
 
                             default:
-                                System.err.printf("RI DMFC0: %d\n", rd);
+                                System.err.printf("RI MFC0: %d\n", rd);
                                 fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                                 break;
-                        }
-                    } break;
+                        } break;
 
-                    // MTC0
-                    case 4: switch(rd) {
-                        case C0_INDEX:
-                            this.c0regs[rd] = 0x8000_003FL&this.regs[rt];
-                            break;
-                        case C0_RANDOM:
-                            this.c0regs[rd] = 63&this.regs[rt];
-                            break;
-
-                        case C0_ENTRYLO0:
-                        case C0_ENTRYLO1:
-                            this.c0regs[rd] = 0x3FFF_FFFFL&this.regs[rt];
-                            break;
-
-                        case C0_CONTEXT:
-                            this.c0regs[rd] = (this.c0regs[rd]&0x007FFFFFL)
-                                    |(((long)(int)this.c0regs[rt])&~0x007FFFFFL);
-                            break;
-
-                        case C0_PAGEMASK:
-                            this.c0regs[rd] = 0x0055_5000L&this.regs[rt];
-                            this.c0regs[rd] |= this.c0regs[rd]<<1;
-                            break;
-
-                        case C0_WIRED:
-                            this.c0regs[rd] = 63&this.regs[rt];
-                            this.c0regs[C0_RANDOM] = TLB_COUNT;
-                            break;
-
-                        case C0_ENTRYHI:
-                            this.c0regs[rd] = 0xC000_00FF_FFFF_E000L&(long)(int)this.regs[rt];
-                            break;
-
-                        case C0_STATUS:
-                            updateC0Status((long)(int)this.regs[rt]);
-                            break;
-                        case C0_CAUSE:
-                            updateC0Cause((long)(int)this.regs[rt]);
-                            break;
-                        case C0_CONFIG:
-                            updateC0Config((long)(int)this.regs[rt]);
-                            break;
-
-                        case C0_XCONTEXT:
-                            this.c0regs[rd] = (this.c0regs[rd]&0xFFFFFFFFL)
-                                |(((long)(int)this.c0regs[rt])&~0xFFFFFFFFL);
-                            break;
-
-                        case C0_TAGLO:
-                            this.c0regs[rd] = (long)(int)this.regs[rt];
-                            this.c0regs[rd] &= ~2;
-                            break;
-                        case C0_TAGHI:
-                            break;
-
-                        case C0_EPC:
-                        case C0_ERROREPC:
-                            this.c0regs[rd] = (long)(int)this.regs[rt];
-                            break;
-
-                        default:
-                            System.err.printf("RI MTC0: %d\n", rd);
+                        // DMFC0
+                        case 1: if(!allow64) {
                             fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                             break;
-                    } break;
+                        } else {
+                            switch(rd) {
+                                case C0_INDEX:
+                                case C0_RANDOM:
+                                case C0_ENTRYLO0:
+                                case C0_ENTRYLO1:
+                                case C0_CONTEXT:
+                                case C0_PAGEMASK:
+                                case C0_WIRED:
+                                case C0_BADVADDR:
+                                case C0_ENTRYHI:
+                                case C0_STATUS:
+                                case C0_CAUSE:
+                                case C0_EPC:
+                                case C0_CONFIG:
+                                case C0_XCONTEXT:
+                                case C0_TAGLO:
+                                case C0_TAGHI:
+                                    this.regs[rt] = this.c0regs[rd];
+                                    break;
 
-                    // DMTC0
-                    case 5: if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                        break;
-                    } else {
-                        switch(rd) {
+                                default:
+                                    System.err.printf("RI DMFC0: %d\n", rd);
+                                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                                    break;
+                            }
+                        } break;
+
+                        // MTC0
+                        case 4: switch(rd) {
                             case C0_INDEX:
                                 this.c0regs[rd] = 0x8000_003FL&this.regs[rt];
                                 break;
@@ -1937,7 +1857,7 @@ public class Mips3 {
 
                             case C0_CONTEXT:
                                 this.c0regs[rd] = (this.c0regs[rd]&0x007FFFFFL)
-                                        |(this.c0regs[rt]&~0x007FFFFFL);
+                                        |(((long)(int)this.c0regs[rt])&~0x007FFFFFL);
                                 break;
 
                             case C0_PAGEMASK:
@@ -1951,22 +1871,22 @@ public class Mips3 {
                                 break;
 
                             case C0_ENTRYHI:
-                                this.c0regs[rd] = 0xC000_00FF_FFFF_E000L&this.regs[rt];
+                                this.c0regs[rd] = 0xC000_00FF_FFFF_E000L&(long)(int)this.regs[rt];
                                 break;
 
                             case C0_STATUS:
-                                updateC0Status(this.regs[rt]);
+                                updateC0Status((long)(int)this.regs[rt]);
                                 break;
                             case C0_CAUSE:
-                                updateC0Cause(this.regs[rt]);
+                                updateC0Cause((long)(int)this.regs[rt]);
                                 break;
                             case C0_CONFIG:
-                                updateC0Config(this.regs[rt]);
+                                updateC0Config((long)(int)this.regs[rt]);
                                 break;
 
                             case C0_XCONTEXT:
                                 this.c0regs[rd] = (this.c0regs[rd]&0xFFFFFFFFL)
-                                        |(this.c0regs[rt]&~0xFFFFFFFFL);
+                                        |(((long)(int)this.c0regs[rt])&~0xFFFFFFFFL);
                                 break;
 
                             case C0_TAGLO:
@@ -1978,462 +1898,534 @@ public class Mips3 {
 
                             case C0_EPC:
                             case C0_ERROREPC:
-                                this.c0regs[rd] = this.regs[rt];
+                                this.c0regs[rd] = (long)(int)this.regs[rt];
                                 break;
 
                             default:
-                                System.err.printf("RI DMTC0: %d\n", rd);
+                                System.err.printf("RI MTC0: %d\n", rd);
                                 fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                                 break;
-                        }
-                    } break;
-                }
-            } else {
-                int opcode_func = ex_op&63;
-                switch(opcode_func) {
+                        } break;
 
-                    case 1: { // TLBR
-                        int idx = 63&(int)this.c0regs[C0_INDEX];
-
-                        // Likely result of this
-                        //if(idx >= 32) { idx &= ~16; }
-
-                        // Easier result for adjusting things
-                        idx %= TLB_COUNT;
-
-                        this.c0regs[C0_PAGEMASK] = (this.tlbPageMask[idx]>>1) & 0x0000_0000_00FF_F000L;
-                        this.c0regs[C0_ENTRYHI] = this.tlbEntryHi[idx];
-                        this.c0regs[C0_ENTRYLO0] = this.tlbEntryLo0[idx];
-                        this.c0regs[C0_ENTRYLO1] = this.tlbEntryLo1[idx];
-                    } break;
-                    case 2: // TLBWI
-                        tlbWriteAt((int)this.c0regs[C0_INDEX]);
-                        break;
-                    case 6: // TLBWR
-                        //System.out.printf("TLBWR %d\n", this.c0regs[C0_RANDOM]);
-                        tlbWriteAt((int)this.c0regs[C0_RANDOM]);
-                        break;
-                    case 8: { // TLBP
-                        this.c0regs[C0_INDEX] = (long)(int)0x80000000;
-                        int idx = getTlbIndex(this.c0regs[C0_ENTRYHI]);
-                        if(idx >= 0) {
-                            this.c0regs[C0_INDEX] = (long)(int)idx;
-                        }
-                    } break;
-
-                    // 16 is RFE, which was REMOVED in MIPS3.
-
-                    case 24: // ERET
-                        if((this.c0regs[C0_STATUS]&4) != 0) {
-                            // return from error
-                            this.c0regs[C0_STATUS] &= ~4; // ERL
-                            this.pcAfter = this.c0regs[C0_ERROREPC];
+                        // DMTC0
+                        case 5: if(!allow64) {
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
                         } else {
-                            // return from exception
-                            this.c0regs[C0_STATUS] &= ~2; // EXL
-                            this.pcAfter = this.c0regs[C0_EPC];
-                        }
+                            switch(rd) {
+                                case C0_INDEX:
+                                    this.c0regs[rd] = 0x8000_003FL&this.regs[rt];
+                                    break;
+                                case C0_RANDOM:
+                                    this.c0regs[rd] = 63&this.regs[rt];
+                                    break;
 
-                        updateC0Status(this.c0regs[C0_STATUS]);
+                                case C0_ENTRYLO0:
+                                case C0_ENTRYLO1:
+                                    this.c0regs[rd] = 0x3FFF_FFFFL&this.regs[rt];
+                                    break;
 
-                        // TODO: clear LLbit (in other words, make any active LL/SC fail)
+                                case C0_CONTEXT:
+                                    this.c0regs[rd] = (this.c0regs[rd]&0x007FFFFFL)
+                                            |(this.c0regs[rt]&~0x007FFFFFL);
+                                    break;
 
-                        // cancel next op
+                                case C0_PAGEMASK:
+                                    this.c0regs[rd] = 0x0055_5000L&this.regs[rt];
+                                    this.c0regs[rd] |= this.c0regs[rd]<<1;
+                                    break;
+
+                                case C0_WIRED:
+                                    this.c0regs[rd] = 63&this.regs[rt];
+                                    this.c0regs[C0_RANDOM] = TLB_COUNT;
+                                    break;
+
+                                case C0_ENTRYHI:
+                                    this.c0regs[rd] = 0xC000_00FF_FFFF_E000L&this.regs[rt];
+                                    break;
+
+                                case C0_STATUS:
+                                    updateC0Status(this.regs[rt]);
+                                    break;
+                                case C0_CAUSE:
+                                    updateC0Cause(this.regs[rt]);
+                                    break;
+                                case C0_CONFIG:
+                                    updateC0Config(this.regs[rt]);
+                                    break;
+
+                                case C0_XCONTEXT:
+                                    this.c0regs[rd] = (this.c0regs[rd]&0xFFFFFFFFL)
+                                            |(this.c0regs[rt]&~0xFFFFFFFFL);
+                                    break;
+
+                                case C0_TAGLO:
+                                    this.c0regs[rd] = (long)(int)this.regs[rt];
+                                    this.c0regs[rd] &= ~2;
+                                    break;
+                                case C0_TAGHI:
+                                    break;
+
+                                case C0_EPC:
+                                case C0_ERROREPC:
+                                    this.c0regs[rd] = this.regs[rt];
+                                    break;
+
+                                default:
+                                    System.err.printf("RI DMTC0: %d\n", rd);
+                                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                                    break;
+                            }
+                        } break;
+                    }
+                } else {
+                    int opcode_func = ex_op&63;
+                    switch(opcode_func) {
+
+                        case 1: { // TLBR
+                            int idx = 63&(int)this.c0regs[C0_INDEX];
+
+                            // Likely result of this
+                            //if(idx >= 32) { idx &= ~16; }
+
+                            // Easier result for adjusting things
+                            idx %= TLB_COUNT;
+
+                            this.c0regs[C0_PAGEMASK] = (this.tlbPageMask[idx]>>1) & 0x0000_0000_00FF_F000L;
+                            this.c0regs[C0_ENTRYHI] = this.tlbEntryHi[idx];
+                            this.c0regs[C0_ENTRYLO0] = this.tlbEntryLo0[idx];
+                            this.c0regs[C0_ENTRYLO1] = this.tlbEntryLo1[idx];
+                        } break;
+                        case 2: // TLBWI
+                            tlbWriteAt((int)this.c0regs[C0_INDEX]);
+                            break;
+                        case 6: // TLBWR
+                            //System.out.printf("TLBWR %d\n", this.c0regs[C0_RANDOM]);
+                            //tlbWriteAt((int)this.c0regs[C0_RANDOM]);
+                            tlbWriteAt((int)Math.floor(Math.random()*(48-this.c0regs[C0_WIRED])+this.c0regs[C0_WIRED]));
+                            break;
+                        case 8: { // TLBP
+                            this.c0regs[C0_INDEX] = (long)(int)0x80000000;
+                            int idx = getTlbIndex(this.c0regs[C0_ENTRYHI]);
+                            if(idx >= 0) {
+                                this.c0regs[C0_INDEX] = (long)(int)idx;
+                            }
+                        } break;
+
+                        // 16 is RFE, which was REMOVED in MIPS3.
+
+                        case 24: // ERET
+                            if((this.c0regs[C0_STATUS]&4) != 0) {
+                                // return from error
+                                this.c0regs[C0_STATUS] &= ~4; // ERL
+                                this.pcAfter = this.c0regs[C0_ERROREPC];
+                            } else {
+                                // return from exception
+                                this.c0regs[C0_STATUS] &= ~2; // EXL
+                                this.pcAfter = this.c0regs[C0_EPC];
+                            }
+
+                            updateC0Status(this.c0regs[C0_STATUS]);
+
+                            // TODO: clear LLbit (in other words, make any active LL/SC fail)
+
+                            // cancel next op
+                            skipInstruction();
+
+                            // done!
+                            break;
+
+                        default:
+                            System.err.printf("RI COP0: %d\n", opcode_func);
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                    }
+                } break;
+
+                // COP1
+
+                case 17:
+                    // TODO!
+                    fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                    this.c0regs[C0_CAUSE] |= 1<<28;
+                    break;
+
+                // COP2
+
+                case 18:
+                    fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                    this.c0regs[C0_CAUSE] |= 2<<28;
+                    break;
+
+                // COP3 does not exist in MIPS3
+
+                // Branches - Likely
+
+                case 20: // BEQL
+                    if(this.regs[rs] == this.regs[rt]) {
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                    } else {
                         skipInstruction();
+                    }
+                    break;
+                case 21: // BNEL
+                    if(this.regs[rs] != this.regs[rt]) {
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                    } else {
+                        skipInstruction();
+                    }
+                    break;
+                case 22: // BLEZL
+                    if(this.regs[rs] <= 0) {
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                    } else {
+                        skipInstruction();
+                    }
+                    break;
+                case 23: // BGTZL
+                    if(this.regs[rs] > 0) {
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                    } else {
+                        skipInstruction();
+                    }
+                    break;
 
-                        // done!
-                        break;
+                // Immediate 64-bit arithmetricks
 
-                    default:
-                        System.err.printf("RI COP0: %d\n", opcode_func);
+                case 24: // DADDI
+                    if(!allow64) {
                         fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                         break;
-                }
-            } break;
-
-            // COP1
-
-            case 17:
-                // TODO!
-                fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
-                this.c0regs[C0_CAUSE] |= 1<<28;
-                break;
-
-            // COP2
-
-            case 18:
-                fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
-                this.c0regs[C0_CAUSE] |= 2<<28;
-                break;
-
-            // COP3 does not exist in MIPS3
-
-            // Branches - Likely
-
-            case 20: // BEQL
-                if(this.regs[rs] == this.regs[rt]) {
-                    branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
-                } else {
-                    skipInstruction();
-                }
-                break;
-            case 21: // BNEL
-                if(this.regs[rs] != this.regs[rt]) {
-                    branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
-                } else {
-                    skipInstruction();
-                }
-                break;
-            case 22: // BLEZL
-                if(this.regs[rs] <= 0) {
-                    branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
-                } else {
-                    skipInstruction();
-                }
-                break;
-            case 23: // BGTZL
-                if(this.regs[rs] > 0) {
-                    branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
-                } else {
-                    skipInstruction();
-                }
-                break;
-
-            // Immediate 64-bit arithmetricks
-
-            case 24: // DADDI
-                if(!allow64) {
-                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                    }
+                    wb_result = this.regs[rs] + (long)(short)(ex_op);
+                    if((short)ex_op >= 0
+                            ? wb_result < (long)this.regs[rs]
+                            : wb_result > (long)this.regs[rs]
+                            ) {
+                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    } else {
+                        this.regs[rt] = wb_result;
+                    }
                     break;
-                }
-                wb_result = this.regs[rs] + (long)(short)(ex_op);
-                if((short)ex_op >= 0
-                        ? wb_result < (long)this.regs[rs]
-                        : wb_result > (long)this.regs[rs]
-                        ) {
-                    fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
-                    break;
-                } else {
-                    this.regs[rt] = wb_result;
-                }
-                break;
 
-            case 25: // DADDIU
-                if(!allow64) {
-                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                    break;
-                } else {
-                    this.regs[rt] = this.regs[rs] + (long)(short)ex_op;
-                }
-                break;
-
-            // Load primary
-
-            case 32: // LB
-                try {
-                    this.regs[rt] = (long)readData8(this.regs[rs] + (long)(short)ex_op);
-                } catch (MipsTlbMissException e) {
-                    fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsAddressErrorException e) {
-                    fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsBusErrorException e) {
-                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
-                }
-                break;
-
-            case 33: // LH
-                try {
-                    this.regs[rt] = (long)readData16(this.regs[rs] + (long)(short)ex_op);
-                } catch (MipsTlbMissException e) {
-                    fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsAddressErrorException e) {
-                    fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsBusErrorException e) {
-                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
-                }
-                break;
-
-            case 35: // LW
-                try {
-                    this.regs[rt] = (long)readData32(this.regs[rs] + (long)(short)ex_op);
-                } catch (MipsTlbMissException e) {
-                    fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsAddressErrorException e) {
-                    fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsBusErrorException e) {
-                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
-                }
-                break;
-
-            case 36: // LBU
-                try {
-                    this.regs[rt] = 0xFFL&(long)readData8(this.regs[rs] + (long)(short)ex_op);
-                } catch (MipsTlbMissException e) {
-                    fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsAddressErrorException e) {
-                    fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsBusErrorException e) {
-                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
-                }
-                break;
-
-            case 37: // LHU
-                try {
-                    this.regs[rt] = 0xFFFFL&(long)readData16(this.regs[rs] + (long)(short)ex_op);
-                } catch (MipsTlbMissException e) {
-                    fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsAddressErrorException e) {
-                    fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsBusErrorException e) {
-                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
-                }
-                break;
-
-            case 39: // LWU
-                try {
-                    this.regs[rt] = 0xFFFFFFFFL&(long)readData32(this.regs[rs] + (long)(short)ex_op);
-                } catch (MipsTlbMissException e) {
-                    fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsAddressErrorException e) {
-                    fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsBusErrorException e) {
-                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
-                }
-                break;
-
-            // Load unaligned - TODO
-            // case 34: // LWL break;
-            // case 38: // LWR break;
-            // case 26: // LDL break;
-            // case 27: // LDR break;
-
-            // Store primary
-
-            case 40: // SB
-                try {
-                    writeData8(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
-                } catch (MipsTlbModException e) {
-                    fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsTlbMissException e) {
-                    fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsAddressErrorException e) {
-                    fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsBusErrorException e) {
-                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
-                }
-                break;
-
-            case 41: // SH
-                try {
-                    writeData16(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
-                } catch (MipsTlbModException e) {
-                    fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsTlbMissException e) {
-                    fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsAddressErrorException e) {
-                    fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsBusErrorException e) {
-                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
-                }
-                break;
-
-            case 43: // SW
-                try {
-                    writeData32(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
-                } catch (MipsTlbModException e) {
-                    fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsTlbMissException e) {
-                    fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsAddressErrorException e) {
-                    fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsBusErrorException e) {
-                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
-                }
-                break;
-
-            // Store unaligned - TODO
-            // case 42: // SWL break;
-            // case 46: // SWR break;
-            // case 44: // SDL break;
-            // case 45: // SDR break;
-
-            // Cache ops
-
-            case 47: if((this.c0regs[C0_STATUS]&(1<<28)) == 0 && !kernelMode) {
-                fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
-                this.c0regs[C0_CAUSE] |= 0<<28;
-            } else {
-                long vaddr = this.regs[rs] + (long)(short)ex_op;
-                if(!address64) {
-                    vaddr = (long)(int)vaddr;
-                }
-                switch(rt) {
-                    case 0: // Index Invalidate [I]
-                        invalidateICacheV(vaddr);
-                        break;
-                    case 1: // Index Write-Back Invalidate [D]
-                        try {
-                            invalidateDCacheV(vaddr);
-                        } catch (MipsBusErrorException e) {
-                            // TODO: cache fault
-                        }
-                        break;
-
-                    case 4: // Index Load Tag [I]
-                    {
-                        int tag = this.iCacheTags[((int)vaddr>>5)&(ICACHE_SIZE_TAGS-1)];
-                        int v = (int)this.c0regs[C0_TAGLO]&0x38;
-                        v |= tag<<8;
-                        if((tag&0x01000000)!=0) {
-                            v |= 0xC0;
-                        }
-                        this.c0regs[C0_TAGLO] = (long)v;
-                    } break;
-                    case 5: // Index Load Tag [D]
-                    {
-                        int tag = this.dCacheTags[((int)vaddr>>5)&(DCACHE_SIZE_TAGS-1)];
-                        int v = (int)this.c0regs[C0_TAGLO]&0x38;
-                        v |= tag<<8;
-                        v |= (tag&0x03000000)>>18;
-                        if((tag&0x01000000)!=0) {
-                            v |= 0xC0;
-                        }
-                        this.c0regs[C0_TAGLO] = (long)v;
-                    } break;
-
-                    case 8: // Index Store Tag [I]
-                    {
-                        int v = (int)this.c0regs[C0_TAGLO];
-                        int ctidx = ((int)vaddr>>5)&(ICACHE_SIZE_TAGS-1);
-                        int tag = this.iCacheTags[ctidx];
-                        tag &= 0x10000000;
-                        tag |= (v & 0xFFFFFF00)>>8;
-                        tag |= (v & 0xC0)<<18;
-                        this.iCacheTags[((int)vaddr>>5)&(ICACHE_SIZE_TAGS-1)] = tag;
-                    } break;
-                    case 9: // Index Store Tag [D]
-                    {
-                        int v = (int)this.c0regs[C0_TAGLO];
-                        int ctidx = ((int)vaddr>>5)&(DCACHE_SIZE_TAGS-1);
-                        int tag = this.dCacheTags[ctidx];
-                        tag &= 0x00000000;
-                        tag |= (v & 0xFFFFFF00)>>8;
-                        tag |= (v & 0x40)<<18;
-                        this.dCacheTags[((int)vaddr>>5)&(DCACHE_SIZE_TAGS-1)] = tag;
-                    } break;
-
-                    case 13: // Create Dirty Exclusive [D]
-                        try {
-                            createDirtyExclusiveDCache(vaddr);
-                        } catch (MipsAddressErrorException e) {
-                        } catch (MipsTlbMissException e) {
-                        } catch (MipsBusErrorException e) {
-                        }
-
-                    case 16: // Hit Invalidate [I]
-                        try {
-                            invalidateICacheVHitNoWB(vaddr);
-                        } catch (MipsAddressErrorException e) {
-                        } catch (MipsTlbMissException e) {
-                        } catch (MipsBusErrorException e) {
-                        }
-                        break;
-                    case 17: // Hit Invalidate [D]
-                        try {
-                            invalidateDCacheVHitNoWB(vaddr);
-                        } catch (MipsAddressErrorException e) {
-                        } catch (MipsTlbMissException e) {
-                        } catch (MipsBusErrorException e) {
-                        }
-                        break;
-
-                    case 20: // Fill [I]
-                        try {
-                            fetchInstrLine(vaddr);
-                        } catch (MipsAddressErrorException e) {
-                        } catch (MipsTlbMissException e) {
-                        } catch (MipsBusErrorException e) {
-                        }
-                        break;
-
-                    case 21: // Hit Write-Back Invalidate [D]
-                        try {
-                            invalidateDCacheVHit(vaddr);
-                        } catch (MipsAddressErrorException e) {
-                        } catch (MipsTlbMissException e) {
-                        } catch (MipsBusErrorException e) {
-                        }
-                        break;
-
-                    case 24: // Hit Write-Back [I] -- unconditional writeback from icache
-                        try {
-                            writeBackICacheVHit(vaddr);
-                        } catch (MipsAddressErrorException e) {
-                        } catch (MipsTlbMissException e) {
-                        } catch (MipsBusErrorException e) {
-                        }
-                        break;
-                    case 25: // Hit Write-Back [D]
-                        try {
-                            writeBackDCacheVHitDirty(vaddr);
-                        } catch (MipsAddressErrorException e) {
-                        } catch (MipsTlbMissException e) {
-                        } catch (MipsBusErrorException e) {
-                        }
-                        break;
-
-                    default:
-                        System.err.printf("RI CACHE: %d\n", rt);
+                case 25: // DADDIU
+                    if(!allow64) {
                         fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                         break;
-                }
+                    } else {
+                        this.regs[rt] = this.regs[rs] + (long)(short)ex_op;
+                    }
+                    break;
 
-            } break;
+                // Load primary
 
-            // Load fancy
+                case 32: // LB
+                    try {
+                        this.regs[rt] = (long)readData8(this.regs[rs] + (long)(short)ex_op);
+                    } catch (MipsTlbMissException e) {
+                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsAddressErrorException e) {
+                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsBusErrorException e) {
+                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                    }
+                    break;
 
-            case 55: // LD
-                if(!allow64) {
+                case 33: // LH
+                    try {
+                        this.regs[rt] = (long)readData16(this.regs[rs] + (long)(short)ex_op);
+                    } catch (MipsTlbMissException e) {
+                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsAddressErrorException e) {
+                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsBusErrorException e) {
+                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                    }
+                    break;
+
+                case 35: // LW
+                    try {
+                        this.regs[rt] = (long)readData32(this.regs[rs] + (long)(short)ex_op);
+                    } catch (MipsTlbMissException e) {
+                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsAddressErrorException e) {
+                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsBusErrorException e) {
+                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                    }
+                    break;
+
+                case 36: // LBU
+                    try {
+                        this.regs[rt] = 0xFFL&(long)readData8(this.regs[rs] + (long)(short)ex_op);
+                    } catch (MipsTlbMissException e) {
+                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsAddressErrorException e) {
+                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsBusErrorException e) {
+                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                    }
+                    break;
+
+                case 37: // LHU
+                    try {
+                        this.regs[rt] = 0xFFFFL&(long)readData16(this.regs[rs] + (long)(short)ex_op);
+                    } catch (MipsTlbMissException e) {
+                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsAddressErrorException e) {
+                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsBusErrorException e) {
+                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                    }
+                    break;
+
+                case 39: // LWU
+                    try {
+                        this.regs[rt] = 0xFFFFFFFFL&(long)readData32(this.regs[rs] + (long)(short)ex_op);
+                    } catch (MipsTlbMissException e) {
+                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsAddressErrorException e) {
+                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsBusErrorException e) {
+                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                    }
+                    break;
+
+                // Load unaligned - TODO
+                // case 34: // LWL break;
+                // case 38: // LWR break;
+                // case 26: // LDL break;
+                // case 27: // LDR break;
+
+                // Store primary
+
+                case 40: // SB
+                    try {
+                        writeData8(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
+                    } catch (MipsTlbModException e) {
+                        fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsTlbMissException e) {
+                        fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsAddressErrorException e) {
+                        fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsBusErrorException e) {
+                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                    }
+                    break;
+
+                case 41: // SH
+                    try {
+                        writeData16(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
+                    } catch (MipsTlbModException e) {
+                        fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsTlbMissException e) {
+                        fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsAddressErrorException e) {
+                        fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsBusErrorException e) {
+                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                    }
+                    break;
+
+                case 43: // SW
+                    try {
+                        writeData32(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
+                    } catch (MipsTlbModException e) {
+                        fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsTlbMissException e) {
+                        fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsAddressErrorException e) {
+                        fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsBusErrorException e) {
+                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                    }
+                    break;
+
+                // Store unaligned - TODO
+                // case 42: // SWL break;
+                // case 46: // SWR break;
+                // case 44: // SDL break;
+                // case 45: // SDR break;
+
+                // Cache ops
+
+                case 47: if((this.c0regs[C0_STATUS]&(1<<28)) == 0 && !kernelMode) {
+                    fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                    this.c0regs[C0_CAUSE] |= 0<<28;
+                } else {
+                    long vaddr = this.regs[rs] + (long)(short)ex_op;
+                    if(!address64) {
+                        vaddr = (long)(int)vaddr;
+                    }
+                    switch(rt) {
+                        case 0: // Index Invalidate [I]
+                            invalidateICacheV(vaddr);
+                            break;
+                        case 1: // Index Write-Back Invalidate [D]
+                            try {
+                                invalidateDCacheV(vaddr);
+                            } catch (MipsBusErrorException e) {
+                                // TODO: cache fault
+                            }
+                            break;
+
+                        case 4: // Index Load Tag [I]
+                        {
+                            int tag = this.iCacheTags[((int)vaddr>>5)&(ICACHE_SIZE_TAGS-1)];
+                            int v = (int)this.c0regs[C0_TAGLO]&0x38;
+                            v |= tag<<8;
+                            if((tag&0x01000000)!=0) {
+                                v |= 0xC0;
+                            }
+                            this.c0regs[C0_TAGLO] = (long)v;
+                        } break;
+                        case 5: // Index Load Tag [D]
+                        {
+                            int tag = this.dCacheTags[((int)vaddr>>5)&(DCACHE_SIZE_TAGS-1)];
+                            int v = (int)this.c0regs[C0_TAGLO]&0x38;
+                            v |= tag<<8;
+                            v |= (tag&0x03000000)>>18;
+                            if((tag&0x01000000)!=0) {
+                                v |= 0xC0;
+                            }
+                            this.c0regs[C0_TAGLO] = (long)v;
+                        } break;
+
+                        case 8: // Index Store Tag [I]
+                        {
+                            int v = (int)this.c0regs[C0_TAGLO];
+                            int ctidx = ((int)vaddr>>5)&(ICACHE_SIZE_TAGS-1);
+                            int tag = this.iCacheTags[ctidx];
+                            tag &= 0x10000000;
+                            tag |= (v & 0xFFFFFF00)>>8;
+                            tag |= (v & 0xC0)<<18;
+                            this.iCacheTags[((int)vaddr>>5)&(ICACHE_SIZE_TAGS-1)] = tag;
+                        } break;
+                        case 9: // Index Store Tag [D]
+                        {
+                            int v = (int)this.c0regs[C0_TAGLO];
+                            int ctidx = ((int)vaddr>>5)&(DCACHE_SIZE_TAGS-1);
+                            int tag = this.dCacheTags[ctidx];
+                            tag &= 0x00000000;
+                            tag |= (v & 0xFFFFFF00)>>8;
+                            tag |= (v & 0x40)<<18;
+                            this.dCacheTags[((int)vaddr>>5)&(DCACHE_SIZE_TAGS-1)] = tag;
+                        } break;
+
+                        case 13: // Create Dirty Exclusive [D]
+                            try {
+                                createDirtyExclusiveDCache(vaddr);
+                            } catch (MipsAddressErrorException e) {
+                            } catch (MipsTlbMissException e) {
+                            } catch (MipsBusErrorException e) {
+                            }
+
+                        case 16: // Hit Invalidate [I]
+                            try {
+                                invalidateICacheVHitNoWB(vaddr);
+                            } catch (MipsAddressErrorException e) {
+                            } catch (MipsTlbMissException e) {
+                            } catch (MipsBusErrorException e) {
+                            }
+                            break;
+                        case 17: // Hit Invalidate [D]
+                            try {
+                                invalidateDCacheVHitNoWB(vaddr);
+                            } catch (MipsAddressErrorException e) {
+                            } catch (MipsTlbMissException e) {
+                            } catch (MipsBusErrorException e) {
+                            }
+                            break;
+
+                        case 20: // Fill [I]
+                            try {
+                                fetchInstrLine(vaddr);
+                            } catch (MipsAddressErrorException e) {
+                            } catch (MipsTlbMissException e) {
+                            } catch (MipsBusErrorException e) {
+                            }
+                            break;
+
+                        case 21: // Hit Write-Back Invalidate [D]
+                            try {
+                                invalidateDCacheVHit(vaddr);
+                            } catch (MipsAddressErrorException e) {
+                            } catch (MipsTlbMissException e) {
+                            } catch (MipsBusErrorException e) {
+                            }
+                            break;
+
+                        case 24: // Hit Write-Back [I] -- unconditional writeback from icache
+                            try {
+                                writeBackICacheVHit(vaddr);
+                            } catch (MipsAddressErrorException e) {
+                            } catch (MipsTlbMissException e) {
+                            } catch (MipsBusErrorException e) {
+                            }
+                            break;
+                        case 25: // Hit Write-Back [D]
+                            try {
+                                writeBackDCacheVHitDirty(vaddr);
+                            } catch (MipsAddressErrorException e) {
+                            } catch (MipsTlbMissException e) {
+                            } catch (MipsBusErrorException e) {
+                            }
+                            break;
+
+                        default:
+                            System.err.printf("RI CACHE: %d\n", rt);
+                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            break;
+                    }
+
+                } break;
+
+                // Load fancy
+
+                case 55: // LD
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    }
+                    try {
+                        this.regs[rt] = readData64(this.regs[rs] + (long)(short)ex_op);
+                    } catch (MipsTlbMissException e) {
+                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsAddressErrorException e) {
+                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsBusErrorException e) {
+                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                    }
+                    break;
+
+                // Store fancy
+
+                case 63: // SD
+                    if(!allow64) {
+                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        break;
+                    }
+                    try {
+                        writeData64(this.regs[rs] + (long)(short)ex_op, this.regs[rt]);
+                    } catch (MipsTlbModException e) {
+                        fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsTlbMissException e) {
+                        fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsAddressErrorException e) {
+                        fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                    } catch (MipsBusErrorException e) {
+                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                    }
+                    break;
+
+                // Reserved instruction fault
+
+                default:
+                    System.err.printf("RI: %d\n", opcode_type);
                     fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
                     break;
-                }
-                try {
-                    this.regs[rt] = readData64(this.regs[rs] + (long)(short)ex_op);
-                } catch (MipsTlbMissException e) {
-                    fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsAddressErrorException e) {
-                    fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsBusErrorException e) {
-                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
-                }
-                break;
-
-            // Store fancy
-
-            case 63: // SD
-                if(!allow64) {
-                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                    break;
-                }
-                try {
-                    writeData64(this.regs[rs] + (long)(short)ex_op, this.regs[rt]);
-                } catch (MipsTlbModException e) {
-                    fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsTlbMissException e) {
-                    fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsAddressErrorException e) {
-                    fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
-                } catch (MipsBusErrorException e) {
-                    fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
-                }
-                break;
-
-            // Reserved instruction fault
-
-            default:
-                System.err.printf("RI: %d\n", opcode_type);
-                fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
-                break;
+            }
         }
 
         // Advance PC
@@ -2441,6 +2433,8 @@ public class Mips3 {
         this.pcNext = this.pcAfter;
         this.pcAfter += 4;
 
+        // omitted for speed
+        /*
         // Advance c0_random
         // (R4600 only advances on valid instructions)
         if(this.fault_type != MFault.RI) {
@@ -2450,6 +2444,7 @@ public class Mips3 {
             }
             this.fault_type = MFault.NONE; // prevent the next instr from firing here
         }
+        */
     }
 
     // API requirements
@@ -2460,11 +2455,6 @@ public class Mips3 {
             this.pcNext = this.pc + 4;
             this.pcAfter = this.pcNext + 4;
             this.pcBranchDelay = false;
-
-            this.fault_type = MFault.NONE;
-            this.fault_stage = MPipelineStage.NONE;
-            this.fault_pc = 0;
-            this.fault_bd = false;
 
             // Extra stuff that doesn't normally get covered
             for(int i = 0; i < 32; i++) {
