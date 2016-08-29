@@ -14,8 +14,14 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentTranslation;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 
 public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
+
+    public static final int CONS_WIDTH = 80;
+    public static final int CONS_HEIGHT = 25;
+    public static final int CONS_TAB_STOP = 8;
+
     @Serialize
     private final SerialConsoleImpl device = new SerialConsoleImpl();
 
@@ -37,6 +43,15 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
     public static final class SerialConsoleImpl extends AbstractAddressableInterruptSource implements AddressHint {
         // --------------------------------------------------------------------- //
         // AbstractAddressableInterruptSource
+
+        @Serialize
+        private char[][] scrBuf = new char[CONS_HEIGHT][CONS_WIDTH];
+        @Serialize
+        private int scrX = 0; // Range: [0,CONS_WIDTH] (yes, inclusive)
+        @Serialize
+        private int scrY = 0; // Range: [0,CONS_HEIGHT) (not a typo!)
+        @Serialize
+        private int scrOffY = 0; // Range: [0,CONS_HEIGHT)
 
         @Nullable
         @Override
@@ -60,6 +75,32 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
             return new TextComponentTranslation(Constants.I18N.INTERRUPT_SOURCE_KEYBOARD_INPUT);
         }
 
+        private void scrollDown() {
+            // Print line (temporary measure)
+            String outbuf = "";
+            final char[] inbuf = this.scrBuf[(this.scrOffY+this.scrY)%CONS_HEIGHT];
+
+            for(int i = 0; i < this.scrX; i++) {
+                char ch = inbuf[i];
+                if(ch >= (char)0x20) {
+                    outbuf += ch;
+                } else if(ch == '\t') {
+                    outbuf += ' ';
+                }
+            }
+
+            System.out.print(outbuf + "\n");
+
+            //
+            this.scrY++;
+            while(this.scrY >= CONS_HEIGHT) {
+                Arrays.fill(this.scrBuf[this.scrOffY], (char)0);
+                this.scrOffY++;
+                this.scrOffY %= CONS_HEIGHT;
+                this.scrY--;
+            }
+        }
+
         @Override
         public int read(final int address) {
             switch (address) {
@@ -75,7 +116,51 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
             switch (address) {
                 case 0: {
                     final char ch = (char) value;
-                    System.out.print(ch);
+
+                    switch(ch) {
+                        case '\b': // Backspace
+                            do {
+                                this.scrX--;
+                            } while(this.scrX >= 0 && this.scrX % CONS_WIDTH == 0
+                                && this.scrBuf[(this.scrOffY+this.scrY)%CONS_HEIGHT][this.scrX] == '\t');
+
+                            if(this.scrX < 0) {
+                                this.scrX = 0;
+                            }
+                            break;
+
+                        case '\t': // Tab
+                            do {
+                                this.scrBuf[(this.scrOffY+this.scrY)%CONS_HEIGHT][this.scrX] = '\t';
+                                this.scrX++;
+                                if(this.scrX >= CONS_WIDTH) {
+                                    scrollDown();
+                                    this.scrX = 0;
+                                }
+                            } while(this.scrX % CONS_TAB_STOP == 0);
+                            break;
+
+                        case '\n': // Line feed
+                            scrollDown();
+                            this.scrX = 0;
+                            break;
+
+                        case '\r': // Carriage return
+                            this.scrX = 0;
+                            break;
+
+                        case '\u001B': // Escape
+                            // TODO: VT-100/VT-220 codes
+                            break;
+
+                        default:
+                            if(this.scrX >= CONS_WIDTH) {
+                                scrollDown();
+                                this.scrX = 0;
+                            }
+                            this.scrBuf[(this.scrOffY+this.scrY)%CONS_HEIGHT][this.scrX] = ch;
+                            this.scrX++;
+                    }
                     break;
                 }
             }
