@@ -11,6 +11,7 @@ import li.cil.circuity.common.Constants;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serialize;
 import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
 
 import javax.annotation.Nullable;
@@ -18,9 +19,9 @@ import java.util.Arrays;
 
 public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
 
-    public static final int CONS_WIDTH = 80;
+    public static final int CONS_WIDTH = 40;
     public static final int CONS_HEIGHT = 25;
-    public static final int CONS_TAB_STOP = 8;
+    public static final int CONS_TAB_STOP = 4;
 
     @Serialize
     private final SerialConsoleImpl device = new SerialConsoleImpl();
@@ -40,7 +41,7 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.SERIAL_CONSOLE_NAME);
 
-    public static final class SerialConsoleImpl extends AbstractAddressableInterruptSource implements AddressHint {
+    public final class SerialConsoleImpl extends AbstractAddressableInterruptSource implements AddressHint {
         // --------------------------------------------------------------------- //
         // AbstractAddressableInterruptSource
 
@@ -76,6 +77,16 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
         }
 
         private void scrollDown() {
+            Arrays.fill(this.scrBuf[this.scrOffY], (char)0);
+            this.scrOffY++;
+            this.scrOffY %= CONS_HEIGHT;
+            this.scrY--;
+            if(this.scrY < 0) {
+                this.scrY = 0;
+            }
+        }
+
+        private void advanceLine() {
             // Print line (temporary measure)
             String outbuf = "";
             final char[] inbuf = this.scrBuf[(this.scrOffY+this.scrY)%CONS_HEIGHT];
@@ -89,15 +100,15 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
                 }
             }
 
-            System.out.print(outbuf + "\n");
+            //System.out.print(outbuf + "\n");
+            BusDeviceSerialConsole.this.getWorld().getMinecraftServer().getPlayerList().sendChatMsg(
+                    new TextComponentString("SC: " + outbuf)
+            );
 
             //
             this.scrY++;
             while(this.scrY >= CONS_HEIGHT) {
-                Arrays.fill(this.scrBuf[this.scrOffY], (char)0);
-                this.scrOffY++;
-                this.scrOffY %= CONS_HEIGHT;
-                this.scrY--;
+                scrollDown();
             }
         }
 
@@ -134,14 +145,14 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
                                 this.scrBuf[(this.scrOffY+this.scrY)%CONS_HEIGHT][this.scrX] = '\t';
                                 this.scrX++;
                                 if(this.scrX >= CONS_WIDTH) {
-                                    scrollDown();
+                                    advanceLine();
                                     this.scrX = 0;
                                 }
                             } while(this.scrX % CONS_TAB_STOP == 0);
                             break;
 
                         case '\n': // Line feed
-                            scrollDown();
+                            advanceLine();
                             this.scrX = 0;
                             break;
 
@@ -155,7 +166,7 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice {
 
                         default:
                             if(this.scrX >= CONS_WIDTH) {
-                                scrollDown();
+                                advanceLine();
                                 this.scrX = 0;
                             }
                             this.scrBuf[(this.scrOffY+this.scrY)%CONS_HEIGHT][this.scrX] = ch;
