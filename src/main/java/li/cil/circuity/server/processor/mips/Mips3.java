@@ -523,7 +523,7 @@ public class Mips3 {
             }
         }
 
-        switch((int)(vaddr>>62)) {
+        switch(3&(int)(vaddr>>62)) {
             case 0: // User mode, TLB mapped
                 if(((vaddr<<2)>>>40) != 0) {
                     break;
@@ -543,7 +543,7 @@ public class Mips3 {
                 if(!kernelMode) {
                     break;
                 } else {
-                    long paddr = (vaddr<<3)>>>3;
+                    long paddr = (vaddr<<5)>>>5;
                     if((paddr>>36) != 0) {
                         break;
                     }
