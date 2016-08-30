@@ -7,6 +7,9 @@ configurator.cleared=Cleared stored configuration.
 configurator.mode.change_address=Change Address
 configurator.mode.bind_address=Bind Address
 configurator.mode.bind_interrupt=Bind Interrupt
+configurator.mode.select_address=Select Address
+configurator.mode.select_interrupt_source=Select Interrupt Source
+configurator.mode.select_interrupt_sink=Select Interrupt Sink
 configurator.address_selected=Address: %sh
 configurator.interrupt_source=Interrupt source: %s (#%s)
 configurator.no_interrupt_source=Interrupt source cleared.
@@ -18,5 +21,19 @@ configurator.interrupt_set=Interrupt cleared.
 interrupt_sink.nmi=NMI
 interrupt_sink.irq=IRQ
 interrupt_source.keyboard_input=Keyboard Input
+
+itemGroup.Circuity=Circuity
+
+item.configurator.name=Configurator
+item.eeprom.name=EEPROM
+
+tile.bus_controller.name=Bus Controller
+tile.bus_cable.name=Bus Cable
+tile.eeprom_reader.name=EEPROM Reader
+tile.processor_mips3.name=Processor (MIPS III)
+tile.processor_z80.name=Processor (Z80)
+tile.random_access_memory.name=RAM
+tile.redstone_controller.name=Redstone Controller
+tile.serial_console.name=Serial Console
 
 generic.unknown=Unknown
