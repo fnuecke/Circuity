@@ -4,6 +4,7 @@ import net.minecraft.network.PacketBuffer;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * Server specific synchronization logic.
@@ -36,6 +37,25 @@ public interface SynchronizationManagerServer extends SynchronizationManager {
      * @param token an optional token identify what part of the value changed.
      */
     void setDirty(final SynchronizedValue value, @Nullable final Object token);
+
+    /**
+     * Mark a serialized value as dirty, so that it gets synchronized to any
+     * subscribed clients.
+     * <p>
+     * This method allows more in-depth control over the token list that will
+     * be passed to {@link SynchronizedValue#serialize(PacketBuffer, List)}
+     * when it is time to send the changed data to the client.
+     * <p>
+     * Note that the serialize method of the synchronized value may not be
+     * called at all due to this, if there are no clients currently subscribed
+     * to value changes from the specified synchronized value.
+     *
+     * @param value        the value to mark dirty.
+     * @param tokenUpdater a callback used to update the value's token list.
+     */
+    // IMPORTANT: Must have a different name, as Object vs. Consumer causes
+    //            can cause unexpected behavior when passing null.
+    void setDirtyAdvanced(final SynchronizedValue value, final Consumer<List<Object>> tokenUpdater);
 
     // --------------------------------------------------------------------- //
 

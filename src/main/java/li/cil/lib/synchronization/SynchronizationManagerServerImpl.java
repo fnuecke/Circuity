@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.Consumer;
 
 public final class SynchronizationManagerServerImpl extends AbstractSynchronizationManager implements SynchronizationManagerServer, ComponentChangeListener {
     /**
@@ -254,13 +255,25 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
     @Override
     public void setDirty(final SynchronizedValue value, @Nullable final Object token) {
         synchronized (dirtyLock) {
-            final List<Object> identifiers = dirtyValues.computeIfAbsent(value, k -> token == null ? Collections.emptyList() : new ArrayList<>());
+            final List<Object> tokens = dirtyValues.computeIfAbsent(value, k -> token == null ? Collections.emptyList() : new ArrayList<>());
             if (token != null) {
-                if (identifiers == Collections.emptyList()) {
+                if (tokens == Collections.emptyList()) {
                     dirtyValues.put(value, new ArrayList<>()).add(token);
                 } else {
-                    identifiers.add(token);
+                    tokens.add(token);
                 }
+            }
+        }
+    }
+
+    @Override
+    public void setDirtyAdvanced(final SynchronizedValue value, final Consumer<List<Object>> tokenUpdater) {
+        synchronized (dirtyLock) {
+            final List<Object> tokens = dirtyValues.computeIfAbsent(value, k -> new ArrayList<>());
+            if (tokens == Collections.emptyList()) {
+                tokenUpdater.accept(dirtyValues.put(value, new ArrayList<>()));
+            } else {
+                tokenUpdater.accept(tokens);
             }
         }
     }

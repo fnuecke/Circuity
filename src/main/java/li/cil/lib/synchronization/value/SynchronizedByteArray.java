@@ -1,5 +1,8 @@
 package li.cil.lib.synchronization.value;
 
+import gnu.trove.iterator.TIntIterator;
+import gnu.trove.set.hash.TIntHashSet;
+import io.netty.buffer.Unpooled;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.api.synchronization.SynchronizationManagerServer;
@@ -8,13 +11,17 @@ import net.minecraft.network.PacketBuffer;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 @Serializable
 public final class SynchronizedByteArray implements SynchronizedValue {
-    private final Object lock = new Object();
+    private static final PacketBuffer[] BUFFERS = new PacketBuffer[0x100];
+
+    static {
+        for (int i = 0; i < BUFFERS.length; i++) {
+            BUFFERS[i] = new PacketBuffer(Unpooled.buffer());
+        }
+    }
 
     @Serialize
     private byte[] value;
@@ -47,17 +54,13 @@ public final class SynchronizedByteArray implements SynchronizedValue {
     }
 
     public byte get(final int index) {
-        synchronized (lock) {
-            return value[index];
-        }
+        return value[index];
     }
 
     public byte set(final int index, final byte element) {
-        synchronized (lock) {
-            if (value[index] != element) {
-                setDirty(index);
-                value[index] = element;
-            }
+        if (value[index] != element) {
+            setDirty(index);
+            value[index] = element;
         }
         return element;
     }
@@ -71,20 +74,12 @@ public final class SynchronizedByteArray implements SynchronizedValue {
 
     @Override
     public void serialize(final PacketBuffer packet, @Nullable final List<Object> tokens) {
-        if (tokens == null || tokens.contains(-1)) {
-            packet.writeBoolean(true);
-
-            packet.writeByteArray(value);
+        if (tokens == null) {
+            serializeFully(packet);
         } else {
-            packet.writeBoolean(false);
-
-            final Set<Object> indices = new HashSet<>(tokens);
-            packet.writeVarIntToBuffer(indices.size());
-
-            for (final Object i : indices) {
-                final int index = (Integer) i;
-                packet.writeVarIntToBuffer(index);
-                packet.writeByte(value[index]);
+            final TIntHashSet indices = (TIntHashSet) tokens.get(0);
+            if (indices.contains(-1) || !serializeChanges(packet, indices)) {
+                serializeFully(packet);
             }
         }
     }
@@ -92,22 +87,82 @@ public final class SynchronizedByteArray implements SynchronizedValue {
     @Override
     public void deserialize(final PacketBuffer packet) {
         if (packet.readBoolean()) {
-            value = packet.readByteArray();
+            deserializeFully(packet);
         } else {
-            final int count = packet.readVarIntFromBuffer();
-
-            for (int i = 0; i < count; i++) {
-                final int index = packet.readVarIntFromBuffer();
-                value[index] = packet.readByte();
-            }
+            deserializeChanges(packet);
         }
     }
 
     // --------------------------------------------------------------------- //
 
+    private void serializeFully(final PacketBuffer packet) {
+        packet.writeBoolean(true);
+
+        packet.writeByteArray(value);
+    }
+
+    private boolean serializeChanges(final PacketBuffer packet, final TIntHashSet indices) {
+        packet.markWriterIndex();
+
+        packet.writeBoolean(false);
+
+        final int maxWriterIndex = packet.writerIndex() + value.length;
+
+        synchronized (BUFFERS) {
+            final TIntIterator it = indices.iterator();
+            while (it.hasNext()) {
+                final int index = it.next();
+                BUFFERS[value[index] & 0xFF].writeVarIntToBuffer(index);
+            }
+
+            for (int item = 0; item < BUFFERS.length; item++) {
+                final PacketBuffer buffer = BUFFERS[item];
+                if (buffer.isReadable()) {
+                    if (packet.writerIndex() < maxWriterIndex) {
+                        packet.writeByte(item);
+                        packet.writeVarIntToBuffer(buffer.writerIndex());
+                        packet.writeBytes(buffer);
+                    }
+                    buffer.clear();
+                }
+            }
+        }
+
+        if (packet.writerIndex() >= maxWriterIndex) {
+            packet.resetWriterIndex();
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    private void deserializeFully(final PacketBuffer packet) {
+        value = packet.readByteArray();
+    }
+
+    private void deserializeChanges(final PacketBuffer packet) {
+        while (packet.isReadable()) {
+            final byte item = packet.readByte();
+            final int length = packet.readVarIntFromBuffer();
+            final int end = packet.readerIndex() + length;
+            while (packet.readerIndex() < end) {
+                final int index = packet.readVarIntFromBuffer();
+                value[index] = item;
+            }
+        }
+    }
+
     private void setDirty(final int index) {
         if (manager != null) {
-            manager.setDirty(this, index);
+            manager.setDirtyAdvanced(this, (tokens) -> {
+                final TIntHashSet indices;
+                if (tokens.size() == 0) {
+                    tokens.add(indices = new TIntHashSet());
+                } else {
+                    indices = (TIntHashSet) tokens.get(0);
+                }
+                indices.add(index);
+            });
         }
     }
 }

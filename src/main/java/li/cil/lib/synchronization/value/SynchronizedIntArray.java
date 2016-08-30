@@ -14,8 +14,6 @@ import java.util.Set;
 
 @Serializable
 public final class SynchronizedIntArray implements SynchronizedValue {
-    private final Object lock = new Object();
-
     @Serialize
     private int[] value;
 
@@ -47,17 +45,13 @@ public final class SynchronizedIntArray implements SynchronizedValue {
     }
 
     public int get(final int index) {
-        synchronized (lock) {
-            return value[index];
-        }
+        return value[index];
     }
 
     public int set(final int index, final int element) {
-        synchronized (lock) {
-            if (value[index] != element) {
-                setDirty(index);
-                value[index] = element;
-            }
+        if (value[index] != element) {
+            setDirty(index);
+            value[index] = element;
         }
         return element;
     }

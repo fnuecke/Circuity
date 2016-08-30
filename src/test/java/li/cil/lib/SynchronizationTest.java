@@ -1,7 +1,9 @@
 package li.cil.lib;
 
+import gnu.trove.set.hash.TIntHashSet;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.api.synchronization.SynchronizationManagerServer;
@@ -19,16 +21,25 @@ import li.cil.lib.synchronization.value.SynchronizedObject;
 import li.cil.lib.synchronization.value.SynchronizedShort;
 import li.cil.lib.synchronization.value.SynchronizedString;
 import net.minecraft.network.PacketBuffer;
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.util.Collections;
+import java.util.function.Consumer;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 public class SynchronizationTest {
+    @Before
+    public void setup() {
+        SillyBeeAPI.serialization = Serialization.INSTANCE;
+    }
+
     @Test
     public void synchronizeStrings() {
         synchronizeString("");
@@ -394,11 +405,11 @@ public class SynchronizationTest {
 
         assertEquals(i1.get(2), value);
 
-        verify(manager, times(1)).setDirty(i1, 2);
+        verify(manager, times(1)).setDirty(eq(i1), any(Consumer.class));
 
         final ByteBuf buffer = Unpooled.buffer();
         final PacketBuffer packet = new PacketBuffer(buffer);
-        i1.serialize(packet, Collections.singletonList(2));
+        i1.serialize(packet, Collections.singletonList(new TIntHashSet(new int[]{2})));
 
         final SynchronizedByteArray i2 = new SynchronizedByteArray(data);
 
