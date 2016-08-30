@@ -3,7 +3,7 @@ package li.cil.circuity.common.ecs.component;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractInterruptSink;
 import li.cil.circuity.api.bus.device.AsyncTickable;
-import li.cil.circuity.api.bus.device.BusStateAware;
+import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.InterruptList;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.server.processor.BusControllerAccess;
@@ -47,7 +47,7 @@ public class BusDeviceMips3Processor extends AbstractComponentBusDevice {
     // ActivationListener
 
     @Serializable
-    private class BusDeviceMips3Impl extends AbstractInterruptSink implements BusStateAware, AsyncTickable {
+    private class BusDeviceMips3Impl extends AbstractInterruptSink implements BusStateListener, AsyncTickable {
         @Serialize
         private final Mips3 mips;
 

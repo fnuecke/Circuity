@@ -6,11 +6,13 @@ import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
+import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.item.EEPROM;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.capabilities.eeprom.CapabilityEEPROM;
+import li.cil.circuity.util.IntelHexLoader;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.event.InventoryChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
@@ -23,6 +25,9 @@ import net.minecraft.world.World;
 import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 @Serializable
 public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements InventoryChangeListener {
@@ -101,7 +106,7 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_ONLY_MEMORY, Constants.DeviceInfo.EEPROM_READER_NAME);
 
-    public final class EEPROMImpl extends AbstractAddressable implements AddressHint {
+    public final class EEPROMImpl extends AbstractAddressable implements AddressHint, BusStateListener {
         // --------------------------------------------------------------------- //
         // AbstractAddressable
 
@@ -143,6 +148,22 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
         @Override
         public int getSortHint() {
             return Constants.EEPROM_ADDRESS;
+        }
+
+        // --------------------------------------------------------------------- //
+        // BusStateAware
+
+        @Override
+        public void handleBusOnline() {
+            try {
+                IntelHexLoader.load(Files.readAllLines(Paths.get("F:\\sdcc\\monitor.ihx")), controller::mapAndWrite);
+            } catch (IOException | IllegalArgumentException e) {
+                e.printStackTrace();
+            }
+        }
+
+        @Override
+        public void handleBusOffline() {
         }
     }
 }

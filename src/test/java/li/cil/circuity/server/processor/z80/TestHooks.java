@@ -4,7 +4,7 @@ import com.google.common.base.Throwables;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressBlock;
-import li.cil.circuity.api.bus.device.BusStateAware;
+import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.common.ecs.component.AbstractComponentBusDevice;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
@@ -26,7 +26,7 @@ public final class TestHooks extends AbstractComponentBusDevice {
         return device;
     }
 
-    public static final class TestHooksImpl extends AbstractAddressable implements BusStateAware {
+    public static final class TestHooksImpl extends AbstractAddressable implements BusStateListener {
         private final StringBuilder serialConsole = new StringBuilder();
         private Z80 cpu;
 

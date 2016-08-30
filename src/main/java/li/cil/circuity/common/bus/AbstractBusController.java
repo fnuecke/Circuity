@@ -11,7 +11,7 @@ import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.AsyncTickable;
-import li.cil.circuity.api.bus.device.BusStateAware;
+import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.bus.device.InterruptList;
@@ -76,7 +76,7 @@ import java.util.concurrent.Future;
  * <p>
  * <sup>1)</sup> This is guaranteed to be the first port. The initially selected device is guaranteed to be the bus controller itself. This way software may query the bus controller's API version before having to actually use the API.
  */
-public abstract class AbstractBusController extends AbstractAddressable implements ConfigurableBusController, AddressHint, BusStateAware {
+public abstract class AbstractBusController extends AbstractAddressable implements ConfigurableBusController, AddressHint, BusStateListener {
     /**
      * The number of addressable words via this buses address space.
      */
@@ -158,7 +158,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
      * The list of state aware bus devices, i.e. device that are notified when
      * the bus is powered on / off.
      */
-    private final List<BusStateAware> stateAwares = new ArrayList<>();
+    private final List<BusStateListener> stateAwares = new ArrayList<>();
 
     /**
      * The list of bus devices that also implement {@link ITickable}.
@@ -544,9 +544,9 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
         isOnline = value;
         if (isOnline) {
-            stateAwares.forEach(BusStateAware::handleBusOnline);
+            stateAwares.forEach(BusStateListener::handleBusOnline);
         } else {
-            stateAwares.forEach(BusStateAware::handleBusOffline);
+            stateAwares.forEach(BusStateListener::handleBusOffline);
         }
     }
 
@@ -751,7 +751,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 if (!newDevices.remove(device)) {
                     it.remove();
 
-                    if (device instanceof BusStateAware) {
+                    if (device instanceof BusStateListener) {
                         stateAwares.remove(device);
                     }
 
@@ -863,8 +863,8 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
 
             device.setBusController(this);
 
-            if (device instanceof BusStateAware) {
-                stateAwares.add((BusStateAware) device);
+            if (device instanceof BusStateListener) {
+                stateAwares.add((BusStateListener) device);
             }
 
             if (device instanceof AsyncTickable) {

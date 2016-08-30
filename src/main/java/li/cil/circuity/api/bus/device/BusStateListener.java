@@ -12,7 +12,7 @@ import li.cil.circuity.api.bus.BusDevice;
  * depends on other devices. When the bus goes offline, devices should cease
  * all activity and reset their volatile state.
  */
-public interface BusStateAware extends BusDevice {
+public interface BusStateListener extends BusDevice {
     /**
      * Called when the bus goes online.
      * <p>

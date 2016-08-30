@@ -4,7 +4,7 @@ import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
-import li.cil.circuity.api.bus.device.BusStateAware;
+import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.common.Constants;
@@ -59,7 +59,7 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_WRITE_MEMORY, Constants.DeviceInfo.RANDOM_ACCESS_MEMORY_NAME);
 
-    public final class RandomAccessMemoryImpl extends AbstractAddressable implements AddressHint, BusStateAware {
+    public final class RandomAccessMemoryImpl extends AbstractAddressable implements AddressHint, BusStateListener {
         // --------------------------------------------------------------------- //
         // AbstractAddressable
 

@@ -3,7 +3,7 @@ package li.cil.circuity.api.bus;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.AsyncTickable;
-import li.cil.circuity.api.bus.device.BusStateAware;
+import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.InterruptList;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.api.bus.device.InterruptSource;
@@ -29,13 +29,13 @@ public interface BusController extends BusSegment {
      * Get whether the bus controller is currently online.
      * <p>
      * Note that this may return <code>false</code> even if devices implementing
-     * {@link BusStateAware} were notified of the bus controller going online if
+     * {@link BusStateListener} were notified of the bus controller going online if
      * the bus controller is currently in an errored state after scanning for devices.
      * <p>
      * This method is thread safe.
      *
      * @return <code>true</code> if the bus controller is online; <code>false</code> otherwise.
-     * @see BusStateAware
+     * @see BusStateListener
      */
     boolean isOnline();
 
