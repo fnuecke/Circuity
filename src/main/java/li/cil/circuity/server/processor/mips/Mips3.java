@@ -1096,9 +1096,16 @@ public class Mips3 {
         this.pcAfter += 4;
     }
 
-    private void branchTo(long newPc) {
+    private void branchTo(long newPc, long ex_pc, boolean ex_bd) {
         this.pcAfter = newPc;
         this.pcBranchDelay = true;
+
+        // Ensure proper alignment
+        if((newPc&3) != 0) {
+            this.cycleBudget -= 1;
+            this.c0regs[C0_BADVADDR] = newPc;
+            fault(MFault.AdEL, ex_pc, ex_bd);
+        }
     }
 
     // Main run-op loop
@@ -1107,17 +1114,6 @@ public class Mips3 {
         // Fetch op (IC)
         boolean ex_bd = this.pcBranchDelay;
         long ex_pc = this.pc;
-
-        // Ensure proper alignment
-        if((ex_pc&3)!= 0) {
-            this.cycleBudget -= 1;
-            this.c0regs[C0_BADVADDR] = ex_pc;
-            fault(MFault.AdEL, ex_pc, ex_bd);
-            this.pc = this.pcNext;
-            this.pcNext = this.pcAfter;
-            this.pcAfter += 4;
-            return;
-        }
 
         try {
 
@@ -1615,24 +1611,24 @@ public class Mips3 {
 
                     case 0: // BLTZ
                         if(this.regs[rs] < 0) {
-                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                         }
                         break;
                     case 1: // BGEZ
                         if(this.regs[rs] >= 0) {
-                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                         }
                         break;
                     case 2: // BLTZL
                         if(this.regs[rs] < 0) {
-                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                         } else {
                             skipInstruction();
                         }
                         break;
                     case 3: // BGEZL
                         if(this.regs[rs] >= 0) {
-                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                         } else {
                             skipInstruction();
                         }
@@ -1676,19 +1672,19 @@ public class Mips3 {
                     case 16: // BLTZAL
                         if(this.regs[rs] < 0) {
                             this.regs[31] = ex_pc+8;
-                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                         }
                         break;
                     case 17: // BGEZAL
                         if(this.regs[rs] >= 0) {
                             this.regs[31] = ex_pc+8;
-                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                         }
                         break;
                     case 18: // BLTZALL
                         if(this.regs[rs] < 0) {
                             this.regs[31] = ex_pc+8;
-                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                         } else {
                             skipInstruction();
                         }
@@ -1696,7 +1692,7 @@ public class Mips3 {
                     case 19: // BGEZALL
                         if(this.regs[rs] >= 0) {
                             this.regs[31] = ex_pc+8;
-                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                            branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                         } else {
                             skipInstruction();
                         }
@@ -1720,29 +1716,29 @@ public class Mips3 {
                     this.regs[31] = ex_pc+8;
                     // *** FALL THROUGH
                 case 2: // J
-                    branchTo((ex_pc & ~0x0FFFFFFFL) | (long)((ex_op<<2)&0x0FFFFFFF));
+                    branchTo((ex_pc & ~0x0FFFFFFFL) | (long)((ex_op<<2)&0x0FFFFFFF), ex_pc, ex_bd);
                     break;
 
                 // Branches
 
                 case 4: // BEQ
                     if(this.regs[rs] == this.regs[rt]) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                     }
                     break;
                 case 5: // BNE
                     if(this.regs[rs] != this.regs[rt]) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                     }
                     break;
                 case 6: // BLEZ
                     if(this.regs[rs] <= 0) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                     }
                     break;
                 case 7: // BGTZ
                     if(this.regs[rs] > 0) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                     }
                     break;
 
@@ -2079,28 +2075,28 @@ public class Mips3 {
 
                 case 20: // BEQL
                     if(this.regs[rs] == this.regs[rt]) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                     } else {
                         skipInstruction();
                     }
                     break;
                 case 21: // BNEL
                     if(this.regs[rs] != this.regs[rt]) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                     } else {
                         skipInstruction();
                     }
                     break;
                 case 22: // BLEZL
                     if(this.regs[rs] <= 0) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                     } else {
                         skipInstruction();
                     }
                     break;
                 case 23: // BGTZL
                     if(this.regs[rs] > 0) {
-                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2));
+                        branchTo(ex_pc + 4 + (((long)(short)ex_op)<<2), ex_pc, ex_bd);
                     } else {
                         skipInstruction();
                     }
@@ -2522,7 +2518,7 @@ public class Mips3 {
                 runOps();
             }
             long timeEnd = System.currentTimeMillis();
-            if(false) {
+            if(true) {
                 benchAccum += (timeEnd-timeBeg);
                 benchTicksLeft--;
                 if(benchTicksLeft <= 0) {
