@@ -17,6 +17,7 @@ public final class Constants {
     public static final String PROCESSOR_Z80_NAME = "processor_z80";
     public static final String RANDOM_ACCESS_MEMORY_NAME = "random_access_memory";
     public static final String REDSTONE_CONTROLLER_NAME = "redstone_controller";
+    public static final String SCREEN_NAME = "screen";
     public static final String SERIAL_CONSOLE_NAME = "serial_console";
 
     // --------------------------------------------------------------------- //
