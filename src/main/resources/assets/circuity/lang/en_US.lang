@@ -34,6 +34,7 @@ tile.processor_mips3.name=Processor (MIPS III)
 tile.processor_z80.name=Processor (Z80)
 tile.random_access_memory.name=RAM
 tile.redstone_controller.name=Redstone Controller
+tile.screen.name=Screen
 tile.serial_console.name=Serial Console
 
 generic.unknown=Unknown

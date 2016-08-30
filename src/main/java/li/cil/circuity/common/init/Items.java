@@ -20,6 +20,7 @@ public final class Items {
     public static Item processorZ80;
     public static Item randomAccessMemory;
     public static Item redstoneController;
+    public static Item screen;
     public static Item serialConsole;
 
     public static void init() {
@@ -32,6 +33,7 @@ public final class Items {
         processorZ80 = register(Blocks.processorZ80);
         randomAccessMemory = register(Blocks.randomAccessMemory);
         redstoneController = register(Blocks.redstoneController);
+        screen = register(Blocks.screen);
         serialConsole = register(Blocks.serialConsole);
     }
 

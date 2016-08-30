@@ -17,6 +17,7 @@ public final class Constants {
     public static final String PROCESSOR_Z80_NAME = "processor_z80";
     public static final String RANDOM_ACCESS_MEMORY_NAME = "random_access_memory";
     public static final String REDSTONE_CONTROLLER_NAME = "redstone_controller";
+    public static final String SCREEN_NAME = "screen";
     public static final String SERIAL_CONSOLE_NAME = "serial_console";
 
     // --------------------------------------------------------------------- //
@@ -60,6 +61,7 @@ public final class Constants {
         public static final String HARD_DISK_DRIVE_NAME = "HDD";
         public static final String RANDOM_ACCESS_MEMORY_NAME = "RAM";
         public static final String REDSTONE_CONTROLLER_NAME = "Redstone Controller";
+        public static final String SCREEN_NAME = "Screen";
         public static final String SERIAL_CONSOLE_NAME = "Serial Console";
 
         private DeviceInfo() {
@@ -84,6 +86,7 @@ public final class Constants {
     public static final int SERIAL_CONSOLE_ADDRESS = 0x10020;
     public static final int DISK_DRIVE_ADDRESS = 0x10030;
     public static final int REDSTONE_CONTROLLER_ADDRESS = 0x10040;
+    public static final int SCREEN_ADDRESS = 0x10060;
 
     // --------------------------------------------------------------------- //
 

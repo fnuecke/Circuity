@@ -1,0 +1,17 @@
+{
+    "forge_marker": 1,
+    "defaults": {
+        "textures": {
+            "bottom": "circuity:blocks/screen_bottom",
+            "top": "circuity:blocks/screen_top",
+            "side": "circuity:blocks/screen_side"
+        },
+        "model": "cube_bottom_top"
+     },
+    "variants": {
+        "normal": [{}],
+        "inventory": [{
+            "transform": "forge:default-block"
+        }]
+    }
+}
