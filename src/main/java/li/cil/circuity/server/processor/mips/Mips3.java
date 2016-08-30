@@ -137,9 +137,10 @@ public class Mips3 {
     // Exceptions
     public class MipsAddressErrorException extends Exception {}
     public class MipsBusErrorException extends Exception {}
+    public class MipsCacheFlushException extends Exception {}
     public class MipsTlbModException extends Exception {}
     public class MipsTlbMissException extends Exception {}
-    public class MipsOpFaulted extends Exception {}
+    //public class MipsOpFaulted extends Exception {}
 
     // TLB entries as defined by MIPS
     @Serialize
@@ -167,9 +168,13 @@ public class Mips3 {
     // cache size: I=16KB D=16KB
     // line  size: I=32B  D=32B
     public static final int ICACHE_SIZE_WORDS = 16*256;
-    public static final int DCACHE_SIZE_DWORDS = 16*256;
+    public static final int DCACHE_SIZE_DWORDS = 16*128;
     public static final int ICACHE_SIZE_TAGS = 16*32;
     public static final int DCACHE_SIZE_TAGS = 16*32;
+    public static final int ICACHE_LINE_SHIFT = 5;
+    public static final int DCACHE_LINE_SHIFT = 5;
+    public static final int ICACHE_LINE_SIZE_BYTES = 1<<ICACHE_LINE_SHIFT;
+    public static final int DCACHE_LINE_SIZE_BYTES = 1<<DCACHE_LINE_SHIFT;
     @Serialize
     private int[] iCacheData = new int[ICACHE_SIZE_WORDS];
     @Serialize
@@ -239,7 +244,7 @@ public class Mips3 {
 
     // Faults
 
-    private void fault(MFault code, MPipelineStage stage, long pc, boolean bd) {
+    private void fault(MFault code, long pc, boolean bd) {
         // Track old EXL flags
         boolean oldExl = (this.c0regs[C0_STATUS] & 2) != 0;
 
@@ -303,7 +308,6 @@ public class Mips3 {
             // Spew fault into log
             System.out.printf("MIPS FAULT:\n");
             System.out.printf("- Cause: %s (%d)\n", code.name, code.code);
-            System.out.printf("- Pipeline stage: %s\n", stage.name);
             System.out.printf("- PC: %016X (BD = %s)\n", pc, bd ? "YES" : "no");
             System.out.printf("- c0_status:   %016X\n", this.c0regs[C0_STATUS]);
             System.out.printf("- c0_cause:    %016X\n", this.c0regs[C0_CAUSE]);
@@ -783,38 +787,6 @@ public class Mips3 {
         fetchInstrLineImm(vaddr, paddr);
     }
 
-    private int readInstr(long vaddr) throws MipsAddressErrorException, MipsBusErrorException, MipsTlbMissException {
-        // Ensure proper alignment
-        if((vaddr&3)!= 0) {
-            this.c0regs[C0_BADVADDR] = vaddr;
-            throw new MipsAddressErrorException();
-        }
-
-        // TLB fetch!
-        long paddr = virtToPhys64(vaddr);
-
-        // Check if cached (VIPT cache)
-        int ctidx = ((int)(vaddr>>5))&(ICACHE_SIZE_TAGS-1);
-        int tag = iCacheTags[ctidx];
-        if((tag&(1<<24)) != 0) {
-            // It is. Check if paddr matches.
-            if((tag&0x00FFFFFF) == (int)(paddr>>12)) {
-                // It does. Return the cache data.
-                return iCacheData[((int)(vaddr>>2))&(ICACHE_SIZE_WORDS-1)];
-            }
-        }
-
-        // Check if cacheable
-        if(((tlbRecentLo>>3)&3) == 2) {
-            // Uncacheable
-            return read32Imm(paddr);
-        } else {
-            fetchInstrLineImm(vaddr, paddr);
-            return iCacheData[((int)(vaddr>>2))&(ICACHE_SIZE_WORDS-1)];
-        }
-
-    }
-
     private void fetchDCache(long vaddr, long paddr) throws MipsBusErrorException {
         // Check if cached
         if (isInDCache(vaddr, paddr)) {
@@ -1131,46 +1103,90 @@ public class Mips3 {
 
     // Main run-op loop
 
-    private void runOp() {
-        this.cycleBudget -= 1;
-
+    private void runOps() {
         // Fetch op (IC)
         boolean ex_bd = this.pcBranchDelay;
         long ex_pc = this.pc;
-        int ex_op;
-        try {
-            ex_op = readInstr(ex_pc);
-        } catch (MipsTlbMissException e) {
-            fault(MFault.TLBL, MPipelineStage.IC, ex_pc, ex_bd);
-            this.pc = this.pcNext;
-            this.pcNext = this.pcAfter;
-            this.pcAfter += 4;
-            return;
-        } catch (MipsAddressErrorException e) {
-            fault(MFault.AdEL, MPipelineStage.IC, ex_pc, ex_bd);
-            this.pc = this.pcNext;
-            this.pcNext = this.pcAfter;
-            this.pcAfter += 4;
-            return;
-        } catch (MipsBusErrorException e) {
-            fault(MFault.IBE, MPipelineStage.IC, ex_pc, ex_bd);
+
+        // Ensure proper alignment
+        if((ex_pc&3)!= 0) {
+            this.cycleBudget -= 1;
+            this.c0regs[C0_BADVADDR] = ex_pc;
+            fault(MFault.AdEL, ex_pc, ex_bd);
             this.pc = this.pcNext;
             this.pcNext = this.pcAfter;
             this.pcAfter += 4;
             return;
         }
 
-        // Clear next status
-        this.pcBranchDelay = false;
+        try {
+
+            // TLB fetch!
+            long paddr = virtToPhys64(ex_pc);
+
+            // Check if cacheable
+            if(((tlbRecentLo>>3)&3) == 2) {
+                // Uncacheable
+                this.cycleBudget -= 1;
+                int ex_op = read32Imm(paddr);
+
+                // Clear next status
+                this.pcBranchDelay = false;
+
+                // Execute op
+                runFetchedOp(ex_pc, ex_op, ex_bd);
+
+            } else {
+                // Check if cached (VIPT cache)
+                int ctidx = ((int)(ex_pc>>5))&(ICACHE_SIZE_TAGS-1);
+                int tag = iCacheTags[ctidx];
+                int vaddr_base = ((int)ex_pc)&~(ICACHE_LINE_SIZE_BYTES-1);
+                if((tag&(1<<24)) == 0 || (tag&0x00FFFFFF) != (int)(paddr>>12)) {
+                    // It's not. Fetch!
+                    fetchInstrLineImm(vaddr_base, paddr&~(ICACHE_LINE_SIZE_BYTES-1));
+                }
+
+                // Loop through cache
+                while(this.cycleBudget > 0 && ((ex_pc^vaddr_base)>>ICACHE_LINE_SHIFT) == 0) {
+                    this.cycleBudget -= 1;
+                    this.pcBranchDelay = false;
+                    int ex_op = iCacheData[(((int)ex_pc)>>2)&(ICACHE_SIZE_WORDS-1)];
+                    runFetchedOp(ex_pc, ex_op, ex_bd);
+                    ex_pc = this.pc;
+                    ex_bd = this.pcBranchDelay;
+                }
+            }
+        } catch (MipsTlbMissException e) {
+            fault(MFault.TLBL, ex_pc, ex_bd);
+            this.pc = this.pcNext;
+            this.pcNext = this.pcAfter;
+            this.pcAfter += 4;
+        } catch (MipsAddressErrorException e) {
+            fault(MFault.AdEL, ex_pc, ex_bd);
+            this.pc = this.pcNext;
+            this.pcNext = this.pcAfter;
+            this.pcAfter += 4;
+        } catch (MipsBusErrorException e) {
+            fault(MFault.IBE, ex_pc, ex_bd);
+            this.pc = this.pcNext;
+            this.pcNext = this.pcAfter;
+            this.pcAfter += 4;
+        } catch (MipsCacheFlushException e) {
+            // Don't fault, but make sure you kill the op
+            this.pc = this.pcNext;
+            this.pcNext = this.pcAfter;
+            this.pcAfter += 4;
+        }
+    }
+
+    private void runFetchedOp(long ex_pc, int ex_op, boolean ex_bd) throws MipsCacheFlushException {
+        long wb_result;
 
         // Execute op (RF/EX)
         // immu == ex_op&0xFFFF
         // imms == (int)(short)ex_op
         // shamt == (ex_op>>>6)&31
         // func == ex_op&63
-
-        long wb_result;
-
         this.regs[0] = 0;
         int opcode_type = (ex_op >>> 26) & 63;
         int rs = (ex_op >>> 21) & 31;
@@ -1216,10 +1232,10 @@ public class Mips3 {
                 // Software exceptions
 
                 case 12: // SYSCALL
-                    fault(MFault.Syscall, MPipelineStage.EX, ex_pc, ex_bd);
+                    fault(MFault.Syscall, ex_pc, ex_bd);
                     break;
                 case 13: // BREAK
-                    fault(MFault.Bp, MPipelineStage.EX, ex_pc, ex_bd);
+                    fault(MFault.Bp, ex_pc, ex_bd);
                     break;
 
                 // Sync
@@ -1247,7 +1263,7 @@ public class Mips3 {
 
                 case 20: // DSLLV
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = this.regs[rt] << (this.regs[rs]&63);
@@ -1255,7 +1271,7 @@ public class Mips3 {
                     break;
                 case 22: // DSRLV
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = this.regs[rt] >>> (this.regs[rs]&63);
@@ -1263,7 +1279,7 @@ public class Mips3 {
                     break;
                 case 23: // DSRAV
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = this.regs[rt] >> (this.regs[rs]&63);
@@ -1317,7 +1333,7 @@ public class Mips3 {
 
                 case 28: { // DMULT
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     }
                     long res = ((long)(int)this.regs[rs]) * (long)(int)this.regs[rt];
@@ -1326,7 +1342,7 @@ public class Mips3 {
                 } break;
                 case 29: { // DMULTU
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     }
                     long res = (0xFFFFFFFFL&(long)(int)this.regs[rs]) * (0xFFFFFFFFL&(long)(int)this.regs[rt]);
@@ -1335,7 +1351,7 @@ public class Mips3 {
                 } break;
                 case 30: { // DDIV
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     }
                     if(this.regs[rt] == 0) {
@@ -1348,7 +1364,7 @@ public class Mips3 {
                 } break;
                 case 31: { // DDIVU
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     }
                     if(this.regs[rt] == 0) {
@@ -1394,7 +1410,7 @@ public class Mips3 {
                             ? wb_result < (int)this.regs[rs]
                             : wb_result > (int)this.regs[rs]
                             ) {
-                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.Ov, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = wb_result;
@@ -1410,7 +1426,7 @@ public class Mips3 {
                             : wb_result > (int)this.regs[rs]
                             ) {
                         rd = 0;
-                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.Ov, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = wb_result;
@@ -1444,7 +1460,7 @@ public class Mips3 {
 
                 case 44: // DADD
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     }
                     wb_result = this.regs[rs] + this.regs[rt];
@@ -1452,7 +1468,7 @@ public class Mips3 {
                             ? wb_result < this.regs[rs]
                             : wb_result > this.regs[rs]
                             ) {
-                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.Ov, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = wb_result;
@@ -1460,7 +1476,7 @@ public class Mips3 {
                     break;
                 case 45: // DADDU
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = this.regs[rs] + this.regs[rt];
@@ -1468,7 +1484,7 @@ public class Mips3 {
                     break;
                 case 46: // DSUB
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     }
                     wb_result = this.regs[rs] - this.regs[rt];
@@ -1476,7 +1492,7 @@ public class Mips3 {
                             ? wb_result < this.regs[rs]
                             : wb_result > this.regs[rs]
                             ) {
-                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.Ov, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = wb_result;
@@ -1484,7 +1500,7 @@ public class Mips3 {
                     break;
                 case 47: // DSUBU
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = this.regs[rs] - this.regs[rt];
@@ -1495,32 +1511,32 @@ public class Mips3 {
 
                 case 48: // TGE
                     if(this.regs[rs] >= this.regs[rt]) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        this.fault(MFault.Tr, ex_pc, ex_bd);
                     }
                     break;
                 case 49: // TGEU
                     if((this.regs[rs]^0x8000000000000000L) >= (this.regs[rt]^0x8000000000000000L)) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        this.fault(MFault.Tr, ex_pc, ex_bd);
                     }
                     break;
                 case 50: // TLT
                     if(this.regs[rs] < this.regs[rt]) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        this.fault(MFault.Tr, ex_pc, ex_bd);
                     }
                     break;
                 case 51: // TLTU
                     if((this.regs[rs]^0x8000000000000000L) < (this.regs[rt]^0x8000000000000000L)) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        this.fault(MFault.Tr, ex_pc, ex_bd);
                     }
                     break;
                 case 52: // TEQ
                     if(this.regs[rs] == this.regs[rt]) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        this.fault(MFault.Tr, ex_pc, ex_bd);
                     }
                     break;
                 case 54: // TNE
                     if(this.regs[rs] != this.regs[rt]) {
-                        this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                        this.fault(MFault.Tr, ex_pc, ex_bd);
                     }
                     break;
 
@@ -1528,7 +1544,7 @@ public class Mips3 {
 
                 case 56: // DSLL
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = this.regs[rt] << ((ex_op>>>6)&31);
@@ -1537,7 +1553,7 @@ public class Mips3 {
                     break;
                 case 58: // DSRL
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = this.regs[rt] >>> ((ex_op>>>6)&31);
@@ -1545,7 +1561,7 @@ public class Mips3 {
                     break;
                 case 59: // DSRA
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = this.regs[rt] >> ((ex_op>>>6)&31);
@@ -1554,7 +1570,7 @@ public class Mips3 {
 
                 case 60: // DSLL32
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = this.regs[rt] << (32+((ex_op>>>6)&31));
@@ -1562,7 +1578,7 @@ public class Mips3 {
                     break;
                 case 62: // DSRL32
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = this.regs[rt] >>> (32+((ex_op>>>6)&31));
@@ -1570,7 +1586,7 @@ public class Mips3 {
                     break;
                 case 63: // DSRA32
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rd] = this.regs[rt] >> (32+((ex_op>>>6)&31));
@@ -1585,7 +1601,7 @@ public class Mips3 {
                     }
 
                     System.err.printf("RI Special: %d\n", opcode_func);
-                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                    fault(MFault.RI, ex_pc, ex_bd);
                     break;
             }
         } else {
@@ -1626,32 +1642,32 @@ public class Mips3 {
 
                     case 8: // TGEI
                         if(this.regs[rs] >= (long)(short)ex_op) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                            this.fault(MFault.Tr, ex_pc, ex_bd);
                         }
                         break;
                     case 9: // TGEIU
                         if((this.regs[rs]^0x8000000000000000L) >= (0x8000000000000000L^(long)(short)ex_op)) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                            this.fault(MFault.Tr, ex_pc, ex_bd);
                         }
                         break;
                     case 10: // TLTI
                         if(this.regs[rs] < (long)(short)ex_op) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                            this.fault(MFault.Tr, ex_pc, ex_bd);
                         }
                         break;
                     case 11: // TLTIU
                         if((this.regs[rs]^0x8000000000000000L) < (0x8000000000000000L^(long)(short)ex_op)) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                            this.fault(MFault.Tr, ex_pc, ex_bd);
                         }
                         break;
                     case 12: // TEQ
                         if(this.regs[rs] == (long)(short)ex_op) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                            this.fault(MFault.Tr, ex_pc, ex_bd);
                         }
                         break;
                     case 14: // TNE
                         if(this.regs[rs] != (long)(short)ex_op) {
-                            this.fault(MFault.Tr, MPipelineStage.EX, ex_pc, ex_bd);
+                            this.fault(MFault.Tr, ex_pc, ex_bd);
                         }
                         break;
 
@@ -1694,7 +1710,7 @@ public class Mips3 {
                         }
 
                         System.err.printf("RI RegImm: %d\n", rt);
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                 } break;
 
@@ -1738,7 +1754,7 @@ public class Mips3 {
                             ? wb_result < (int)this.regs[rs]
                             : wb_result > (int)this.regs[rs]
                             ) {
-                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.Ov, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rt] = wb_result;
@@ -1777,7 +1793,7 @@ public class Mips3 {
                 // COP0
 
                 case 16: if((this.c0regs[C0_STATUS]&(1<<28)) == 0 && !kernelMode) {
-                    fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                    fault(MFault.CpU, ex_pc, ex_bd);
                     this.c0regs[C0_CAUSE] |= 0<<28;
                 } else if(rs < 16) {
                     int rd = (ex_op >>> 11) & 31;
@@ -1805,13 +1821,13 @@ public class Mips3 {
 
                             default:
                                 System.err.printf("RI MFC0: %d\n", rd);
-                                fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                                fault(MFault.RI, ex_pc, ex_bd);
                                 break;
                         } break;
 
                         // DMFC0
                         case 1: if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            fault(MFault.RI, ex_pc, ex_bd);
                             break;
                         } else {
                             switch(rd) {
@@ -1836,7 +1852,7 @@ public class Mips3 {
 
                                 default:
                                     System.err.printf("RI DMFC0: %d\n", rd);
-                                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                                    fault(MFault.RI, ex_pc, ex_bd);
                                     break;
                             }
                         } break;
@@ -1903,13 +1919,13 @@ public class Mips3 {
 
                             default:
                                 System.err.printf("RI MTC0: %d\n", rd);
-                                fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                                fault(MFault.RI, ex_pc, ex_bd);
                                 break;
                         } break;
 
                         // DMTC0
                         case 5: if(!allow64) {
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            fault(MFault.RI, ex_pc, ex_bd);
                             break;
                         } else {
                             switch(rd) {
@@ -1973,7 +1989,7 @@ public class Mips3 {
 
                                 default:
                                     System.err.printf("RI DMTC0: %d\n", rd);
-                                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                                    fault(MFault.RI, ex_pc, ex_bd);
                                     break;
                             }
                         } break;
@@ -2037,7 +2053,7 @@ public class Mips3 {
 
                         default:
                             System.err.printf("RI COP0: %d\n", opcode_func);
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            fault(MFault.RI, ex_pc, ex_bd);
                             break;
                     }
                 } break;
@@ -2046,14 +2062,14 @@ public class Mips3 {
 
                 case 17:
                     // TODO!
-                    fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                    fault(MFault.CpU, ex_pc, ex_bd);
                     this.c0regs[C0_CAUSE] |= 1<<28;
                     break;
 
                 // COP2
 
                 case 18:
-                    fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                    fault(MFault.CpU, ex_pc, ex_bd);
                     this.c0regs[C0_CAUSE] |= 2<<28;
                     break;
 
@@ -2094,7 +2110,7 @@ public class Mips3 {
 
                 case 24: // DADDI
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     }
                     wb_result = this.regs[rs] + (long)(short)(ex_op);
@@ -2102,7 +2118,7 @@ public class Mips3 {
                             ? wb_result < (long)this.regs[rs]
                             : wb_result > (long)this.regs[rs]
                             ) {
-                        fault(MFault.Ov, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.Ov, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rt] = wb_result;
@@ -2111,7 +2127,7 @@ public class Mips3 {
 
                 case 25: // DADDIU
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     } else {
                         this.regs[rt] = this.regs[rs] + (long)(short)ex_op;
@@ -2124,11 +2140,11 @@ public class Mips3 {
                     try {
                         this.regs[rt] = (long)readData8(this.regs[rs] + (long)(short)ex_op);
                     } catch (MipsTlbMissException e) {
-                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.TLBL, ex_pc, ex_bd);
                     } catch (MipsAddressErrorException e) {
-                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.AdEL, ex_pc, ex_bd);
                     } catch (MipsBusErrorException e) {
-                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.DBE, ex_pc, ex_bd);
                     }
                     break;
 
@@ -2136,11 +2152,11 @@ public class Mips3 {
                     try {
                         this.regs[rt] = (long)readData16(this.regs[rs] + (long)(short)ex_op);
                     } catch (MipsTlbMissException e) {
-                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.TLBL, ex_pc, ex_bd);
                     } catch (MipsAddressErrorException e) {
-                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.AdEL, ex_pc, ex_bd);
                     } catch (MipsBusErrorException e) {
-                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.DBE, ex_pc, ex_bd);
                     }
                     break;
 
@@ -2148,11 +2164,11 @@ public class Mips3 {
                     try {
                         this.regs[rt] = (long)readData32(this.regs[rs] + (long)(short)ex_op);
                     } catch (MipsTlbMissException e) {
-                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.TLBL, ex_pc, ex_bd);
                     } catch (MipsAddressErrorException e) {
-                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.AdEL, ex_pc, ex_bd);
                     } catch (MipsBusErrorException e) {
-                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.DBE, ex_pc, ex_bd);
                     }
                     break;
 
@@ -2160,11 +2176,11 @@ public class Mips3 {
                     try {
                         this.regs[rt] = 0xFFL&(long)readData8(this.regs[rs] + (long)(short)ex_op);
                     } catch (MipsTlbMissException e) {
-                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.TLBL, ex_pc, ex_bd);
                     } catch (MipsAddressErrorException e) {
-                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.AdEL, ex_pc, ex_bd);
                     } catch (MipsBusErrorException e) {
-                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.DBE, ex_pc, ex_bd);
                     }
                     break;
 
@@ -2172,11 +2188,11 @@ public class Mips3 {
                     try {
                         this.regs[rt] = 0xFFFFL&(long)readData16(this.regs[rs] + (long)(short)ex_op);
                     } catch (MipsTlbMissException e) {
-                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.TLBL, ex_pc, ex_bd);
                     } catch (MipsAddressErrorException e) {
-                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.AdEL, ex_pc, ex_bd);
                     } catch (MipsBusErrorException e) {
-                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.DBE, ex_pc, ex_bd);
                     }
                     break;
 
@@ -2184,11 +2200,11 @@ public class Mips3 {
                     try {
                         this.regs[rt] = 0xFFFFFFFFL&(long)readData32(this.regs[rs] + (long)(short)ex_op);
                     } catch (MipsTlbMissException e) {
-                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.TLBL, ex_pc, ex_bd);
                     } catch (MipsAddressErrorException e) {
-                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.AdEL, ex_pc, ex_bd);
                     } catch (MipsBusErrorException e) {
-                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.DBE, ex_pc, ex_bd);
                     }
                     break;
 
@@ -2204,13 +2220,13 @@ public class Mips3 {
                     try {
                         writeData8(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
                     } catch (MipsTlbModException e) {
-                        fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.Mod, ex_pc, ex_bd);
                     } catch (MipsTlbMissException e) {
-                        fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.TLBS, ex_pc, ex_bd);
                     } catch (MipsAddressErrorException e) {
-                        fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.AdES, ex_pc, ex_bd);
                     } catch (MipsBusErrorException e) {
-                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.DBE, ex_pc, ex_bd);
                     }
                     break;
 
@@ -2218,13 +2234,13 @@ public class Mips3 {
                     try {
                         writeData16(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
                     } catch (MipsTlbModException e) {
-                        fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.Mod, ex_pc, ex_bd);
                     } catch (MipsTlbMissException e) {
-                        fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.TLBS, ex_pc, ex_bd);
                     } catch (MipsAddressErrorException e) {
-                        fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.AdES, ex_pc, ex_bd);
                     } catch (MipsBusErrorException e) {
-                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.DBE, ex_pc, ex_bd);
                     }
                     break;
 
@@ -2232,13 +2248,13 @@ public class Mips3 {
                     try {
                         writeData32(this.regs[rs] + (long)(short)ex_op, (int)this.regs[rt]);
                     } catch (MipsTlbModException e) {
-                        fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.Mod, ex_pc, ex_bd);
                     } catch (MipsTlbMissException e) {
-                        fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.TLBS, ex_pc, ex_bd);
                     } catch (MipsAddressErrorException e) {
-                        fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.AdES, ex_pc, ex_bd);
                     } catch (MipsBusErrorException e) {
-                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.DBE, ex_pc, ex_bd);
                     }
                     break;
 
@@ -2251,7 +2267,7 @@ public class Mips3 {
                 // Cache ops
 
                 case 47: if((this.c0regs[C0_STATUS]&(1<<28)) == 0 && !kernelMode) {
-                    fault(MFault.CpU, MPipelineStage.EX, ex_pc, ex_bd);
+                    fault(MFault.CpU, ex_pc, ex_bd);
                     this.c0regs[C0_CAUSE] |= 0<<28;
                 } else {
                     long vaddr = this.regs[rs] + (long)(short)ex_op;
@@ -2375,9 +2391,12 @@ public class Mips3 {
 
                         default:
                             System.err.printf("RI CACHE: %d\n", rt);
-                            fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                            fault(MFault.RI, ex_pc, ex_bd);
                             break;
                     }
+
+                    // For safety, throw an exception
+                    throw new MipsCacheFlushException();
 
                 } break;
 
@@ -2385,17 +2404,17 @@ public class Mips3 {
 
                 case 55: // LD
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     }
                     try {
                         this.regs[rt] = readData64(this.regs[rs] + (long)(short)ex_op);
                     } catch (MipsTlbMissException e) {
-                        fault(MFault.TLBL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.TLBL, ex_pc, ex_bd);
                     } catch (MipsAddressErrorException e) {
-                        fault(MFault.AdEL, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.AdEL, ex_pc, ex_bd);
                     } catch (MipsBusErrorException e) {
-                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.DBE, ex_pc, ex_bd);
                     }
                     break;
 
@@ -2403,19 +2422,19 @@ public class Mips3 {
 
                 case 63: // SD
                     if(!allow64) {
-                        fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                        fault(MFault.RI, ex_pc, ex_bd);
                         break;
                     }
                     try {
                         writeData64(this.regs[rs] + (long)(short)ex_op, this.regs[rt]);
                     } catch (MipsTlbModException e) {
-                        fault(MFault.Mod, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.Mod, ex_pc, ex_bd);
                     } catch (MipsTlbMissException e) {
-                        fault(MFault.TLBS, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.TLBS, ex_pc, ex_bd);
                     } catch (MipsAddressErrorException e) {
-                        fault(MFault.AdES, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.AdES, ex_pc, ex_bd);
                     } catch (MipsBusErrorException e) {
-                        fault(MFault.DBE, MPipelineStage.DC, ex_pc, ex_bd);
+                        fault(MFault.DBE, ex_pc, ex_bd);
                     }
                     break;
 
@@ -2423,7 +2442,7 @@ public class Mips3 {
 
                 default:
                     System.err.printf("RI: %d\n", opcode_type);
-                    fault(MFault.RI, MPipelineStage.EX, ex_pc, ex_bd);
+                    fault(MFault.RI, ex_pc, ex_bd);
                     break;
             }
         }
@@ -2500,7 +2519,7 @@ public class Mips3 {
             long timeBeg = System.currentTimeMillis();
             while(this.cycleBudget > 0) {
                 //System.out.printf("PC = %016X / v0 = %016X\n", this.pc, this.regs[2]);
-                runOp();
+                runOps();
             }
             long timeEnd = System.currentTimeMillis();
             if(false) {
