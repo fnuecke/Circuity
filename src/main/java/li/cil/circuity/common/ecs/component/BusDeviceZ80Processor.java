@@ -46,7 +46,7 @@ public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
         // --------------------------------------------------------------------- //
 
         public BusDeviceZ80Impl() {
-            this.z80 = new Z80(new BusControllerAccess(this::getBusController, 0), new BusControllerAccess(this::getBusController, 0x10000));
+            this.z80 = new Z80(new BusControllerAccess(this::getBusController, 0, 0xFFFF), new BusControllerAccess(this::getBusController, 0x10000, 0x00FF));
         }
 
         // --------------------------------------------------------------------- //

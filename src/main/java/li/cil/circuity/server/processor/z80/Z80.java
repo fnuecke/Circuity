@@ -460,12 +460,12 @@ public final class Z80 {
 
     private byte peek8(final short address) {
         cycleBudget -= 3;
-        return (byte) memory.read(address & 0xFFFF);
+        return (byte) memory.read(address);
     }
 
     private void poke8(final short address, final byte value) {
         cycleBudget -= 3;
-        memory.write(address & 0xFFFF, value & 0xFF);
+        memory.write(address, value & 0xFF);
     }
 
     private byte read8() {
@@ -585,14 +585,12 @@ public final class Z80 {
 
     private byte ioRead(final short port) {
         cycleBudget -= 4;
-        // A15-A8 lines pulled down to 0
-        // to prevent issues with the bus controller
-        return (byte) io.read(port & 0x00FF);
+        return (byte) io.read(port);
     }
 
     private void ioWrite(final short port, final byte data) {
         cycleBudget -= 4;
-        io.write(port & 0x00FF, data & 0xFF);
+        io.write(port, data & 0xFF);
     }
 
     private byte ioRead() {
@@ -1480,10 +1478,10 @@ public final class Z80 {
                                     }
                                 }
                                 case 2: // OUT (n),A
-                                    ioWrite((short) (0x0101*(read8() & 0xFF)), A);
+                                    ioWrite((short) (0x0101 * (read8() & 0xFF)), A);
                                     return;
                                 case 3: // IN A,(n)
-                                    A = ioRead((short) (0x0101*(read8() & 0xFF)));
+                                    A = ioRead((short) (0x0101 * (read8() & 0xFF)));
                                     return;
                                 case 4: { // EX (SP), HL
                                     final short t = r.r16[IDX_HL_IX_IY].apply();
