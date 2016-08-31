@@ -1,5 +1,7 @@
 package li.cil.circuity.client.gui;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.common.ecs.component.BusDeviceScreen;
 import net.minecraft.client.gui.GuiScreen;
@@ -9,10 +11,14 @@ import net.minecraft.client.renderer.VertexBuffer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import org.lwjgl.opengl.GL11;
 
+import java.io.IOException;
+
 public final class GuiScreenImpl extends GuiScreen {
     // --------------------------------------------------------------------- //
     // Settings
 
+    static final int SCREEN_RES_PIXELS_W = 320;
+    static final int SCREEN_RES_PIXELS_H = 200;
     static final int WINDOW_GAP_SIZE = 5;
     static final int SCREEN_BORDER_SIZE = 10;
     static final int INNER_BORDER_SIZE = 5;
@@ -45,10 +51,10 @@ public final class GuiScreenImpl extends GuiScreen {
         int innerH = sh - WINDOW_GAP_SIZE - SCREEN_BORDER_SIZE - INNER_BORDER_SIZE;
 
         // Shrink to fit aspect ratio
-        if (innerW * BusDeviceScreen.SCREEN_RES_PIXELS_H > innerH * BusDeviceScreen.SCREEN_RES_PIXELS_W) {
-            innerW = (innerH * BusDeviceScreen.SCREEN_RES_PIXELS_W) / BusDeviceScreen.SCREEN_RES_PIXELS_H;
+        if (innerW * SCREEN_RES_PIXELS_H > innerH * SCREEN_RES_PIXELS_W) {
+            innerW = (innerH * SCREEN_RES_PIXELS_W) / SCREEN_RES_PIXELS_H;
         } else {
-            innerH = (innerW * BusDeviceScreen.SCREEN_RES_PIXELS_H) / BusDeviceScreen.SCREEN_RES_PIXELS_W;
+            innerH = (innerW * SCREEN_RES_PIXELS_H) / SCREEN_RES_PIXELS_W;
         }
 
         // Get screen rect size
@@ -95,6 +101,15 @@ public final class GuiScreenImpl extends GuiScreen {
             renderer.render(innerW, innerH);
             GlStateManager.translate(-(scx - innerW / 2f), -(scy - innerH / 2f), 0f);
         }
+    }
+
+    @Override
+    protected void keyTyped(final char typedChar, final int keyCode) throws IOException {
+        super.keyTyped(typedChar, keyCode);
+
+        final ByteBuf data = Unpooled.buffer(1);
+        data.writeByte((byte) typedChar);
+        screen.sendData(data);
     }
 
     @Override

@@ -1,13 +1,16 @@
 package li.cil.circuity.common.ecs.component;
 
+import io.netty.buffer.ByteBuf;
 import li.cil.circuity.ModCircuity;
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AbstractAddressableInterruptSource;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.BusChangeListener;
+import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
+import li.cil.circuity.api.bus.device.InterruptList;
 import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.client.gui.GuiType;
 import li.cil.circuity.common.Constants;
@@ -18,22 +21,24 @@ import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.synchronization.value.SynchronizedUUID;
 import li.cil.lib.util.PlayerUtil;
+import li.cil.lib.util.RingBuffer;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.TextComponentTranslation;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
 
 public class BusDeviceScreen extends AbstractComponentBusDevice implements ActivationListener {
+    private final Object lock = new Object();
+
     @Serialize
     private final ScreenImpl device = new ScreenImpl();
     @Serialize
     private final SynchronizedUUID rendererId = new SynchronizedUUID();
-
-    public static final int SCREEN_RES_PIXELS_W = 320;
-    public static final int SCREEN_RES_PIXELS_H = 200;
 
     // --------------------------------------------------------------------- //
 
@@ -42,6 +47,7 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
     }
 
     // --------------------------------------------------------------------- //
+
     @Nullable
     public ScreenRenderer getScreenRenderer() {
         final UUID id = rendererId.get();
@@ -69,6 +75,16 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
         }
     }
 
+    @Override
+    public void handleComponentData(final ByteBuf data) {
+        synchronized (lock) {
+            if (device.buffer.isWritable()) {
+                device.buffer.write(data.readByte());
+            }
+            device.triggerInterrupt(0, 0);
+        }
+    }
+
     // --------------------------------------------------------------------- //
     // ActivationListener
 
@@ -91,16 +107,32 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
         return device;
     }
 
+    // --------------------------------------------------------------------- //
+
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SCREEN, Constants.DeviceInfo.SCREEN_NAME);
 
     @Serializable
-    public final class ScreenImpl extends AbstractAddressable implements AddressHint, BusChangeListener {
+    public final class ScreenImpl extends AbstractAddressableInterruptSource implements AddressHint, BusStateListener, BusChangeListener {
+        @Serialize
+        public RingBuffer buffer = new RingBuffer(16);
+
         // --------------------------------------------------------------------- //
-        // AbstractAddressable
+        // AbstractAddressableInterruptSource
 
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
-            return memory.take(Constants.SCREEN_ADDRESS, 1);
+            return memory.take(Constants.SCREEN_ADDRESS, 4);
+        }
+
+        @Override
+        protected int[] validateEmittedInterrupts(final InterruptList interrupts) {
+            return interrupts.take(1);
+        }
+
+        @Nullable
+        @Override
+        public ITextComponent getInterruptName(final int interruptId) {
+            return new TextComponentTranslation(Constants.I18N.INTERRUPT_SOURCE_KEYBOARD_INPUT);
         }
 
         // --------------------------------------------------------------------- //
@@ -114,11 +146,35 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
 
         @Override
         public int read(final int address) {
+            switch (address) {
+                case 0: { // Number of available renderers.
+                    return 0;
+                }
+                case 1: { // Selected renderer.
+                    return 0;
+                }
+                case 2: { // Read UUID of selected renderer.
+                    return 0;
+                }
+                case 3: { // Read keyboard input.
+                    synchronized (BusDeviceScreen.this.lock) {
+                        return buffer.isReadable() ? buffer.read() : 0;
+                    }
+                }
+            }
             return 0;
         }
 
         @Override
         public void write(final int address, final int value) {
+            switch (address) {
+                case 1: { // Select renderer.
+                    break;
+                }
+                case 2: { // Reset UUID read index.
+                    break;
+                }
+            }
         }
 
         // --------------------------------------------------------------------- //
@@ -127,6 +183,18 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
         @Override
         public int getSortHint() {
             return Constants.SCREEN_ADDRESS;
+        }
+
+        // --------------------------------------------------------------------- //
+        // BusStateListener
+
+        @Override
+        public void handleBusOnline() {
+        }
+
+        @Override
+        public void handleBusOffline() {
+            buffer.clear();
         }
 
         // --------------------------------------------------------------------- //
