@@ -63,6 +63,10 @@ public abstract class AbstractComponent implements Component {
 
     // --------------------------------------------------------------------- //
 
+    public boolean isValid() {
+        return getManager().hasComponent(this);
+    }
+
     public World getWorld() {
         final Optional<Location> location = getComponent(Location.class);
         if (location.isPresent()) {
