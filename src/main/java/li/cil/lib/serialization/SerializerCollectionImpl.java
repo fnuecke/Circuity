@@ -23,6 +23,7 @@ import li.cil.lib.serialization.serializer.Serializer;
 import li.cil.lib.serialization.serializer.ShortSerializer;
 import li.cil.lib.serialization.serializer.StringSerializer;
 import li.cil.lib.serialization.serializer.TileEntitySerializer;
+import li.cil.lib.serialization.serializer.UUIDSerializer;
 import li.cil.lib.serialization.serializer.WorldSerializer;
 import net.minecraft.nbt.NBTBase;
 
@@ -66,6 +67,7 @@ public final class SerializerCollectionImpl implements SerializerCollection {
         serializerList.add(new EnumSerializer());
         serializerList.add(new ClassSerializer());
         serializerList.add(new FutureSerializer(this));
+        serializerList.add(new UUIDSerializer());
 
         // Array and collection serializers.
         serializerList.add(new ArraySerializer(this));
