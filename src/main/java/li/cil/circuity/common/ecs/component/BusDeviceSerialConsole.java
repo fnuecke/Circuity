@@ -230,17 +230,8 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
             GlStateManager.pushMatrix();
 
             for (int y = 0; y < CONS_HEIGHT; y++) {
-                // TODO Write a font renderer that operates directly on the byte array.
-                final StringBuilder sb = new StringBuilder();
-                for (int x = 0; x < CONS_WIDTH; x++) {
-                    final char ch = (char) data[((y + yOffset) % CONS_HEIGHT) * CONS_WIDTH + x];
-                    if (ch >= (char) 0x20) {
-                        sb.append(ch);
-                    } else if (ch == '\t') {
-                        sb.append(' ');
-                    }
-                }
-                fontRenderer.drawString(sb.toString());
+                fontRenderer.drawString(data, ((y + yOffset) % CONS_HEIGHT) * CONS_WIDTH, CONS_WIDTH);
+
                 GlStateManager.translate(0, fontRenderer.getCharHeight(), 0);
             }
 

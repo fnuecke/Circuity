@@ -23,6 +23,15 @@ public interface FontRenderer {
     void drawString(final String string, final int maxChars);
 
     /**
+     * Render a segment of a byte array representing a list of characters.
+     *
+     * @param chars  the byte array with the characters.
+     * @param offset the offset in the array to start reading at.
+     * @param length the number of characters to render.
+     */
+    void drawString(final byte[] chars, final int offset, final int length);
+
+    /**
      * Get the width of the characters drawn with the font renderer, in pixels.
      *
      * @return the width of the drawn characters.

@@ -4,6 +4,9 @@ import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.common.ecs.component.BusDeviceScreen;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.VertexBuffer;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
 import org.lwjgl.opengl.GL11;
 
 public final class GuiScreenImpl extends GuiScreen {
@@ -25,6 +28,7 @@ public final class GuiScreenImpl extends GuiScreen {
     }
 
     // --------------------------------------------------------------------- //
+    // GuiScreen
 
     @Override
     public void drawScreen(final int mx, final int my, final float unk1) {
@@ -56,37 +60,37 @@ public final class GuiScreenImpl extends GuiScreen {
         final int outerH = innerBorderH + SCREEN_BORDER_SIZE;
 
         // Set up GL state
-        GlStateManager.pushAttrib();
         GlStateManager.disableTexture2D();
         GlStateManager.blendFunc(GL11.GL_ONE, GL11.GL_ZERO);
 
         // Start drawing frame
-        GlStateManager.glBegin(GL11.GL_QUADS);
+        final Tessellator tessellator = Tessellator.getInstance();
+        final VertexBuffer buffer = tessellator.getBuffer();
+        buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_COLOR);
 
         // Outer rectangle
-        GlStateManager.color(0.8f, 0.7f, 0.6f);
-        GlStateManager.glVertex3f(scx - outerW / 2f, scy - outerH / 2f, 0f);
-        GlStateManager.glVertex3f(scx - outerW / 2f, scy + outerH / 2f, 0f);
-        GlStateManager.glVertex3f(scx + outerW / 2f, scy + outerH / 2f, 0f);
-        GlStateManager.glVertex3f(scx + outerW / 2f, scy - outerH / 2f, 0f);
+        buffer.pos(scx - outerW / 2f, scy - outerH / 2f, 0f).color(0.8f, 0.7f, 0.6f, 1f).endVertex();
+        buffer.pos(scx - outerW / 2f, scy + outerH / 2f, 0f).color(0.8f, 0.7f, 0.6f, 1f).endVertex();
+        buffer.pos(scx + outerW / 2f, scy + outerH / 2f, 0f).color(0.8f, 0.7f, 0.6f, 1f).endVertex();
+        buffer.pos(scx + outerW / 2f, scy - outerH / 2f, 0f).color(0.8f, 0.7f, 0.6f, 1f).endVertex();
 
         // Inner rectangle (actual screen)
-        GlStateManager.color(0.0f, 0.0f, 0.0f);
-        GlStateManager.glVertex3f(scx - innerBorderW / 2f, scy - innerBorderH / 2f, 0f);
-        GlStateManager.glVertex3f(scx - innerBorderW / 2f, scy + innerBorderH / 2f, 0f);
-        GlStateManager.glVertex3f(scx + innerBorderW / 2f, scy + innerBorderH / 2f, 0f);
-        GlStateManager.glVertex3f(scx + innerBorderW / 2f, scy - innerBorderH / 2f, 0f);
+        buffer.pos(scx - innerBorderW / 2f, scy - innerBorderH / 2f, 0f).color(0f, 0f, 0f, 1f).endVertex();
+        buffer.pos(scx - innerBorderW / 2f, scy + innerBorderH / 2f, 0f).color(0f, 0f, 0f, 1f).endVertex();
+        buffer.pos(scx + innerBorderW / 2f, scy + innerBorderH / 2f, 0f).color(0f, 0f, 0f, 1f).endVertex();
+        buffer.pos(scx + innerBorderW / 2f, scy - innerBorderH / 2f, 0f).color(0f, 0f, 0f, 1f).endVertex();
 
         // Finish drawing frame
-        GlStateManager.glEnd();
+        tessellator.draw();
 
         // Clean up GL state
         GlStateManager.enableTexture2D();
-        GlStateManager.popAttrib();
+        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
 
         // Draw screen
         final ScreenRenderer renderer = screen.getScreenRenderer();
         if (renderer != null) {
+            GlStateManager.color(1f, 1f, 1f);
             GlStateManager.translate((scx - innerW / 2f), (scy - innerH / 2f), 0f);
             renderer.render(innerW, innerH);
             GlStateManager.translate(-(scx - innerW / 2f), -(scy - innerH / 2f), 0f);

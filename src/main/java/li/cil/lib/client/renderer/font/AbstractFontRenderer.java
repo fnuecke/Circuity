@@ -24,33 +24,37 @@ public abstract class AbstractFontRenderer implements FontRenderer {
 
     // --------------------------------------------------------------------- //
 
+    @Override
     public void drawString(final String value) {
         drawString(value, value.length());
     }
 
+    @Override
     public void drawString(final String value, final int maxChars) {
-        GlStateManager.pushMatrix();
-        GlStateManager.depthMask(false);
-
-        Minecraft.getMinecraft().getTextureManager().bindTexture(getTextureLocation());
-
-        final Tessellator tessellator = Tessellator.getInstance();
-        final VertexBuffer buffer = tessellator.getBuffer();
-        buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
+        final VertexBuffer buffer = prologue(getTextureLocation());
 
         float tx = 0f;
-        final int end = Math.min(maxChars, value.length());
-        for (int i = 0; i < end; i++) {
+        for (int i = 0, end = Math.min(maxChars, value.length()); i < end; i++) {
             final char ch = value.charAt(i);
             drawChar(tx, ch, buffer);
             tx += getCharWidth() + getGapU();
         }
 
-        tessellator.draw();
+        epilogue();
+    }
 
-        GlStateManager.depthMask(true);
-        GlStateManager.popMatrix();
-        GlStateManager.color(1, 1, 1);
+    @Override
+    public void drawString(final byte[] chars, final int offset, final int length) {
+        final VertexBuffer buffer = prologue(getTextureLocation());
+
+        float tx = 0f;
+        for (int i = offset, end = i + length; i < end; i++) {
+            final char ch = (char) chars[i];
+            drawChar(tx, ch, buffer);
+            tx += getCharWidth() + getGapU();
+        }
+
+        epilogue();
     }
 
     // --------------------------------------------------------------------- //
@@ -70,6 +74,28 @@ public abstract class AbstractFontRenderer implements FontRenderer {
     }
 
     // --------------------------------------------------------------------- //
+
+    private static VertexBuffer prologue(final ResourceLocation textureLocation) {
+        GlStateManager.pushMatrix();
+        GlStateManager.depthMask(false);
+
+        Minecraft.getMinecraft().getTextureManager().bindTexture(textureLocation);
+
+        final Tessellator tessellator = Tessellator.getInstance();
+        final VertexBuffer buffer = tessellator.getBuffer();
+        buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
+
+        return buffer;
+    }
+
+    private static void epilogue() {
+        final Tessellator tessellator = Tessellator.getInstance();
+
+        tessellator.draw();
+
+        GlStateManager.depthMask(true);
+        GlStateManager.popMatrix();
+    }
 
     private void drawChar(final float x, final char ch, final VertexBuffer buffer) {
         if (Character.isWhitespace(ch) || Character.isISOControl(ch)) {
