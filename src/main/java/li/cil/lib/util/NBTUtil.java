@@ -1,19 +1,19 @@
 package li.cil.lib.util;
 
 import com.google.common.base.Throwables;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.ByteBufOutputStream;
 import net.minecraft.nbt.CompressedStreamTools;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTSizeTracker;
-import net.minecraft.network.PacketBuffer;
 
 import javax.annotation.Nullable;
 import java.io.DataOutput;
 import java.io.IOException;
 
 public final class NBTUtil {
-    public static void write(@Nullable final NBTBase nbt, final PacketBuffer packet) {
+    public static void write(@Nullable final NBTBase nbt, final ByteBuf packet) {
         try {
             final DataOutput stream = new ByteBufOutputStream(packet);
             if (nbt != null) {
@@ -27,7 +27,7 @@ public final class NBTUtil {
     }
 
     @Nullable
-    public static NBTBase read(final PacketBuffer packet) {
+    public static NBTBase read(final ByteBuf packet) {
         try {
             final ByteBufInputStream stream = new ByteBufInputStream(packet);
             stream.mark(0);
