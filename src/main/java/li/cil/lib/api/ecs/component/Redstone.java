@@ -14,7 +14,7 @@ import javax.annotation.Nullable;
  * @see li.cil.lib.ecs.component.RedstoneController
  * @see li.cil.lib.ecs.component.SidedRedstoneController
  */
-public interface Redstone {
+public interface Redstone extends Component {
     /**
      * Get the current input signal on the specified side.
      * <p>

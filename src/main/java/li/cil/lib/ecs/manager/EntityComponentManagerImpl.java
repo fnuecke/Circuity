@@ -29,9 +29,9 @@ import java.util.WeakHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
-public final class EntityComponentManagerImpl implements EntityComponentManager, ITickable, LateTickable {
+public final class EntityComponentManagerImpl implements EntityComponentManager {
     private static final Comparator<ITickable> TICKABLE_COMPARATOR = Comparator.comparing(t -> ((Component) t).getId());
-    private static final Comparator<LateTickable> LATE_TICKABLE_COMPARATOR = Comparator.comparing(t -> ((Component) t).getId());
+    private static final Comparator<LateTickable> LATE_TICKABLE_COMPARATOR = Comparator.comparing(Component::getId);
 
     // --------------------------------------------------------------------- //
 
@@ -310,7 +310,6 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
     }
 
     // --------------------------------------------------------------------- //
-    // ITickable
 
     /**
      * Called at the beginning of each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
@@ -319,7 +318,6 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
      * Processes lists of added and removed components, then updates all
      * tickable components currently managed by this manager.
      */
-    @Override
     public void update() {
         lock.lock();
         try {
@@ -329,9 +327,6 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
         }
     }
 
-    // --------------------------------------------------------------------- //
-    // LateTickable
-
     /**
      * Called at the end of each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
      * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
@@ -339,7 +334,6 @@ public final class EntityComponentManagerImpl implements EntityComponentManager,
      * Processes lists of added and removed components, then updates all
      * tickable components currently managed by this manager.
      */
-    @Override
     public void lateUpdate() {
         lock.lock();
         try {
