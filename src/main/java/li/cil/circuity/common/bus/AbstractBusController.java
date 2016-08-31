@@ -11,12 +11,14 @@ import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.AsyncTickable;
+import li.cil.circuity.api.bus.device.BusChangeListener;
 import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.bus.device.InterruptList;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.api.bus.device.InterruptSource;
+import li.cil.circuity.api.bus.device.PersistentIdentifiable;
 import li.cil.circuity.common.Constants;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.scheduler.ScheduledCallback;
@@ -41,6 +43,7 @@ import java.util.NoSuchElementException;
 import java.util.PrimitiveIterator;
 import java.util.Queue;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -153,6 +156,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
      * completed. It will then contain the list of all connected devices.
      */
     private final Set<BusDevice> devices = new HashSet<>();
+
+    /**
+     * Direct access to bus devices implementing {@link li.cil.circuity.api.bus.device.PersistentIdentifiable}.
+     */
+    private final Map<UUID, BusDevice> deviceById = new HashMap<>();
 
     /**
      * The list of state aware bus devices, i.e. device that are notified when
@@ -416,6 +424,17 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     }
 
     @Override
+    public Iterable<BusDevice> getDevices() {
+        return devices;
+    }
+
+    @Nullable
+    @Override
+    public BusDevice getDevice(final UUID persistentId) {
+        return deviceById.get(persistentId);
+    }
+
+    @Override
     public int getWordSize() {
         return wordSize;
     }
@@ -632,6 +651,7 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 }
             } finally {
                 devices.clear();
+                deviceById.clear();
                 stateAwares.clear();
                 tickables.clear();
                 addressables.clear();
@@ -679,6 +699,10 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     }
 
     private void scan() {
+        // Track if any devices were added or removed since the last scan.
+        // Used to avoid unnecessary calls to BusChangeListeners.
+        boolean anyChanges = false;
+
         // ----------------------------------------------------------------- //
         // Build new list of devices --------------------------------------- //
         // ----------------------------------------------------------------- //
@@ -750,6 +774,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                 // is gone, and we have to update our internal data.
                 if (!newDevices.remove(device)) {
                     it.remove();
+
+                    if (device instanceof PersistentIdentifiable) {
+                        final PersistentIdentifiable identifiable = (PersistentIdentifiable) device;
+                        deviceById.remove(identifiable.getPersistentId());
+                    }
 
                     if (device instanceof BusStateListener) {
                         stateAwares.remove(device);
@@ -834,6 +863,8 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     }
 
                     device.setBusController(null);
+
+                    anyChanges = true;
                 }
             }
 
@@ -862,6 +893,11 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
             devices.add(device);
 
             device.setBusController(this);
+
+            if (device instanceof PersistentIdentifiable) {
+                final PersistentIdentifiable identifiable = (PersistentIdentifiable) device;
+                deviceById.put(identifiable.getPersistentId(), device);
+            }
 
             if (device instanceof BusStateListener) {
                 stateAwares.add((BusStateListener) device);
@@ -899,6 +935,8 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     ModCircuity.getLogger().warn("InterruptSink wants to use an interrupt ID that is invalid or already in use or provided duplicate IDs. This indicates an incorrect implementation in '{}'.", device.getClass().getName());
                 }
             }
+
+            anyChanges = true;
         }
 
         // Ensure capacity of interrupt map is sufficiently large if new sources were added.
@@ -925,6 +963,10 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     setAddressMap(memory, addressable);
                     addressable.setMemory(memory);
                 }
+            }
+
+            if (anyChanges || didAnyAddressesOverlap) {
+                notifyChangeListeners();
             }
         } else if (!didAnyAddressesOverlap) {
             addresses.clear();
@@ -964,6 +1006,10 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
                     setAddressMap(memory, addressable);
                     addressable.setMemory(memory);
                 }
+
+                if (anyChanges || didAnyAddressesOverlap) {
+                    notifyChangeListeners();
+                }
             } else {
                 scanErrored(State.ERROR_ADDRESSES_OVERLAP);
                 return;
@@ -976,6 +1022,15 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
     private void scanErrored(final State state) {
         scheduledScan = SillyBeeAPI.scheduler.scheduleIn(getBusWorld(), RESCAN_INTERVAL * Constants.TICKS_PER_SECOND, this::scanSynchronized);
         this.state = state;
+    }
+
+    private void notifyChangeListeners() {
+        for (final BusDevice device : devices) {
+            if (device instanceof BusChangeListener) {
+                final BusChangeListener listener = (BusChangeListener) device;
+                listener.handleBusChanged();
+            }
+        }
     }
 
     private boolean doAnyAddressesOverlap() {

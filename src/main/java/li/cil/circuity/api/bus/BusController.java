@@ -10,6 +10,7 @@ import li.cil.circuity.api.bus.device.InterruptSource;
 
 import javax.annotation.Nullable;
 import java.util.PrimitiveIterator;
+import java.util.UUID;
 
 /**
  * Implemented by bus controllers responsible for managing a bus.
@@ -67,6 +68,27 @@ public interface BusController extends BusSegment {
      * @return the mask based on the word size.
      */
     int getWordMask();
+
+    // --------------------------------------------------------------------- //
+
+    /**
+     * Get the list of all devices currently connected to the controller.
+     * <p>
+     * This will return an empty list if the controller is currently in an
+     * errored state.
+     *
+     * @return the list of all connected bus devices.
+     */
+    Iterable<BusDevice> getDevices();
+
+    /**
+     * Fast lookup of a device by its persistent globally unique identifier.
+     *
+     * @param persistentId the ID of the device to get.
+     * @return the device with the specified ID if it is connected to the controller; <code>null</code> otherwise.
+     */
+    @Nullable
+    BusDevice getDevice(final UUID persistentId);
 
     // --------------------------------------------------------------------- //
 
