@@ -44,6 +44,11 @@ public final class SynchronizationManagerClientImpl extends AbstractSynchronizat
         final Map<String, Field> componentFields = fieldsByName.computeIfAbsent(componentClass, k -> new HashMap<>());
         final List<SynchronizedValue> synchronizedValues = new ArrayList<>();
 
+        if (component instanceof SynchronizationListener) {
+            final SynchronizationListener listener = (SynchronizationListener) component;
+            listener.onAfterSynchronize(synchronizedValues);
+        }
+
         for (int i = 0; i < values.tagCount(); i++) {
             final NBTTagCompound valueNbt = values.getCompoundTagAt(i);
             final String fieldName = valueNbt.getString(FIELD_TAG);
@@ -67,7 +72,7 @@ public final class SynchronizationManagerClientImpl extends AbstractSynchronizat
 
         if (component instanceof SynchronizationListener) {
             final SynchronizationListener listener = (SynchronizationListener) component;
-            listener.onSynchronize(synchronizedValues);
+            listener.onAfterSynchronize(synchronizedValues);
         }
     }
 
