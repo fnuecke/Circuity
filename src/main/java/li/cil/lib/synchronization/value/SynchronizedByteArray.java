@@ -65,6 +65,10 @@ public final class SynchronizedByteArray implements SynchronizedValue {
         return element;
     }
 
+    public byte[] array() {
+        return value;
+    }
+
     // --------------------------------------------------------------------- //
     // SynchronizedValue
 

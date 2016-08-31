@@ -56,6 +56,10 @@ public final class SynchronizedIntArray implements SynchronizedValue {
         return element;
     }
 
+    public int[] array() {
+        return value;
+    }
+
     // --------------------------------------------------------------------- //
     // SynchronizedValue
 
