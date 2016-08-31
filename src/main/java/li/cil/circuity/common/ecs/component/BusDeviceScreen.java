@@ -93,7 +93,6 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SCREEN, Constants.DeviceInfo.SCREEN_NAME);
 
-
     @Serializable
     public final class ScreenImpl extends AbstractAddressable implements AddressHint, BusChangeListener {
         // --------------------------------------------------------------------- //

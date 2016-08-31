@@ -15,11 +15,12 @@ import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.api.synchronization.SynchronizationListener;
 import li.cil.lib.api.synchronization.SynchronizedValue;
+import li.cil.lib.client.renderer.font.FontRenderer;
+import li.cil.lib.client.renderer.font.FontRendererCodePage437;
 import li.cil.lib.synchronization.value.SynchronizedByteArray;
 import li.cil.lib.synchronization.value.SynchronizedInt;
 import li.cil.lib.synchronization.value.SynchronizedUUID;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
@@ -222,9 +223,12 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
 
         @Override
         public void render(final int width, final int height) {
-            final FontRenderer fontRenderer = Minecraft.getMinecraft().fontRendererObj;
+            final FontRenderer fontRenderer = FontRendererCodePage437.INSTANCE;
             final byte[] data = BusDeviceSerialConsole.this.buffer.array();
             final int yOffset = BusDeviceSerialConsole.this.scrOffY.get();
+
+            GlStateManager.pushMatrix();
+
             for (int y = 0; y < CONS_HEIGHT; y++) {
                 // TODO Write a font renderer that operates directly on the byte array.
                 final StringBuilder sb = new StringBuilder();
@@ -236,8 +240,11 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
                         sb.append(' ');
                     }
                 }
-                fontRenderer.drawString(sb.toString(), 0, y * fontRenderer.FONT_HEIGHT, 0xFFFFFF);
+                fontRenderer.drawString(sb.toString());
+                GlStateManager.translate(0, fontRenderer.getCharHeight(), 0);
             }
+
+            GlStateManager.popMatrix();
         }
 
         // --------------------------------------------------------------------- //
