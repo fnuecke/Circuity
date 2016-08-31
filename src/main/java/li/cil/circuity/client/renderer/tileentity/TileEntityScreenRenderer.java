@@ -10,8 +10,8 @@ import java.util.Optional;
 
 public class TileEntityScreenRenderer extends TileEntitySpecialRenderer<TileEntityScreen> {
     @Override
-    public void renderTileEntityAt(final TileEntityScreen te, final double x, final double y, final double z, final float partialTicks, final int destroyStage) {
-        final Optional<BusDeviceScreen> maybeScreen = te.getComponent(BusDeviceScreen.class);
+    public void renderTileEntityAt(final TileEntityScreen tileEntity, final double x, final double y, final double z, final float partialTicks, final int destroyStage) {
+        final Optional<BusDeviceScreen> maybeScreen = tileEntity.getComponent(BusDeviceScreen.class);
         if (maybeScreen.isPresent()) {
             final BusDeviceScreen screen = maybeScreen.get();
             final ScreenRenderer renderer = screen.getScreenRenderer();
@@ -23,11 +23,11 @@ public class TileEntityScreenRenderer extends TileEntitySpecialRenderer<TileEnti
                 GlStateManager.translate(x, y, z);
                 GlStateManager.translate(0, 2, 0.5f);
                 GlStateManager.scale(1, -1, 1);
-                GlStateManager.scale(1/256f, 1/256f, 1/256f);
+                GlStateManager.scale(1 / 256f, 1 / 256f, 1 / 256f);
 
                 renderer.render(256, 256);
 
-                super.renderTileEntityAt(te, x, y, z, partialTicks, destroyStage);
+                super.renderTileEntityAt(tileEntity, x, y, z, partialTicks, destroyStage);
 
                 GlStateManager.enableCull();
                 this.func_190053_a(false);

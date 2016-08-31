@@ -7,16 +7,20 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.IGuiHandler;
 
+import javax.annotation.Nullable;
+
 public enum GuiHandlerClient implements IGuiHandler {
     INSTANCE;
 
     // --------------------------------------------------------------------- //
 
+    @Nullable
     @Override
     public Object getServerGuiElement(final int id, final EntityPlayer player, final World world, final int x, final int y, final int z) {
         return null;
     }
 
+    @Nullable
     @Override
     public Object getClientGuiElement(final int id, final EntityPlayer player, final World world, final int x, final int y, final int z) {
         // In case a UI was opened for a component, its ID is encoded in the x and y arguments.
