@@ -1,12 +1,12 @@
 package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.device.AbstractAddressableInterruptSource;
+import li.cil.circuity.api.bus.device.AbstractAddressable;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
+import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
-import li.cil.circuity.api.bus.device.InterruptList;
 import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.common.Constants;
 import li.cil.lib.api.SillyBeeAPI;
@@ -21,11 +21,10 @@ import li.cil.lib.synchronization.value.SynchronizedByteArray;
 import li.cil.lib.synchronization.value.SynchronizedInt;
 import li.cil.lib.synchronization.value.SynchronizedUUID;
 import net.minecraft.client.renderer.GlStateManager;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.UUID;
 
 @Serializable
@@ -101,7 +100,7 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.SERIAL_CONSOLE_NAME);
 
-    public final class SerialConsoleImpl extends AbstractAddressableInterruptSource implements AddressHint, ScreenRenderer {
+    public final class SerialConsoleImpl extends AbstractAddressable implements AddressHint, BusStateListener, ScreenRenderer {
         @Serialize
         private int scrX = 0; // Range: [0,CONS_WIDTH] (yes, inclusive)
         @Serialize
@@ -119,17 +118,6 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
         @Override
         protected AddressBlock validateAddress(final AddressBlock memory) {
             return memory.take(Constants.SERIAL_CONSOLE_ADDRESS, 1);
-        }
-
-        @Override
-        protected int[] validateEmittedInterrupts(final InterruptList interrupts) {
-            return interrupts.take(1);
-        }
-
-        @Nullable
-        @Override
-        public ITextComponent getInterruptName(final int interruptId) {
-            return new TextComponentTranslation(Constants.I18N.INTERRUPT_SOURCE_KEYBOARD_INPUT);
         }
 
         @Override
@@ -210,6 +198,22 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
         @Override
         public int getSortHint() {
             return Constants.SERIAL_CONSOLE_ADDRESS;
+        }
+
+        // --------------------------------------------------------------------- //
+        // BusStateListener
+
+        @Override
+        public void handleBusOnline() {
+        }
+
+        @Override
+        public void handleBusOffline() {
+            Arrays.fill(BusDeviceSerialConsole.this.buffer.array(), (byte) 0);
+            BusDeviceSerialConsole.this.buffer.setDirty();
+            BusDeviceSerialConsole.this.scrOffY.set(0);
+            scrX = 0;
+            scrY = 0;
         }
 
         // --------------------------------------------------------------------- //
