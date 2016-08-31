@@ -16,7 +16,7 @@ configurator.no_interrupt_source=Interrupt source cleared.
 configurator.interrupt_sink=Interrupt sink: %s (#%s)
 configurator.no_interrupt_sink=Interrupt sink cleared.
 configurator.interrupt_set=Interrupts linked.
-configurator.interrupt_set=Interrupt cleared.
+configurator.interrupt_cleared=Interrupt cleared.
 
 interrupt_sink.nmi=NMI
 interrupt_sink.irq=IRQ
