@@ -11,6 +11,7 @@ import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.common.Constants;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
+import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.api.synchronization.SynchronizationListener;
 import li.cil.lib.api.synchronization.SynchronizedValue;
@@ -26,6 +27,7 @@ import net.minecraft.world.World;
 import javax.annotation.Nullable;
 import java.util.UUID;
 
+@Serializable
 public final class BusDeviceSerialConsole extends AbstractComponentBusDevice implements SynchronizationListener {
     public static final int CONS_WIDTH = 40;
     public static final int CONS_HEIGHT = 25;
