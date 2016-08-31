@@ -38,10 +38,6 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
     @Serialize
     private final SynchronizedUUID persistentId = new SynchronizedUUID(UUID.randomUUID());
     @Serialize
-    private final SynchronizedInt scrX = new SynchronizedInt(0); // Range: [0,CONS_WIDTH] (yes, inclusive)
-    @Serialize
-    private final SynchronizedInt scrY = new SynchronizedInt(0); // Range: [0,CONS_HEIGHT) (not a typo!)
-    @Serialize
     private final SynchronizedInt scrOffY = new SynchronizedInt(0); // Range: [0,CONS_HEIGHT)
 
     // --------------------------------------------------------------------- //
@@ -103,6 +99,11 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.SERIAL_CONSOLE_NAME);
 
     public final class SerialConsoleImpl extends AbstractAddressableInterruptSource implements AddressHint, ScreenRenderer {
+        @Serialize
+        private int scrX = 0; // Range: [0,CONS_WIDTH] (yes, inclusive)
+        @Serialize
+        private int scrY = 0; // Range: [0,CONS_HEIGHT) (not a typo!)
+
         // --------------------------------------------------------------------- //
         // AbstractAddressableInterruptSource
 
@@ -146,7 +147,6 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
 
                     switch (ch) {
                         case '\b': { // Backspace
-                            int scrX = BusDeviceSerialConsole.this.scrX.get();
                             do {
                                 scrX--;
                             } while (scrX >= 0 && scrX % CONS_WIDTH != 0
@@ -155,12 +155,10 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
                             if (scrX < 0) {
                                 scrX = 0;
                             }
-                            BusDeviceSerialConsole.this.scrX.set(scrX);
                             break;
                         }
 
                         case '\t': { // Tab
-                            int scrX = BusDeviceSerialConsole.this.scrX.get();
                             do {
                                 set(scrX, line(), '\t');
                                 scrX++;
@@ -169,17 +167,16 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
                                     scrX = 0;
                                 }
                             } while (scrX % CONS_TAB_STOP != 0);
-                            BusDeviceSerialConsole.this.scrX.set(scrX);
                             break;
                         }
 
                         case '\n': // Line feed
                             advanceLine();
-                            BusDeviceSerialConsole.this.scrX.set(0);
+                            scrX = 0;
                             break;
 
                         case '\r': // Carriage return
-                            BusDeviceSerialConsole.this.scrX.set(0);
+                            scrX = 0;
                             break;
 
                         case '\u001B': // Escape
@@ -187,14 +184,12 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
                             break;
 
                         default: {
-                            int scrX = BusDeviceSerialConsole.this.scrX.get();
                             if (scrX >= CONS_WIDTH) {
                                 advanceLine();
                                 scrX = 0;
                             }
                             set(scrX, line(), ch);
                             scrX++;
-                            BusDeviceSerialConsole.this.scrX.set(scrX);
                             break;
                         }
                     }
@@ -227,7 +222,7 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
         public void render(final int width, final int height) {
             final FontRenderer fontRenderer = Minecraft.getMinecraft().fontRendererObj;
             final byte[] data = BusDeviceSerialConsole.this.buffer.array();
-            final int yOffset = line();
+            final int yOffset = BusDeviceSerialConsole.this.scrOffY.get();
             for (int y = 0; y < CONS_HEIGHT; y++) {
                 // TODO Write a font renderer that operates directly on the byte array.
                 final StringBuilder sb = new StringBuilder();
@@ -246,7 +241,7 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
         // --------------------------------------------------------------------- //
 
         private int line() {
-            return (BusDeviceSerialConsole.this.scrOffY.get() + BusDeviceSerialConsole.this.scrY.get()) % CONS_HEIGHT;
+            return (BusDeviceSerialConsole.this.scrOffY.get() + scrY) % CONS_HEIGHT;
         }
 
         private char get(final int x, final int y) {
@@ -258,7 +253,6 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
         }
 
         private void advanceLine() {
-            int scrY = BusDeviceSerialConsole.this.scrY.get();
             int scrOffY = BusDeviceSerialConsole.this.scrOffY.get();
             scrY++;
             while (scrY >= CONS_HEIGHT) {
@@ -273,7 +267,6 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
                     scrY = 0;
                 }
             }
-            BusDeviceSerialConsole.this.scrY.set(scrY);
             BusDeviceSerialConsole.this.scrOffY.set(scrOffY);
         }
     }
