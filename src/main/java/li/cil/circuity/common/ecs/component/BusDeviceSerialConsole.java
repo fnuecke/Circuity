@@ -198,6 +198,9 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
                             break;
                         }
                     }
+
+                    BusDeviceSerialConsole.this.markChanged();
+
                     break;
                 }
             }
