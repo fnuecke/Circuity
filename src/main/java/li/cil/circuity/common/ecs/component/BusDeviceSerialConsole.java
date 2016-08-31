@@ -37,9 +37,9 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
     @Serialize
     private final SerialConsoleImpl device = new SerialConsoleImpl();
     @Serialize
-    private final SynchronizedByteArray buffer = new SynchronizedByteArray(CONS_WIDTH * CONS_HEIGHT);
-    @Serialize
     private final SynchronizedUUID persistentId = new SynchronizedUUID(UUID.randomUUID());
+    @Serialize
+    private final SynchronizedByteArray buffer = new SynchronizedByteArray(CONS_WIDTH * CONS_HEIGHT);
     @Serialize
     private final SynchronizedInt scrOffY = new SynchronizedInt(0); // Range: [0,CONS_HEIGHT)
 
