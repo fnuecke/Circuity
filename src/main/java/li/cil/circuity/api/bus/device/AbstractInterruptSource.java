@@ -12,7 +12,7 @@ public abstract class AbstractInterruptSource extends AbstractAddressable implem
 
     protected abstract int[] validateEmittedInterrupts(final InterruptList interrupts);
 
-    protected void triggerInterrupt(final int index, final int data) {
+    public void triggerInterrupt(final int index, final int data) {
         if (interruptsSources == null) return;
         final int interruptId = interruptsSources[index];
         controller.interrupt(interruptId, data);
