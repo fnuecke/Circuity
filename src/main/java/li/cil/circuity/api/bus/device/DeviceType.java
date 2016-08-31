@@ -8,7 +8,8 @@ public enum DeviceType {
     FLOPPY_DISK_DRIVE,
     HARD_DISK_DRIVE,
     SERIAL_INTERFACE,
-    REDSTONE_CONTROLLER;
+    REDSTONE_CONTROLLER,
+    SCREEN;
 
     public final int id;
 

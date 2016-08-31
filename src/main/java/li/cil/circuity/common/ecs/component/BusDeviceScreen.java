@@ -2,9 +2,14 @@ package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.ModCircuity;
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.device.AbstractBusDevice;
+import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AddressBlock;
+import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.BusChangeListener;
+import li.cil.circuity.api.bus.device.DeviceInfo;
+import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.bus.device.ScreenRenderer;
+import li.cil.circuity.common.Constants;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
@@ -63,10 +68,47 @@ public class BusDeviceScreen extends AbstractComponentBusDevice {
         return device;
     }
 
-    // --------------------------------------------------------------------- //
+    public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SCREEN, Constants.DeviceInfo.SCREEN_NAME);
 
     @Serializable
-    public final class ScreenImpl extends AbstractBusDevice implements BusChangeListener {
+    public final class ScreenImpl extends AbstractAddressable implements AddressHint, BusChangeListener {
+        // --------------------------------------------------------------------- //
+        // AbstractAddressable
+
+        @Override
+        protected AddressBlock validateAddress(final AddressBlock memory) {
+            return memory.take(Constants.SCREEN_ADDRESS, 1);
+        }
+
+        // --------------------------------------------------------------------- //
+        // Addressable
+
+        @Nullable
+        @Override
+        public DeviceInfo getDeviceInfo() {
+            return DEVICE_INFO;
+        }
+
+        @Override
+        public int read(final int address) {
+            return 0;
+        }
+
+        @Override
+        public void write(final int address, final int value) {
+        }
+
+        // --------------------------------------------------------------------- //
+        // AddressHint
+
+        @Override
+        public int getSortHint() {
+            return Constants.SCREEN_ADDRESS;
+        }
+
+        // --------------------------------------------------------------------- //
+        // BusChangeListener
+
         @Override
         public void handleBusChanged() {
             // TODO Build list of candidates, allow user to select current one.
