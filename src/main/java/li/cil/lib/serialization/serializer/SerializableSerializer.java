@@ -2,6 +2,7 @@ package li.cil.lib.serialization.serializer;
 
 import li.cil.lib.ModSillyBee;
 import li.cil.lib.api.serialization.Serializable;
+import li.cil.lib.api.serialization.SerializationListener;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.serialization.SerializationException;
 import li.cil.lib.serialization.SerializerCollectionImpl;
@@ -43,6 +44,11 @@ public final class SerializableSerializer implements Serializer {
         final NBTTagCompound tag = new NBTTagCompound();
         final List<Field> fields = getFields(object.getClass());
 
+        if (object instanceof SerializationListener) {
+            final SerializationListener listener = (SerializationListener) object;
+            listener.onBeforeSerialization();
+        }
+
         for (final Field field : fields) {
             try {
                 final Object fieldValue = field.get(object);
@@ -62,6 +68,11 @@ public final class SerializableSerializer implements Serializer {
             }
         }
 
+        if (object instanceof SerializationListener) {
+            final SerializationListener listener = (SerializationListener) object;
+            listener.onAfterSerialization();
+        }
+
         return tag;
     }
 
@@ -72,6 +83,11 @@ public final class SerializableSerializer implements Serializer {
 
         final NBTTagCompound tag = (NBTTagCompound) tagBase;
         final List<Field> fields = getFields(clazz);
+
+        if (instance instanceof SerializationListener) {
+            final SerializationListener listener = (SerializationListener) instance;
+            listener.onBeforeDeserialization();
+        }
 
         for (final Field field : fields) {
             try {
@@ -116,6 +132,11 @@ public final class SerializableSerializer implements Serializer {
             } catch (final IllegalAccessException e) {
                 throw new SerializationException("Field is not accessible.", e);
             }
+        }
+
+        if (instance instanceof SerializationListener) {
+            final SerializationListener listener = (SerializationListener) instance;
+            listener.onAfterDeserialization();
         }
 
         return instance;
