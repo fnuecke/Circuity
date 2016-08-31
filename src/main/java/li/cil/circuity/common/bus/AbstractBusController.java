@@ -516,7 +516,6 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         }
     }
 
-
     // --------------------------------------------------------------------- //
 
     /**

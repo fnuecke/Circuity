@@ -1,5 +1,6 @@
 package li.cil.lib.network;
 
+import li.cil.lib.network.handler.MessageHandlerComponentData;
 import li.cil.lib.network.handler.MessageHandlerInitialize;
 import li.cil.lib.network.handler.MessageHandlerSubscribe;
 import li.cil.lib.network.handler.MessageHandlerSynchronizeValue;
@@ -7,6 +8,7 @@ import li.cil.lib.network.handler.MessageHandlerTypeInfo;
 import li.cil.lib.network.handler.MessageHandlerTypeInfoList;
 import li.cil.lib.network.handler.MessageHandlerUnsubscribeComponent;
 import li.cil.lib.network.handler.MessageHandlerUnsubscribeEntity;
+import li.cil.lib.network.message.MessageComponentData;
 import li.cil.lib.network.message.MessageInitialize;
 import li.cil.lib.network.message.MessageSubscribe;
 import li.cil.lib.network.message.MessageSynchronizeValue;
@@ -34,7 +36,8 @@ public enum Network {
         Initialize,
         UnsubscribeEntity,
         UnsubscribeComponent,
-        SynchronizeValue
+        SynchronizeValue,
+        ComponentData
     }
 
     // --------------------------------------------------------------------- //
@@ -61,5 +64,7 @@ public enum Network {
         wrapper.registerMessage(MessageHandlerUnsubscribeEntity.class, MessageUnsubscribeEntity.class, Messages.UnsubscribeEntity.ordinal(), Side.SERVER);
         wrapper.registerMessage(MessageHandlerUnsubscribeComponent.class, MessageUnsubscribeComponent.class, Messages.UnsubscribeComponent.ordinal(), Side.SERVER);
         wrapper.registerMessage(MessageHandlerSynchronizeValue.class, MessageSynchronizeValue.class, Messages.SynchronizeValue.ordinal(), Side.CLIENT);
+        wrapper.registerMessage(MessageHandlerComponentData.class, MessageComponentData.class, Messages.ComponentData.ordinal(), Side.CLIENT);
+        wrapper.registerMessage(MessageHandlerComponentData.class, MessageComponentData.class, Messages.ComponentData.ordinal(), Side.SERVER);
     }
 }
