@@ -60,6 +60,10 @@ public final class SynchronizedIntArray implements SynchronizedValue {
         return value;
     }
 
+    public void setDirty() {
+        setDirty(-1);
+    }
+
     // --------------------------------------------------------------------- //
     // SynchronizedValue
 

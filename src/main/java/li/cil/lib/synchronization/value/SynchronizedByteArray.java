@@ -69,6 +69,10 @@ public final class SynchronizedByteArray implements SynchronizedValue {
         return value;
     }
 
+    public void setDirty() {
+        setDirty(-1);
+    }
+
     // --------------------------------------------------------------------- //
     // SynchronizedValue
 
