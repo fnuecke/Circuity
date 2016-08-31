@@ -37,6 +37,13 @@ public final class SillyBeeAPI {
     public static CapabilitiesAPI capabilities;
 
     /**
+     * Access to the global object API.
+     * <p>
+     * This is initialized by the mod in the pre-init phase.
+     */
+    public static GlobalObjectsAPI globalObjects;
+
+    /**
      * Access to the manager API.
      * <p>
      * This is initialized by the library mod in the pre-init phase.

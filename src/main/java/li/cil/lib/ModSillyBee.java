@@ -44,6 +44,7 @@ public final class ModSillyBee {
         Scheduler.init();
 
         Capabilities.init();
+        GlobalObjects.init();
         Manager.init();
         Scheduler.init();
         Serialization.init();
