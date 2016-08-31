@@ -1,6 +1,6 @@
 package li.cil.circuity.common.bus;
 
-import li.cil.circuity.api.CircuityAPI;
+import li.cil.circuity.ModCircuity;
 import li.cil.lib.api.SillyBeeAPI;
 import net.minecraftforge.common.MinecraftForge;
 
@@ -33,7 +33,7 @@ public enum BusThreadPool {
         @Override
         public Thread newThread(final Runnable r) {
             final Thread t = factory.newThread(r);
-            t.setName(t.getName() + " (" + CircuityAPI.MOD_NAME + " Bus)");
+            t.setName(t.getName() + " (" + ModCircuity.MOD_NAME + " Bus)");
             t.setDaemon(true);
             t.setPriority(Thread.NORM_PRIORITY);
             return t;

@@ -9,8 +9,10 @@ import net.minecraftforge.fml.common.event.FMLPostInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import org.apache.logging.log4j.Logger;
 
-@Mod(modid = CircuityAPI.MOD_ID, name = CircuityAPI.MOD_NAME, version = CircuityAPI.MOD_VERSION)
+@Mod(modid = CircuityAPI.MOD_ID, name = ModCircuity.MOD_NAME, version = CircuityAPI.MOD_VERSION)
 public final class ModCircuity {
+    public static final String MOD_NAME = "Circuity";
+
     @Mod.Instance(CircuityAPI.MOD_ID)
     private static ModCircuity instance;
 
