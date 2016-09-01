@@ -22,6 +22,7 @@ import li.cil.lib.synchronization.value.SynchronizedInt;
 import li.cil.lib.synchronization.value.SynchronizedUUID;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.world.World;
+import org.lwjgl.opengl.GL11;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -232,6 +233,19 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
             final int yOffset = BusDeviceSerialConsole.this.scrOffY.get();
 
             GlStateManager.pushMatrix();
+
+            final int textWidth = CONS_WIDTH * fontRenderer.getCharWidth();
+            final int textHeight = CONS_HEIGHT * fontRenderer.getCharHeight();
+
+            final float scaleX = width / (float) textWidth;
+            final float scaleY = height / (float) textHeight;
+
+            final float scale = Math.min(scaleX, scaleY);
+            GlStateManager.scale(scale, scale, scale);
+
+            final float scaledWidth = textWidth * scale;
+            final float scaledHeight = textHeight * scale;
+            GlStateManager.translate((width - scaledWidth) * 0.5f, (height - scaledHeight) * 0.5f, 0);
 
             for (int y = 0; y < CONS_HEIGHT; y++) {
                 fontRenderer.drawString(data, ((y + yOffset) % CONS_HEIGHT) * CONS_WIDTH, CONS_WIDTH);
