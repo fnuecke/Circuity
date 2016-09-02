@@ -162,6 +162,12 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
      */
     public void update() {
         final Map<NetHandlerPlayServer, Map<World, Map<Component, NBTTagList>>> changes = new HashMap<>();
+
+        /* Swap out the list of dirty values. Note that not keeping the lock during the writing
+           operation below means that the values may in fact change again during this, leading
+           to them being present in the dirty list for the next update again, even though their
+           new value has already been synchronized. This is not a big issue, bandwidth-wise,
+           however, and reduces lock contention, so in general it's worth it. */
         synchronized (dirtyLock) {
             assert (dirtyValuesProcessing.isEmpty());
             final Map<SynchronizedValue, List<Object>> tempValues = dirtyValues;

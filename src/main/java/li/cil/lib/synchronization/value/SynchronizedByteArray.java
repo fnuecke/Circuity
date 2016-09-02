@@ -23,6 +23,8 @@ public final class SynchronizedByteArray implements SynchronizedValue {
         }
     }
 
+    private final Object lock = new Object(); // To avoid changes to array during serialization.
+
     @Serialize
     private byte[] value;
 
@@ -45,8 +47,10 @@ public final class SynchronizedByteArray implements SynchronizedValue {
     // --------------------------------------------------------------------- //
 
     public void setSize(final int size) {
-        value = Arrays.copyOf(value, size);
-        setDirty(-1);
+        synchronized (lock) {
+            value = Arrays.copyOf(value, size);
+            setDirty(-1);
+        }
     }
 
     public int size() {
@@ -59,18 +63,32 @@ public final class SynchronizedByteArray implements SynchronizedValue {
 
     public byte set(final int index, final byte element) {
         if (value[index] != element) {
-            setDirty(index);
-            value[index] = element;
+            synchronized (lock) {
+                value[index] = element;
+                setDirty(index);
+            }
         }
         return element;
     }
 
-    public byte[] array() {
-        return value;
+    public void fill(final byte item) {
+        synchronized (lock) {
+            Arrays.fill(value, item);
+            setDirty(-1);
+        }
     }
 
-    public void setDirty() {
-        setDirty(-1);
+    /**
+     * Get the raw underlying array.
+     * <p>
+     * This is exposed <em>purely for reading</em>, for performance sensitive
+     * use-cases (e.g. iterating the full array). Again, do <em>not</em>
+     * write to this, as changes may lead to synchronization bugs.
+     *
+     * @return the underlying array.
+     */
+    public byte[] array() {
+        return value;
     }
 
     // --------------------------------------------------------------------- //
@@ -82,12 +100,14 @@ public final class SynchronizedByteArray implements SynchronizedValue {
 
     @Override
     public void serialize(final PacketBuffer packet, @Nullable final List<Object> tokens) {
-        if (tokens == null) {
-            serializeFully(packet);
-        } else {
-            final TIntHashSet indices = (TIntHashSet) tokens.get(0);
-            if (indices.contains(-1) || !serializeChanges(packet, indices)) {
+        synchronized (lock) {
+            if (tokens == null) {
                 serializeFully(packet);
+            } else {
+                final TIntHashSet indices = (TIntHashSet) tokens.get(0);
+                if (indices.contains(-1) || !serializeChanges(packet, indices)) {
+                    serializeFully(packet);
+                }
             }
         }
     }

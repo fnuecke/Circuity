@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 
 @Serializable
 public final class SynchronizedArray<E> extends AbstractList<E> implements SynchronizedValue {
-    private final Object lock = new Object();
+    private final Object lock = new Object(); // To avoid changes to array during serialization.
     private final Class<E> valueClass;
 
     @Serialize
@@ -52,8 +52,30 @@ public final class SynchronizedArray<E> extends AbstractList<E> implements Synch
     // --------------------------------------------------------------------- //
 
     public void setSize(final int size) {
-        value = Arrays.copyOf(value, size);
-        setDirty(-1);
+        synchronized (lock) {
+            value = Arrays.copyOf(value, size);
+            setDirty(-1);
+        }
+    }
+
+    public void fill(final E item) {
+        synchronized (lock) {
+            Arrays.fill(value, item);
+            setDirty(-1);
+        }
+    }
+
+    /**
+     * Get the raw underlying array.
+     * <p>
+     * This is exposed <em>purely for reading</em>, for performance sensitive
+     * use-cases (e.g. iterating the full array). Again, do <em>not</em>
+     * write to this, as changes may lead to synchronization bugs.
+     *
+     * @return the underlying array.
+     */
+    public E[] array() {
+        return value;
     }
 
     // --------------------------------------------------------------------- //
@@ -66,17 +88,15 @@ public final class SynchronizedArray<E> extends AbstractList<E> implements Synch
 
     @Override
     public E get(final int index) {
-        synchronized (lock) {
-            return value[index];
-        }
+        return value[index];
     }
 
     @Override
     public E set(final int index, final E element) {
-        synchronized (lock) {
-            if (ObjectUtils.notEqual(value[index], element)) {
-                setDirty(index);
+        if (ObjectUtils.notEqual(value[index], element)) {
+            synchronized (lock) {
                 value[index] = element;
+                setDirty(index);
             }
         }
         return element;
@@ -101,12 +121,14 @@ public final class SynchronizedArray<E> extends AbstractList<E> implements Synch
 
     @Override
     public void serialize(final PacketBuffer packet, @Nullable final List<Object> tokens) {
-        if (tokens == null || tokens.contains(-1)) {
-            packet.writeBoolean(true);
-            serializeComplete(packet);
-        } else {
-            packet.writeBoolean(false);
-            serializePartial(packet, new LinkedHashSet<>(tokens));
+        synchronized (lock) {
+            if (tokens == null || tokens.contains(-1)) {
+                packet.writeBoolean(true);
+                serializeComplete(packet);
+            } else {
+                packet.writeBoolean(false);
+                serializePartial(packet, new LinkedHashSet<>(tokens));
+            }
         }
     }
 

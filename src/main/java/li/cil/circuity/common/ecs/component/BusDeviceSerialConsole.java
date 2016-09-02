@@ -22,10 +22,8 @@ import li.cil.lib.synchronization.value.SynchronizedInt;
 import li.cil.lib.synchronization.value.SynchronizedUUID;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.world.World;
-import org.lwjgl.opengl.GL11;
 
 import javax.annotation.Nullable;
-import java.util.Arrays;
 import java.util.UUID;
 
 @Serializable
@@ -210,8 +208,7 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
 
         @Override
         public void handleBusOffline() {
-            Arrays.fill(BusDeviceSerialConsole.this.buffer.array(), (byte) 0);
-            BusDeviceSerialConsole.this.buffer.setDirty();
+            BusDeviceSerialConsole.this.buffer.fill((byte) 0);
             BusDeviceSerialConsole.this.scrOffY.set(0);
             scrX = 0;
             scrY = 0;

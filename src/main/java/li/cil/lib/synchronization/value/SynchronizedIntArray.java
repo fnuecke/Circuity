@@ -14,6 +14,8 @@ import java.util.Set;
 
 @Serializable
 public final class SynchronizedIntArray implements SynchronizedValue {
+    private final Object lock = new Object(); // To avoid changes to array during serialization.
+
     @Serialize
     private int[] value;
 
@@ -36,8 +38,10 @@ public final class SynchronizedIntArray implements SynchronizedValue {
     // --------------------------------------------------------------------- //
 
     public void setSize(final int size) {
-        value = Arrays.copyOf(value, size);
-        setDirty(-1);
+        synchronized (lock) {
+            value = Arrays.copyOf(value, size);
+            setDirty(-1);
+        }
     }
 
     public int size() {
@@ -50,18 +54,32 @@ public final class SynchronizedIntArray implements SynchronizedValue {
 
     public int set(final int index, final int element) {
         if (value[index] != element) {
-            setDirty(index);
-            value[index] = element;
+            synchronized (lock) {
+                value[index] = element;
+                setDirty(index);
+            }
         }
         return element;
     }
 
-    public int[] array() {
-        return value;
+    public void fill(final int item) {
+        synchronized (lock) {
+            Arrays.fill(value, item);
+            setDirty(-1);
+        }
     }
 
-    public void setDirty() {
-        setDirty(-1);
+    /**
+     * Get the raw underlying array.
+     * <p>
+     * This is exposed <em>purely for reading</em>, for performance sensitive
+     * use-cases (e.g. iterating the full array). Again, do <em>not</em>
+     * write to this, as changes may lead to synchronization bugs.
+     *
+     * @return the underlying array.
+     */
+    public int[] array() {
+        return value;
     }
 
     // --------------------------------------------------------------------- //
@@ -73,20 +91,22 @@ public final class SynchronizedIntArray implements SynchronizedValue {
 
     @Override
     public void serialize(final PacketBuffer packet, @Nullable final List<Object> tokens) {
-        if (tokens == null || tokens.contains(-1)) {
-            packet.writeBoolean(true);
+        synchronized (lock) {
+            if (tokens == null || tokens.contains(-1)) {
+                packet.writeBoolean(true);
 
-            packet.writeVarIntArray(value);
-        } else {
-            packet.writeBoolean(false);
+                packet.writeVarIntArray(value);
+            } else {
+                packet.writeBoolean(false);
 
-            final Set<Object> indices = new HashSet<>(tokens);
-            packet.writeVarIntToBuffer(indices.size());
+                final Set<Object> indices = new HashSet<>(tokens);
+                packet.writeVarIntToBuffer(indices.size());
 
-            for (final Object i : indices) {
-                final int index = (Integer) i;
-                packet.writeVarIntToBuffer(index);
-                packet.writeVarIntToBuffer(value[index]);
+                for (final Object i : indices) {
+                    final int index = (Integer) i;
+                    packet.writeVarIntToBuffer(index);
+                    packet.writeVarIntToBuffer(value[index]);
+                }
             }
         }
     }
