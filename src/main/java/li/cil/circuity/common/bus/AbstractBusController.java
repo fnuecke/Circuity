@@ -115,22 +115,22 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
         /**
          * All is well, controller is operating normally.
          */
-        READY,
+        READY(false),
 
         /**
          * A scan is currently pending.
          */
-        SCANNING,
+        SCANNING(false),
 
         /**
          * State entered when multiple bus controllers were present.
          */
-        ERROR_MULTIPLE_BUS_CONTROLLERS,
+        ERROR_MULTIPLE_BUS_CONTROLLERS(true),
 
         /**
          * State entered when some address blocks overlapped.
          */
-        ERROR_ADDRESSES_OVERLAP,
+        ERROR_ADDRESSES_OVERLAP(true),
 
         /**
          * State entered when the scan could not be completed due to a segment
@@ -138,7 +138,13 @@ public abstract class AbstractBusController extends AbstractAddressable implemen
          * to an adjacent block being in an unloaded chunk, but it may be used
          * to emulate failing hardware in the future.
          */
-        ERROR_SEGMENT_FAILED
+        ERROR_SEGMENT_FAILED(true);
+
+        public final boolean isError;
+
+        State(final boolean isError) {
+            this.isError = isError;
+        }
     }
 
     // --------------------------------------------------------------------- //

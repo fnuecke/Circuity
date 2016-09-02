@@ -5,7 +5,6 @@ import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.bus.AbstractBusController;
 import li.cil.lib.api.ecs.component.LateTickable;
-import li.cil.lib.api.ecs.component.Location;
 import li.cil.lib.api.ecs.component.Redstone;
 import li.cil.lib.api.ecs.component.event.ActivationListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
@@ -18,15 +17,12 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
-import net.minecraft.util.EnumParticleTypes;
 import net.minecraft.util.ITickable;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
-import java.util.Optional;
 
 @Serializable
 public class BusControllerBlock extends BusNeighborAware implements ITickable, LateTickable, ActivationListener {
@@ -42,6 +38,14 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
 
     public BusControllerBlock(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
+    }
+
+    public boolean hasErrors() {
+        return state.get().isError;
+    }
+
+    public boolean isOnline() {
+        return isOnline.get();
     }
 
     // --------------------------------------------------------------------- //
@@ -97,19 +101,6 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
 
             isOnline.set(online);
             state.set(controller.getState());
-        } else {
-            switch (state.get()) {
-                case READY:
-                    if (isOnline.get()) {
-                        spawnParticle(EnumParticleTypes.REDSTONE);
-                    }
-                    break;
-                case ERROR_MULTIPLE_BUS_CONTROLLERS:
-                case ERROR_ADDRESSES_OVERLAP:
-                case ERROR_SEGMENT_FAILED:
-                    spawnParticle(EnumParticleTypes.FLAME);
-                    break;
-            }
         }
     }
 
@@ -160,14 +151,6 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
         }
 
         PlayerUtil.addLocalChatMessage(player, new TextComponentTranslation(key));
-    }
-
-    private void spawnParticle(final EnumParticleTypes particleType) {
-        final Optional<Location> location = getComponent(Location.class);
-        location.ifPresent(l -> {
-            final Vec3d pos = l.getPositionVector();
-            l.getWorld().spawnParticle(particleType, pos.xCoord, pos.yCoord + 0.5f, pos.zCoord, 0, 0.01f, 0);
-        });
     }
 
     // --------------------------------------------------------------------- //
