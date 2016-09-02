@@ -71,6 +71,11 @@ public class BlockEntityContainer extends BlockWithTileEntity {
         return super.isBeaconBase(world, pos, beacon); // TODO
     }
 
+    @Override
+    public boolean isNormalCube(final IBlockState state, final IBlockAccess world, final BlockPos pos) {
+        return true; // To counter-act canProvidePower := true.
+    }
+
     // --------------------------------------------------------------------- //
     // Redstone logic
 
