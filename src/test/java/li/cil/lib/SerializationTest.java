@@ -11,8 +11,10 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -247,6 +249,37 @@ public class SerializationTest {
             final Set<String> data1 = new HashSet<>(Arrays.asList("foo", "bar", "baz"));
             final Set<String> data2 = s.deserialize(HashSet.class, s.serialize(data1));
             assertArrayEquals(data1.toArray(), data2.toArray());
+        }
+    }
+
+    @Test
+    public void serializeMap() {
+        {
+            final Map<String, String> data1 = new HashMap<>();
+            final Map<String, String> data2 = s.deserialize(HashMap.class, s.serialize(data1));
+
+            assertMapEquals(data1, data2);
+        }
+        {
+            final Map<String, String> data1 = new HashMap<>();
+            data1.put("foo", "bar");
+            data1.put("baz", "wtf");
+            data1.put("omg", "lol");
+            final Map<String, String> data2 = s.deserialize(HashMap.class, s.serialize(data1));
+
+            assertMapEquals(data1, data2);
+        }
+    }
+
+    private static <K, V> void assertMapEquals(final Map<K, V> a, final Map<K, V> b) {
+        assertEquals(a.size(), b.size());
+        for (final Map.Entry<K, V> entry : a.entrySet()) {
+            final K key = entry.getKey();
+            final V value1 = entry.getValue();
+
+            assertTrue(b.containsKey(key));
+            final V value2 = b.get(key);
+            assertEquals(value1, value2);
         }
     }
 

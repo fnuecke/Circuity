@@ -17,6 +17,7 @@ import li.cil.lib.serialization.serializer.FutureSerializer;
 import li.cil.lib.serialization.serializer.IntArraySerializer;
 import li.cil.lib.serialization.serializer.IntSerializer;
 import li.cil.lib.serialization.serializer.LongSerializer;
+import li.cil.lib.serialization.serializer.MapSerializer;
 import li.cil.lib.serialization.serializer.NBTSerializableSerializer;
 import li.cil.lib.serialization.serializer.SerializableSerializer;
 import li.cil.lib.serialization.serializer.Serializer;
@@ -72,6 +73,7 @@ public final class SerializerCollectionImpl implements SerializerCollection {
         // Array and collection serializers.
         serializerList.add(new ArraySerializer(this));
         serializerList.add(new CollectionSerializer(this));
+        serializerList.add(new MapSerializer(this));
 
         // Minecraft type serializers.
         serializerList.add(new BlockPosSerializer());
