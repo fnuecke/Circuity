@@ -26,9 +26,9 @@ public abstract class AbstractOverlayRenderer<T extends TileEntity> extends Tile
 
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y, z);
-        this.func_190053_a(true);
+        this.setLightmapDisabled(true);
         OverlayRenderer.renderOverlay(atlas, overlay);
-        this.func_190053_a(false);
+        this.setLightmapDisabled(false);
         GlStateManager.popMatrix();
     }
 

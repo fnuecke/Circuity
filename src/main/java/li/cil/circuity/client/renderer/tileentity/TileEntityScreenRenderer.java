@@ -17,7 +17,7 @@ public class TileEntityScreenRenderer extends TileEntitySpecialRenderer<TileEnti
             final ScreenRenderer renderer = screen.getScreenRenderer();
             if (renderer != null) {
                 GlStateManager.pushMatrix();
-                this.func_190053_a(true);
+                this.setLightmapDisabled(true);
                 GlStateManager.disableCull();
 
                 GlStateManager.translate(x, y, z);
@@ -30,7 +30,7 @@ public class TileEntityScreenRenderer extends TileEntitySpecialRenderer<TileEnti
                 super.renderTileEntityAt(tileEntity, x, y, z, partialTicks, destroyStage);
 
                 GlStateManager.enableCull();
-                this.func_190053_a(false);
+                this.setLightmapDisabled(false);
                 GlStateManager.popMatrix();
             }
         }
