@@ -26,7 +26,6 @@ import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.util.Collections;
-import java.util.function.Consumer;
 
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -405,7 +404,7 @@ public class SynchronizationTest {
 
         assertEquals(i1.get(2), value);
 
-        verify(manager, times(1)).setDirty(eq(i1), any(Consumer.class));
+        verify(manager, times(1)).setDirtyAdvanced(eq(i1), any());
 
         final ByteBuf buffer = Unpooled.buffer();
         final PacketBuffer packet = new PacketBuffer(buffer);
