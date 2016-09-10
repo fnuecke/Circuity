@@ -2,8 +2,11 @@ package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
+import li.cil.circuity.api.bus.device.ComponentHosted;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.bus.AbstractBusController;
+import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.component.LateTickable;
 import li.cil.lib.api.ecs.component.Redstone;
 import li.cil.lib.api.ecs.component.event.ActivationListener;
@@ -70,10 +73,10 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
     }
 
     // --------------------------------------------------------------------- //
-    // AbstractComponentBusDevice
+    // BusDeviceHost
 
     @Override
-    public BusDevice getDevice() {
+    public BusDevice getBusDevice() {
         return controller;
     }
 
@@ -120,7 +123,7 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
         switch (state.get()) {
             case ERROR_MULTIPLE_BUS_CONTROLLERS:
             case ERROR_SUBSYSTEM:
-            case ERROR_SEGMENT_FAILED: {
+            case ERROR_CONNECTION_FAILED: {
                 final World world = getWorld();
                 if (world.isRemote) {
                     printErrorMessage(player, state.get());
@@ -143,8 +146,8 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
             case ERROR_SUBSYSTEM:
                 key = Constants.I18N.BUS_ERROR_ADDRESSES_OVERLAP;
                 break;
-            case ERROR_SEGMENT_FAILED:
-                key = Constants.I18N.BUS_ERROR_SEGMENT_FAILED;
+            case ERROR_CONNECTION_FAILED:
+                key = Constants.I18N.BUS_ERROR_CONNECTION_FAILED;
                 break;
             default:
                 return;
@@ -155,15 +158,33 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
 
     // --------------------------------------------------------------------- //
 
-    public final class BlockBusControllerImpl extends AbstractBusController {
+    public final class BlockBusControllerImpl extends AbstractBusController implements ComponentHosted {
+        public long getComponentId() {
+            return BusControllerBlock.this.getId();
+        }
+
+        // --------------------------------------------------------------------- //
+        // AbstractBusController
+
         @Override
         protected World getBusWorld() {
             return BusControllerBlock.this.getWorld();
         }
 
+        // --------------------------------------------------------------------- //
+        // BusConnector
+
         @Override
-        public boolean getDevices(final Collection<BusDevice> devices) {
-            return BusControllerBlock.this.getDevices(devices);
+        public boolean getConnected(final Collection<BusElement> devices) {
+            return BusControllerBlock.this.getConnected(devices);
+        }
+
+        // --------------------------------------------------------------------- //
+        // ComponentHosted
+
+        @Override
+        public Component getHostComponent() {
+            return BusControllerBlock.this;
         }
     }
 }

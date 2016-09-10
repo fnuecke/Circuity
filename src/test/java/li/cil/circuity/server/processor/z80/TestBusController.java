@@ -1,6 +1,6 @@
 package li.cil.circuity.server.processor.z80;
 
-import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.common.ecs.component.AbstractComponentBusDevice;
 import li.cil.circuity.common.ecs.component.BusControllerBlock;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
@@ -13,9 +13,9 @@ final class TestBusController extends BusControllerBlock {
     }
 
     @Override
-    protected boolean getDevices(final Collection<BusDevice> devices) {
+    protected boolean getConnected(final Collection<BusElement> devices) {
         for (final AbstractComponentBusDevice component : TestBusController.this.getComponents(AbstractComponentBusDevice.class)) {
-            devices.add(component.getDevice());
+            devices.add(component.getBusDevice());
         }
         return true;
     }

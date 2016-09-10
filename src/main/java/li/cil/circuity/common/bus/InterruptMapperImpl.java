@@ -4,7 +4,7 @@ import gnu.trove.map.TIntObjectMap;
 import gnu.trove.map.TObjectIntMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.map.hash.TObjectIntHashMap;
-import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.InterruptMapper;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.api.bus.device.InterruptSource;
@@ -124,7 +124,7 @@ public class InterruptMapperImpl implements InterruptMapper, SerializationListen
     // Subsystem
 
     @Override
-    public void add(final BusDevice device) {
+    public void add(final BusElement device) {
         if (device instanceof InterruptSource) {
             final InterruptSource source = (InterruptSource) device;
 
@@ -166,20 +166,22 @@ public class InterruptMapperImpl implements InterruptMapper, SerializationListen
     }
 
     @Override
-    public void remove(final BusDevice device) {
-        if (device instanceof InterruptSource) {
-            final int[] ids = persistentInfoToSourceId.get(device.getPersistentId());
+    public void remove(final BusElement element) {
+        if (element instanceof InterruptSource) {
+            final InterruptSource source = (InterruptSource) element;
+            final int[] ids = persistentInfoToSourceId.get(source.getPersistentId());
             for (final int id : ids) {
                 interruptSourceIds.clear(id);
                 sourceIdToSinkId[id] = -1;
             }
 
-            infoToSourceId.retainEntries((key, value) -> ObjectUtils.notEqual(key.instance, device));
-            persistentInfoToSourceId.remove(device.getPersistentId());
+            infoToSourceId.retainEntries((key, value) -> ObjectUtils.notEqual(key.instance, element));
+            persistentInfoToSourceId.remove(source.getPersistentId());
         }
 
-        if (device instanceof InterruptSink) {
-            final int[] ids = persistentSinkIdToInfo.get(device.getPersistentId());
+        if (element instanceof InterruptSink) {
+            final InterruptSink sink = (InterruptSink) element;
+            final int[] ids = persistentSinkIdToInfo.get(sink.getPersistentId());
             for (final int id : ids) {
                 interruptSinkIds.clear(id);
                 sinkIdToInfo.remove(id);
@@ -194,7 +196,7 @@ public class InterruptMapperImpl implements InterruptMapper, SerializationListen
                 }
             }
 
-            persistentSinkIdToInfo.remove(device.getPersistentId());
+            persistentSinkIdToInfo.remove(sink.getPersistentId());
         }
     }
 

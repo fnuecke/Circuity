@@ -1,6 +1,6 @@
 bus.error.multiple_controllers=Multiple Bus Controllers
 bus.error.addresses_overlap=Address Blocks Overlap
-bus.error.segment_failed=Bus Segment Failed
+bus.error.connection_failed=Bus Connection Failed
 
 configurator.mode_changed=Mode changed to: %s
 configurator.cleared=Cleared stored configuration.

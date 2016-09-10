@@ -9,6 +9,7 @@ import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.BusStateListener;
+import li.cil.circuity.api.bus.device.ComponentHosted;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.item.EEPROM;
@@ -16,6 +17,7 @@ import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.capabilities.eeprom.CapabilityEEPROM;
 import li.cil.circuity.util.IntelHexLoader;
 import li.cil.lib.api.SillyBeeAPI;
+import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.component.event.InventoryChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.scheduler.ScheduledCallback;
@@ -63,10 +65,10 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
     }
 
     // --------------------------------------------------------------------- //
-    // AbstractComponentBusDevice
+    // BusDeviceHost
 
     @Override
-    public BusDevice getDevice() {
+    public BusDevice getBusDevice() {
         return device;
     }
 
@@ -108,7 +110,7 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_ONLY_MEMORY, Constants.DeviceInfo.EEPROM_READER_NAME);
 
-    public final class EEPROMImpl extends AbstractBusDevice implements Addressable, AddressHint, BusStateListener {
+    public final class EEPROMImpl extends AbstractBusDevice implements ComponentHosted, Addressable, AddressHint, BusStateListener {
         // --------------------------------------------------------------------- //
         // BusDevice
 
@@ -116,6 +118,14 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
+        }
+
+        // --------------------------------------------------------------------- //
+        // ComponentHosted
+
+        @Override
+        public Component getHostComponent() {
+            return BusDeviceEEPROMReader.this;
         }
 
         // --------------------------------------------------------------------- //

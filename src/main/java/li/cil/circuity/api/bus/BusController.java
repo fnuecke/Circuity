@@ -20,11 +20,11 @@ import java.util.UUID;
  * <p>
  * The bus controller determines the bus widths of the bus it is connected to.
  * <p>
- * When scanning for {@link BusDevice}s, the controller follows all {@link BusSegment}s
+ * When scanning for {@link BusDevice}s, the controller follows all {@link BusConnector}s
  * to collect the list of all connected devices. The controller itself also
- * acts as a cable-like bus segment, and is used as the "seed" when scanning.
+ * acts as a cable-like bus connector, and is used as the "seed" when scanning.
  */
-public interface BusController extends BusSegment {
+public interface BusController extends BusConnector {
     /**
      * Get whether the bus controller is currently online.
      * <p>
@@ -74,7 +74,7 @@ public interface BusController extends BusSegment {
      *
      * @return the list of all connected bus devices.
      */
-    Iterable<BusDevice> getDevices();
+    Iterable<BusElement> getElements();
 
     /**
      * Fast lookup of a device by its persistent globally unique identifier.

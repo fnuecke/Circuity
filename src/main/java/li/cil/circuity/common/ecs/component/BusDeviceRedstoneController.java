@@ -5,9 +5,11 @@ import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
+import li.cil.circuity.api.bus.device.ComponentHosted;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.common.Constants;
+import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.component.Redstone;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
@@ -37,10 +39,10 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
     }
 
     // --------------------------------------------------------------------- //
-    // AbstractComponentBusDevice
+    // BusDeviceHost
 
     @Override
-    public BusDevice getDevice() {
+    public BusDevice getBusDevice() {
         return device;
     }
 
@@ -48,7 +50,7 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.REDSTONE_CONTROLLER, Constants.DeviceInfo.REDSTONE_CONTROLLER_NAME);
 
-    public final class RedstoneControllerImpl extends AbstractBusDevice implements Addressable, AddressHint {
+    public final class RedstoneControllerImpl extends AbstractBusDevice implements ComponentHosted, Addressable, AddressHint {
         // --------------------------------------------------------------------- //
         // BusDevice
 
@@ -56,6 +58,14 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
+        }
+
+        // --------------------------------------------------------------------- //
+        // ComponentHosted
+
+        @Override
+        public Component getHostComponent() {
+            return BusDeviceRedstoneController.this;
         }
 
         // --------------------------------------------------------------------- //

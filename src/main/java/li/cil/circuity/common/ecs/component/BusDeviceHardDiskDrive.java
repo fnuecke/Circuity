@@ -7,12 +7,14 @@ import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
+import li.cil.circuity.api.bus.device.ComponentHosted;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.item.HardDiskDrive;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.capabilities.hdd.CapabilityHardDiskDrive;
 import li.cil.lib.api.SillyBeeAPI;
+import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.component.event.InventoryChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.scheduler.ScheduledCallback;
@@ -38,10 +40,10 @@ public final class BusDeviceHardDiskDrive extends AbstractComponentBusDevice imp
     }
 
     // --------------------------------------------------------------------- //
-    // AbstractComponentBusDevice
+    // BusDeviceHost
 
     @Override
-    public BusDevice getDevice() {
+    public BusDevice getBusDevice() {
         return null;
     }
 
@@ -83,7 +85,7 @@ public final class BusDeviceHardDiskDrive extends AbstractComponentBusDevice imp
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.HARD_DISK_DRIVE, Constants.DeviceInfo.HARD_DISK_DRIVE_NAME);
 
-    public final class HardDiskDriveImpl extends AbstractBusDevice implements Addressable, AddressHint {
+    public final class HardDiskDriveImpl extends AbstractBusDevice implements ComponentHosted, Addressable, AddressHint {
         // --------------------------------------------------------------------- //
         // BusDevice
 
@@ -91,6 +93,14 @@ public final class BusDeviceHardDiskDrive extends AbstractComponentBusDevice imp
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
+        }
+
+        // --------------------------------------------------------------------- //
+        // ComponentHosted
+
+        @Override
+        public Component getHostComponent() {
+            return BusDeviceHardDiskDrive.this;
         }
 
         // --------------------------------------------------------------------- //

@@ -1,9 +1,10 @@
 package li.cil.circuity.common.bus;
 
 import com.google.common.base.Throwables;
+import li.cil.circuity.api.bus.BusConnector;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.BusSegment;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.AddressMapper;
 import li.cil.circuity.api.bus.controller.InterruptMapper;
 import li.cil.circuity.api.bus.controller.Subsystem;
@@ -51,7 +52,7 @@ import java.util.concurrent.Future;
  * </li>
  * <li>
  * call {@link #scheduleScan()} when added to the world and when the list of
- * neighboring bus segments changed.
+ * neighboring bus connectors changed.
  * </li>
  * <li>
  * call {@link #dispose()} when they get disposed/removed from the world.
@@ -120,12 +121,12 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
         ERROR_SUBSYSTEM(true),
 
         /**
-         * State entered when the scan could not be completed due to a segment
+         * State entered when the scan could not be completed due to a connector
          * failing to return its adjacent devices. Typically this will be due
          * to an adjacent block being in an unloaded chunk, but it may be used
          * to emulate failing hardware in the future.
          */
-        ERROR_SEGMENT_FAILED(true);
+        ERROR_CONNECTION_FAILED(true);
 
         public final boolean isError;
 
@@ -149,10 +150,12 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     private final Map<Class, Subsystem> subsystems = new HashMap<>();
 
     /**
+     * Set of all currently known bus elements.
+     */
+    private final HashSet<BusElement> elements = new HashSet<>();
+
+    /**
      * List of all currently known bus devices on the bus.
-     * <p>
-     * This is updated after a scan triggered by {@link #scheduleScan()} has
-     * completed. It will then contain the list of all connected devices.
      * <p>
      * Sorted by device UUID, allows binary search and stable access from
      * serial interface by index.
@@ -385,8 +388,8 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     }
 
     @Override
-    public Iterable<BusDevice> getDevices() {
-        return devices;
+    public Iterable<BusElement> getElements() {
+        return elements;
     }
 
     @Nullable
@@ -488,11 +491,12 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
         // which may happen during a tick, i.e. while async update is running.
         synchronized (lock) {
             try {
-                for (final BusDevice device : devices) {
-                    device.setBusController(null);
+                for (final BusElement element : elements) {
+                    element.setBusController(null);
                 }
             } finally {
                 subsystems.values().forEach(Subsystem::dispose);
+                elements.clear();
                 devices.clear();
                 deviceById.clear();
                 stateAwares.clear();
@@ -536,45 +540,45 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
         // Build new list of devices --------------------------------------- //
         // ----------------------------------------------------------------- //
 
-        final Set<BusDevice> newDevices = new HashSet<>();
+        final Set<BusElement> newElements = new HashSet<>();
 
         {
-            final List<BusDevice> adjacentDevices = new ArrayList<>();
-            final Set<BusSegment> closed = new HashSet<>();
-            final Queue<BusSegment> open = new ArrayDeque<>();
+            final List<BusElement> adjacentElements = new ArrayList<>();
+            final Set<BusConnector> closed = new HashSet<>();
+            final Queue<BusConnector> open = new ArrayDeque<>();
 
-            // Avoid null entries in iterables returned by getDevices() to screw
+            // Avoid null entries in iterables returned by getConnected() to screw
             // things up. Not that anyone should ever do that, but I don't trust
             // people not to screw this up, so we're playing it safe.
             closed.add(null);
 
             // Start at the bus controller. This is why the BusController
-            // interface extends the BusSegment interface; homogenizes things.
+            // interface extends the BusConnector interface; homogenizes things.
             open.add(this);
 
-            // Explore the graph implicitly defined by bus segments' getDevices()
+            // Explore the graph implicitly defined by bus connectors' getConnected()
             // return values (which are, essentially, the edges in the graph) in
-            // a breadth-first fashion, adding already explored segments to the
+            // a breadth-first fashion, adding already explored connectors to the
             // closed set to avoid infinite loops due to cycles in the graph.
             while (!open.isEmpty()) {
-                final BusSegment segment = open.poll();
-                if (!closed.add(segment)) continue;
-                if (!segment.getDevices(adjacentDevices)) {
-                    scanErrored(State.ERROR_SEGMENT_FAILED);
+                final BusConnector connector = open.poll();
+                if (!closed.add(connector)) continue;
+                if (!connector.getConnected(adjacentElements)) {
+                    scanErrored(State.ERROR_CONNECTION_FAILED);
                     return;
                 }
-                for (final BusDevice device : adjacentDevices) {
-                    newDevices.add(device);
-                    if (device instanceof BusSegment) {
-                        open.add((BusSegment) device);
+                for (final BusElement device : adjacentElements) {
+                    newElements.add(device);
+                    if (device instanceof BusConnector) {
+                        open.add((BusConnector) device);
                     }
                 }
-                adjacentDevices.clear();
+                adjacentElements.clear();
             }
 
-            // Similarly as with the above, avoid null entries in getDevices()
+            // Similarly as with the above, avoid null entries in getConnected()
             // to screw things up. Still not trusting people. Who'd've thunk.
-            newDevices.remove(null);
+            newElements.remove(null);
         }
 
         // ----------------------------------------------------------------- //
@@ -585,58 +589,66 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
             // Find devices that have been removed, update internal data
             // structures accordingly and notify them. While doing so, convert
             // the set of found devices into the set of added devices.
-            final Iterator<BusDevice> it = devices.iterator();
+            final Iterator<BusElement> it = elements.iterator();
             while (it.hasNext()) {
-                final BusDevice device = it.next();
+                final BusElement element = it.next();
 
                 // If the device is in the list of found devices, it is still
                 // known and nothing changes for the device. We remove it so
                 // that this set of devices only contains the added devices
                 // when we're done. If it isn't in the list, then, well, it
                 // is gone, and we have to update our internal data.
-                if (!newDevices.remove(device)) {
+                if (!newElements.remove(element)) {
                     it.remove();
 
-                    deviceById.remove(device.getPersistentId());
-
-                    if (device instanceof BusStateListener) {
-                        stateAwares.remove(device);
+                    if (element instanceof BusDevice) {
+                        final BusDevice device = (BusDevice) element;
+                        final int index = Collections.binarySearch(devices, device, DEVICE_COMPARATOR);
+                        assert index >= 0 : "Device does not exist.";
+                        devices.remove(index);
+                        deviceById.remove(device.getPersistentId());
                     }
 
-                    if (device instanceof AsyncTickable) {
-                        tickables.remove(device);
+                    if (element instanceof BusStateListener) {
+                        stateAwares.remove(element);
+                    }
+
+                    if (element instanceof AsyncTickable) {
+                        tickables.remove(element);
                     }
 
                     for (final Subsystem subsystem : subsystems.values()) {
-                        subsystem.remove(device);
+                        subsystem.remove(element);
                     }
 
-                    device.setBusController(null);
+                    element.setBusController(null);
                 }
             }
         }
 
         // The above leaves us with the list of added devices, update internal
         // data structures accordingly and notify them.
-        for (final BusDevice device : newDevices) {
-            final int index = Collections.binarySearch(devices, device, DEVICE_COMPARATOR);
-            assert index < 0 : "Device has been added twice.";
-            devices.add(~index, device);
+        for (final BusElement element : newElements) {
+            element.setBusController(this);
 
-            device.setBusController(this);
-
-            deviceById.put(device.getPersistentId(), device);
-
-            if (device instanceof BusStateListener) {
-                stateAwares.add((BusStateListener) device);
+            if (element instanceof BusDevice) {
+                final BusDevice device = (BusDevice) element;
+                final int index = Collections.binarySearch(devices, device, DEVICE_COMPARATOR);
+                assert index < 0 : "Device has been added twice.";
+                devices.add(~index, device);
+                deviceById.put(device.getPersistentId(), device);
             }
 
-            if (device instanceof AsyncTickable) {
-                tickables.add((AsyncTickable) device);
+            if (element instanceof BusStateListener) {
+                stateAwares.add((BusStateListener) element);
+            }
+
+            if (element instanceof AsyncTickable) {
+                tickables.add((AsyncTickable) element);
             }
 
             for (final Subsystem subsystem : subsystems.values()) {
-                subsystem.add(device);
+                subsystem.add(element);
             }
         }
 
@@ -668,7 +680,7 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
             // Multiple controllers on one bus are a no-go. If we detect we're
             // connected to another controller, shut down everything and start
             // rescanning periodically.
-            final boolean hasMultipleControllers = newDevices.stream().anyMatch(device -> device instanceof BusController && device != this);
+            final boolean hasMultipleControllers = newElements.stream().anyMatch(device -> device instanceof BusController && device != this);
             if (hasMultipleControllers) {
                 scanErrored(State.ERROR_MULTIPLE_BUS_CONTROLLERS);
                 return;

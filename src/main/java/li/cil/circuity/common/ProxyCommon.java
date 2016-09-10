@@ -1,6 +1,6 @@
 package li.cil.circuity.common;
 
-import li.cil.circuity.common.capabilities.CapabilityBusDevice;
+import li.cil.circuity.common.capabilities.CapabilityBusElement;
 import li.cil.circuity.common.capabilities.eeprom.CapabilityEEPROM;
 import li.cil.circuity.common.capabilities.hdd.CapabilityHardDiskDrive;
 import li.cil.circuity.common.init.Blocks;
@@ -17,7 +17,7 @@ public abstract class ProxyCommon {
         Blocks.init();
         Items.init();
 
-        CapabilityBusDevice.register();
+        CapabilityBusElement.register();
         CapabilityHardDiskDrive.register();
         CapabilityEEPROM.register();
     }

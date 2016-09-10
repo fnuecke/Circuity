@@ -22,7 +22,7 @@ public final class TestHooks extends AbstractComponentBusDevice {
     }
 
     @Override
-    public BusDevice getDevice() {
+    public BusDevice getBusDevice() {
         return device;
     }
 

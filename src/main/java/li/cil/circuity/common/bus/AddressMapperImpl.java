@@ -1,6 +1,6 @@
 package li.cil.circuity.common.bus;
 
-import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.AddressMapper;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
@@ -153,9 +153,9 @@ public class AddressMapperImpl implements AddressMapper {
     // Subsystem
 
     @Override
-    public void add(final BusDevice device) {
-        if (device instanceof Addressable) {
-            final Addressable addressable = (Addressable) device;
+    public void add(final BusElement element) {
+        if (element instanceof Addressable) {
+            final Addressable addressable = (Addressable) element;
 
             for (final Mapping mapping : mappings) {
                 mapping.add(addressable);
@@ -164,9 +164,9 @@ public class AddressMapperImpl implements AddressMapper {
     }
 
     @Override
-    public void remove(final BusDevice device) {
-        if (device instanceof Addressable) {
-            final Addressable addressable = (Addressable) device;
+    public void remove(final BusElement element) {
+        if (element instanceof Addressable) {
+            final Addressable addressable = (Addressable) element;
 
             for (final Mapping mapping : mappings) {
                 mapping.remove(addressable);

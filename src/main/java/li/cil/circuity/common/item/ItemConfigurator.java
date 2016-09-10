@@ -1,7 +1,7 @@
 package li.cil.circuity.common.item;
 
 import li.cil.circuity.api.bus.BusController;
-import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.AddressMapper;
 import li.cil.circuity.api.bus.controller.InterruptMapper;
 import li.cil.circuity.api.bus.device.AddressBlock;
@@ -9,7 +9,7 @@ import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.api.bus.device.InterruptSource;
 import li.cil.circuity.common.Constants;
-import li.cil.circuity.common.capabilities.CapabilityBusDevice;
+import li.cil.circuity.common.capabilities.CapabilityBusElement;
 import li.cil.lib.util.CapabilityUtil;
 import li.cil.lib.util.ItemUtil;
 import li.cil.lib.util.PlayerUtil;
@@ -96,8 +96,8 @@ public class ItemConfigurator extends Item {
 
     @Override
     public EnumActionResult onItemUse(final ItemStack stack, final EntityPlayer player, final World world, final BlockPos pos, final EnumHand hand, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
-        final BusDevice device = CapabilityUtil.getCapability(world, pos, side, CapabilityBusDevice.BUS_DEVICE_CAPABILITY, BusDevice.class);
-        if (device == null) {
+        final BusElement element = CapabilityUtil.getCapability(world, pos, side, CapabilityBusElement.BUS_ELEMENT_CAPABILITY, BusElement.class);
+        if (element == null) {
             if (player.isSneaking()) {
                 cycleMode(stack, world, player);
                 return EnumActionResult.SUCCESS;
@@ -105,7 +105,7 @@ public class ItemConfigurator extends Item {
             return super.onItemUse(stack, player, world, pos, hand, side, hitX, hitY, hitZ);
         }
 
-        final BusController controller = device.getBusController();
+        final BusController controller = element.getBusController();
         if (world.isRemote || controller == null) {
             return EnumActionResult.SUCCESS;
         }
@@ -114,15 +114,15 @@ public class ItemConfigurator extends Item {
         final Mode mode = Mode.readFromNBT(tag);
         switch (mode) {
             case CHANGE_ADDRESS: {
-                if (device instanceof Addressable) {
-                    final Addressable addressable = (Addressable) device;
+                if (element instanceof Addressable) {
+                    final Addressable addressable = (Addressable) element;
                     // TODO Open GUI for address input, send it back to server, apply to device via controller.
                 }
                 break;
             }
             case SELECT_ADDRESS: {
-                if (device instanceof Addressable) {
-                    final Addressable addressable = (Addressable) device;
+                if (element instanceof Addressable) {
+                    final Addressable addressable = (Addressable) element;
                     final AddressMapper mapper = controller.getSubsystem(AddressMapper.class);
                     final AddressBlock memory = mapper.getAddressBlock(addressable);
 
@@ -137,14 +137,14 @@ public class ItemConfigurator extends Item {
                 break;
             }
             case BIND_ADDRESS: {
-                if (device instanceof Object) {
+                if (element instanceof Object) {
                     // TODO Custom interface for setting target addresses on devices.
                 }
                 break;
             }
             case SELECT_INTERRUPT_SOURCE: {
-                if (device instanceof InterruptSource) {
-                    final InterruptSource source = (InterruptSource) device;
+                if (element instanceof InterruptSource) {
+                    final InterruptSource source = (InterruptSource) element;
                     final InterruptMapper mapper = controller.getSubsystem(InterruptMapper.class);
                     final PrimitiveIterator.OfInt ids = mapper.getInterruptSourceIds(source);
                     final int oldId = tag.getInteger(INTERRUPT_SOURCE_TAG);
@@ -162,8 +162,8 @@ public class ItemConfigurator extends Item {
                 break;
             }
             case SELECT_INTERRUPT_SINK: {
-                if (device instanceof InterruptSink) {
-                    final InterruptSink sink = (InterruptSink) device;
+                if (element instanceof InterruptSink) {
+                    final InterruptSink sink = (InterruptSink) element;
                     final InterruptMapper mapper = controller.getSubsystem(InterruptMapper.class);
                     final PrimitiveIterator.OfInt ids = mapper.getInterruptSinkIds(sink);
                     final int oldId = tag.getInteger(INTERRUPT_SINK_TAG);
@@ -181,7 +181,7 @@ public class ItemConfigurator extends Item {
                 break;
             }
             case BIND_INTERRUPT: {
-                if (device instanceof BusController) {
+                if (element instanceof BusController) {
                     final int sourceId = tag.getInteger(INTERRUPT_SOURCE_TAG);
                     final int sinkId = tag.getInteger(INTERRUPT_SINK_TAG);
 

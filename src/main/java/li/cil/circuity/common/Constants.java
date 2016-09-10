@@ -28,7 +28,7 @@ public final class Constants {
     public static final class I18N {
         public static final String BUS_ERROR_MULTIPLE_CONTROLLERS = "bus.error.multiple_controllers";
         public static final String BUS_ERROR_ADDRESSES_OVERLAP = "bus.error.addresses_overlap";
-        public static final String BUS_ERROR_SEGMENT_FAILED = "bus.error.segment_failed";
+        public static final String BUS_ERROR_CONNECTION_FAILED = "bus.error.connection_failed";
 
         public static final String CONFIGURATOR_MODE_CHANGED = "configurator.mode_changed";
         public static final String CONFIGURATOR_CLEARED = "configurator.cleared";

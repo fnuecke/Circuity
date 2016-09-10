@@ -78,7 +78,7 @@ public class Z80Test {
         final TestBusController controller = manager.addComponent(entity, TestBusController.class);
         final TestHooks hooks = manager.addComponent(entity, TestHooks.class);
 
-        final Z80 z80 = ((BusDeviceZ80Processor.BusDeviceZ80Impl) cpu.getDevice()).z80;
+        final Z80 z80 = ((BusDeviceZ80Processor.BusDeviceZ80Impl) cpu.getBusDevice()).z80;
         hooks.device.setCpu(z80);
 
         for (int i = 0; i < 10; i++) {

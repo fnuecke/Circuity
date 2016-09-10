@@ -4,6 +4,7 @@ import io.netty.buffer.ByteBuf;
 import li.cil.circuity.ModCircuity;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.InterruptMapper;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
@@ -11,6 +12,7 @@ import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.BusChangeListener;
 import li.cil.circuity.api.bus.device.BusStateListener;
+import li.cil.circuity.api.bus.device.ComponentHosted;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.bus.device.InterruptSource;
@@ -18,6 +20,7 @@ import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.client.gui.GuiType;
 import li.cil.circuity.common.Constants;
 import li.cil.lib.api.SillyBeeAPI;
+import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.component.event.ActivationListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
@@ -107,10 +110,10 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
     }
 
     // --------------------------------------------------------------------- //
-    // AbstractComponentBusDevice
+    // BusDeviceHost
 
     @Override
-    public BusDevice getDevice() {
+    public BusDevice getBusDevice() {
         return device;
     }
 
@@ -119,7 +122,7 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SCREEN, Constants.DeviceInfo.SCREEN_NAME);
 
     @Serializable
-    public final class ScreenImpl extends AbstractBusDevice implements Addressable, AddressHint, InterruptSource, BusStateListener, BusChangeListener {
+    public final class ScreenImpl extends AbstractBusDevice implements ComponentHosted, Addressable, AddressHint, InterruptSource, BusStateListener, BusChangeListener {
         @Serialize
         public RingBuffer buffer = new RingBuffer(16);
 
@@ -130,6 +133,14 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
+        }
+
+        // --------------------------------------------------------------------- //
+        // ComponentHosted
+
+        @Override
+        public Component getHostComponent() {
+            return BusDeviceScreen.this;
         }
 
         // --------------------------------------------------------------------- //
@@ -213,9 +224,9 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
         @Override
         public void handleBusChanged() {
             // TODO Build list of candidates, allow user to select current one.
-            for (final BusDevice device : controller.getDevices()) {
-                if (device instanceof ScreenRenderer) {
-                    final ScreenRenderer renderer = (ScreenRenderer) device;
+            for (final BusElement element : controller.getElements()) {
+                if (element instanceof ScreenRenderer) {
+                    final ScreenRenderer renderer = (ScreenRenderer) element;
                     BusDeviceScreen.this.rendererId.set(renderer.getPersistentId());
                     return;
                 }

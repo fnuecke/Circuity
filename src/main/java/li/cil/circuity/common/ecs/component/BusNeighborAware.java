@@ -1,8 +1,8 @@
 package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusController;
-import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.common.capabilities.CapabilityBusDevice;
+import li.cil.circuity.api.bus.BusElement;
+import li.cil.circuity.common.capabilities.CapabilityBusElement;
 import li.cil.lib.api.ecs.component.Location;
 import li.cil.lib.api.ecs.component.event.NeighborChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
@@ -18,7 +18,7 @@ import java.util.Optional;
 import java.util.Set;
 
 public abstract class BusNeighborAware extends AbstractComponentBusDevice implements NeighborChangeListener {
-    private final Set<BusDevice> neighbors = new HashSet<>();
+    private final Set<BusElement> neighbors = new HashSet<>();
 
     protected BusNeighborAware(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
@@ -34,8 +34,8 @@ public abstract class BusNeighborAware extends AbstractComponentBusDevice implem
         // unnecessary overhead on the client.
         final BusController controller = getController();
         if (controller != null && !getWorld().isRemote) {
-            final HashSet<BusDevice> devices = new HashSet<>();
-            getDevices(devices);
+            final HashSet<BusElement> devices = new HashSet<>();
+            getConnected(devices);
             if (neighbors.retainAll(devices) | neighbors.addAll(devices)) {
                 controller.scheduleScan();
             }
@@ -47,12 +47,12 @@ public abstract class BusNeighborAware extends AbstractComponentBusDevice implem
     @Nullable
     protected abstract BusController getController();
 
-    protected boolean getDevices(final Collection<BusDevice> devices) {
+    protected boolean getConnected(final Collection<BusElement> devices) {
         final Optional<Location> location = getComponent(Location.class);
         return !location.isPresent() || getDevicesAt(location.get(), devices);
     }
 
-    private static boolean getDevicesAt(final Location location, final Collection<BusDevice> devices) {
+    private static boolean getDevicesAt(final Location location, final Collection<BusElement> devices) {
         final World world = location.getWorld();
         final BlockPos pos = location.getPosition();
 
@@ -62,7 +62,7 @@ public abstract class BusNeighborAware extends AbstractComponentBusDevice implem
                 return false;
             }
 
-            final BusDevice neighbor = CapabilityUtil.getCapability(world, neighborPos, side, CapabilityBusDevice.BUS_DEVICE_CAPABILITY, BusDevice.class);
+            final BusElement neighbor = CapabilityUtil.getCapability(world, neighborPos, side, CapabilityBusElement.BUS_ELEMENT_CAPABILITY, BusElement.class);
             if (neighbor != null) {
                 devices.add(neighbor);
             }

@@ -1,20 +1,21 @@
 package li.cil.circuity.common.ecs.component;
 
+import li.cil.circuity.api.bus.BusConnector;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.BusSegment;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
 
-public final class BusSegmentBlock extends BusNeighborAware {
-    private final BlockBusSegmentImpl segment = new BlockBusSegmentImpl();
+public final class BusConnectorBlock extends BusNeighborAware {
+    private final BlockBusConnectorImpl connector = new BlockBusConnectorImpl();
 
     // --------------------------------------------------------------------- //
 
-    public BusSegmentBlock(final EntityComponentManager manager, final long entity, final long id) {
+    public BusConnectorBlock(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
     }
 
@@ -25,17 +26,17 @@ public final class BusSegmentBlock extends BusNeighborAware {
     public void onDestroy() {
         super.onDestroy();
 
-        if (segment.getBusController() != null) {
-            segment.getBusController().scheduleScan();
+        if (connector.getBusController() != null) {
+            connector.getBusController().scheduleScan();
         }
     }
 
     // --------------------------------------------------------------------- //
-    // AbstractComponentBusDevice
+    // BusDeviceHost
 
     @Override
-    public BusDevice getDevice() {
-        return segment;
+    public BusDevice getBusDevice() {
+        return connector;
     }
 
     // --------------------------------------------------------------------- //
@@ -44,15 +45,15 @@ public final class BusSegmentBlock extends BusNeighborAware {
     @Nullable
     @Override
     protected BusController getController() {
-        return segment.getBusController();
+        return connector.getBusController();
     }
 
     // --------------------------------------------------------------------- //
 
-    public final class BlockBusSegmentImpl extends AbstractBusDevice implements BusSegment {
+    public final class BlockBusConnectorImpl extends AbstractBusDevice implements BusConnector {
         @Override
-        public boolean getDevices(final Collection<BusDevice> devices) {
-            return BusSegmentBlock.this.getDevices(devices);
+        public boolean getConnected(final Collection<BusElement> devices) {
+            return BusConnectorBlock.this.getConnected(devices);
         }
     }
 }
