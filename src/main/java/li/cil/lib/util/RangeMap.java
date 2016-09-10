@@ -1,5 +1,8 @@
 package li.cil.lib.util;
 
+import li.cil.lib.api.serialization.Serializable;
+import li.cil.lib.api.serialization.Serialize;
+
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -18,6 +21,7 @@ import java.util.Objects;
  *
  * @param <T> the type of value associated with each interval.
  */
+@Serializable
 public final class RangeMap<T> {
     /**
      * The total size of the range.
@@ -34,6 +38,7 @@ public final class RangeMap<T> {
      * <p>
      * Used for a fast {@link #size()} implementation.
      */
+    @Serialize
     private int nullEntries = 0;
 
     /**
@@ -46,6 +51,7 @@ public final class RangeMap<T> {
      * a custom linked list implementation that pre-allocated entry nodes in
      * one block for cache-friendliness.
      */
+    @Serialize
     private final List<Entry<T>> children = new ArrayList<>();
 
     /**
@@ -91,11 +97,25 @@ public final class RangeMap<T> {
      * @param length the length of the interval to store the value at.
      */
     public void add(final T value, final long offset, final long length) {
+        if (!tryAdd(value, offset, length)) {
+            throw new IllegalArgumentException("value overlaps existing item");
+        }
+    }
+
+    /**
+     * Try to add a value to the map at the specified interval.
+     *
+     * @param value  the value to store.
+     * @param offset the offset of the interval to store the value at.
+     * @param length the length of the interval to store the value at.
+     * @return <code>true</code> if the value was added; <code>false</code> otherwise.
+     */
+    public boolean tryAdd(final T value, final long offset, final long length) {
         final Entry<T> child = getChildAt(offset);
 
         // Can only add in null-entries.
         if (!child.permitsAdd(offset, length)) {
-            throw new IllegalArgumentException("value overlaps existing item");
+            return false;
         }
         children.remove(child);
         --nullEntries;
@@ -118,6 +138,8 @@ public final class RangeMap<T> {
             children.add(new Entry<>(rightOffset, rightLength, null));
             ++nullEntries;
         }
+
+        return true;
     }
 
     /**
@@ -161,12 +183,42 @@ public final class RangeMap<T> {
     }
 
     /**
+     * Removes the value at the specified offset from the map if and only if it
+     * is equal to the specified value.
+     *
+     * @param offset the offset at which to remove a value.
+     * @param value  the value to remove.
+     * @return <code>true</code> if a value was removed; <code>false</code> otherwise.
+     */
+    public boolean remove(final long offset, final T value) {
+        final Entry<T> entry = getChildAt(offset);
+        if (Objects.equals(entry.value, value)) {
+            removeFirst(entry);
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Clears the map, removing all values from it.
      */
     public void clear() {
         children.clear();
         children.add(new Entry<>(0, length, null));
         nullEntries = 1;
+    }
+
+    /**
+     * Returns an iterator over all empty intervals in the range map.
+     *
+     * @return the iterator over empty intervals.
+     */
+    public Iterator<Interval> gapIterator() {
+        return children.stream().
+                filter(e -> e.value == null).
+                sorted((o1, o2) -> (int) (o1.offset - o2.offset)).
+                map(Entry::toInterval).
+                iterator();
     }
 
     // --------------------------------------------------------------------- //
@@ -261,9 +313,23 @@ public final class RangeMap<T> {
 
     // --------------------------------------------------------------------- //
 
-    private static final class Entry<T> {
+    public static final class Interval {
         public final long offset;
         public final long length;
+
+        public Interval(final long offset, final long length) {
+            this.offset = offset;
+            this.length = length;
+        }
+    }
+
+    @Serializable
+    private static final class Entry<T> {
+        @Serialize
+        public final long offset;
+        @Serialize
+        public final long length;
+        @Serialize
         public final T value;
 
         public Entry(final long offset, final long length, @Nullable final T value) {
@@ -272,12 +338,23 @@ public final class RangeMap<T> {
             this.value = value;
         }
 
+        @SuppressWarnings("unused") // For serialization.
+        public Entry() {
+            offset = 0;
+            length = 0;
+            value = null;
+        }
+
         public boolean contains(final long offset) {
             return offset >= this.offset && offset - this.offset < length;
         }
 
         public boolean permitsAdd(final long offset, final long length) {
             return value == null && contains(offset) && contains(offset + length - 1);
+        }
+
+        public Interval toInterval() {
+            return new Interval(offset, length);
         }
     }
 }
