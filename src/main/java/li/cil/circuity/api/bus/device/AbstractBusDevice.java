@@ -15,6 +15,20 @@ public abstract class AbstractBusDevice implements BusDevice {
     protected BusController controller;
 
     // --------------------------------------------------------------------- //
+    // BusElement
+
+    @Nullable
+    @Override
+    public BusController getBusController() {
+        return controller;
+    }
+
+    @Override
+    public void setBusController(@Nullable final BusController controller) {
+        this.controller = controller;
+    }
+
+    // --------------------------------------------------------------------- //
     // BusDevice
 
     @Override
@@ -26,16 +40,5 @@ public abstract class AbstractBusDevice implements BusDevice {
     @Override
     public DeviceInfo getDeviceInfo() {
         return null;
-    }
-
-    @Nullable
-    @Override
-    public BusController getBusController() {
-        return controller;
-    }
-
-    @Override
-    public void setBusController(@Nullable final BusController controller) {
-        this.controller = controller;
     }
 }

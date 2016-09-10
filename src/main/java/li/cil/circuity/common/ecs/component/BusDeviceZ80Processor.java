@@ -1,5 +1,6 @@
 package li.cil.circuity.common.ecs.component;
 
+import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AsyncTickable;
@@ -13,6 +14,7 @@ import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
+import li.cil.lib.synchronization.value.SynchronizedLong;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentTranslation;
 
@@ -24,6 +26,9 @@ public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
 
     @Serialize
     private final BusDeviceZ80Impl device = new BusDeviceZ80Impl();
+
+    // Component ID of controller for client.
+    public final SynchronizedLong controllerId = new SynchronizedLong();
 
     // --------------------------------------------------------------------- //
 
@@ -51,6 +56,21 @@ public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
 
         public BusDeviceZ80Impl() {
             this.z80 = new Z80(new BusControllerAccess(this::getBusController, 0, 0xFFFF), new BusControllerAccess(this::getBusController, 0x10000, 0x00FF));
+        }
+
+        // --------------------------------------------------------------------- //
+        // BusElement
+
+        @Override
+        public void setBusController(@Nullable final BusController controller) {
+            super.setBusController(controller);
+            if (controller instanceof ComponentHosted) {
+                final ComponentHosted hosted = (ComponentHosted) controller;
+                final long componentId = hosted.getHostComponent().getId();
+                controllerId.set(componentId);
+            } else {
+                controllerId.set(0);
+            }
         }
 
         // --------------------------------------------------------------------- //

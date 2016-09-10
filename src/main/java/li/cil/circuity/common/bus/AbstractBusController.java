@@ -239,13 +239,7 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     }
 
     // --------------------------------------------------------------------- //
-    // BusDevice
-
-    @Nullable
-    @Override
-    public DeviceInfo getDeviceInfo() {
-        return DEVICE_INFO;
-    }
+    // BusElement
 
     @Nullable
     @Override
@@ -256,6 +250,15 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     @Override
     public void setBusController(@Nullable final BusController controller) {
         assert controller == this : "Multiple controllers on one bus.";
+    }
+
+    // --------------------------------------------------------------------- //
+    // BusDevice
+
+    @Nullable
+    @Override
+    public DeviceInfo getDeviceInfo() {
+        return DEVICE_INFO;
     }
 
     // --------------------------------------------------------------------- //

@@ -69,13 +69,7 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
     public final class RandomAccessMemoryImpl extends AbstractBusDevice implements ComponentHosted, Addressable, AddressHint, BusStateListener {
         // --------------------------------------------------------------------- //
-        // BusDevice
-
-        @Nullable
-        @Override
-        public DeviceInfo getDeviceInfo() {
-            return DEVICE_INFO;
-        }
+        // BusElement
 
         @Override
         public void setBusController(@Nullable final BusController controller) {
@@ -87,6 +81,15 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
             } else {
                 controllerId.set(0);
             }
+        }
+
+        // --------------------------------------------------------------------- //
+        // BusDevice
+
+        @Nullable
+        @Override
+        public DeviceInfo getDeviceInfo() {
+            return DEVICE_INFO;
         }
 
         // --------------------------------------------------------------------- //
