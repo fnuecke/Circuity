@@ -6,13 +6,11 @@ import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.BusStateListener;
-import li.cil.circuity.api.bus.device.ComponentHosted;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.common.Constants;
 import li.cil.lib.api.SillyBeeAPI;
-import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
@@ -102,7 +100,7 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.SERIAL_CONSOLE_NAME);
 
-    public final class SerialConsoleImpl extends AbstractBusDevice implements ComponentHosted, Addressable, AddressHint, BusStateListener, ScreenRenderer {
+    public final class SerialConsoleImpl extends AbstractBusDevice implements Addressable, AddressHint, BusStateListener, ScreenRenderer {
         @Serialize
         private int scrX = 0; // Range: [0,CONS_WIDTH] (yes, inclusive)
         @Serialize
@@ -115,14 +113,6 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
-        }
-
-        // --------------------------------------------------------------------- //
-        // ComponentHosted
-
-        @Override
-        public Component getHostComponent() {
-            return BusDeviceSerialConsole.this;
         }
 
         // --------------------------------------------------------------------- //

@@ -5,13 +5,11 @@ import li.cil.circuity.api.bus.controller.AddressMapper;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AsyncTickable;
 import li.cil.circuity.api.bus.device.BusStateListener;
-import li.cil.circuity.api.bus.device.ComponentHosted;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.server.processor.BusControllerAccess;
 import li.cil.circuity.server.processor.mips.Mips3;
 import li.cil.circuity.util.IntelHexLoader;
-import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
@@ -51,7 +49,7 @@ public class BusDeviceMips3Processor extends AbstractComponentBusDevice {
     // ActivationListener
 
     @Serializable
-    private class BusDeviceMips3Impl extends AbstractBusDevice implements ComponentHosted, InterruptSink, BusStateListener, AsyncTickable {
+    private class BusDeviceMips3Impl extends AbstractBusDevice implements InterruptSink, BusStateListener, AsyncTickable {
         @Serialize
         private final Mips3 mips;
 
@@ -59,14 +57,6 @@ public class BusDeviceMips3Processor extends AbstractComponentBusDevice {
 
         public BusDeviceMips3Impl() {
             this.mips = new Mips3(new BusControllerAccess(this::getBusController, 0));
-        }
-
-        // --------------------------------------------------------------------- //
-        // ComponentHosted
-
-        @Override
-        public Component getHostComponent() {
-            return BusDeviceMips3Processor.this;
         }
 
         // --------------------------------------------------------------------- //

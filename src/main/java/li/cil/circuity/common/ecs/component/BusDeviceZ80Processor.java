@@ -5,12 +5,10 @@ import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AsyncTickable;
 import li.cil.circuity.api.bus.device.BusStateListener;
-import li.cil.circuity.api.bus.device.ComponentHosted;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.server.processor.BusControllerAccess;
 import li.cil.circuity.server.processor.z80.Z80;
-import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
@@ -48,7 +46,7 @@ public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
     // ActivationListener
 
     @Serializable
-    public final class BusDeviceZ80Impl extends AbstractBusDevice implements ComponentHosted, InterruptSink, BusStateListener, AsyncTickable {
+    public final class BusDeviceZ80Impl extends AbstractBusDevice implements InterruptSink, BusStateListener, AsyncTickable {
         @Serialize
         public final Z80 z80;
 
@@ -64,21 +62,13 @@ public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
         @Override
         public void setBusController(@Nullable final BusController controller) {
             super.setBusController(controller);
-            if (controller instanceof ComponentHosted) {
-                final ComponentHosted hosted = (ComponentHosted) controller;
-                final long componentId = hosted.getHostComponent().getId();
+            if (controller instanceof BusControllerBlock.BlockBusControllerImpl) {
+                final BusControllerBlock.BlockBusControllerImpl hosted = (BusControllerBlock.BlockBusControllerImpl) controller;
+                final long componentId = hosted.getComponentId();
                 controllerId.set(componentId);
             } else {
                 controllerId.set(0);
             }
-        }
-
-        // --------------------------------------------------------------------- //
-        // ComponentHosted
-
-        @Override
-        public Component getHostComponent() {
-            return BusDeviceZ80Processor.this;
         }
 
         // --------------------------------------------------------------------- //

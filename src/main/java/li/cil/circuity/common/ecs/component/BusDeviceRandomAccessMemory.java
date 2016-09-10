@@ -7,11 +7,9 @@ import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.BusStateListener;
-import li.cil.circuity.api.bus.device.ComponentHosted;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.common.Constants;
-import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
@@ -67,16 +65,16 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_WRITE_MEMORY, Constants.DeviceInfo.RANDOM_ACCESS_MEMORY_NAME);
 
-    public final class RandomAccessMemoryImpl extends AbstractBusDevice implements ComponentHosted, Addressable, AddressHint, BusStateListener {
+    public final class RandomAccessMemoryImpl extends AbstractBusDevice implements Addressable, AddressHint, BusStateListener {
         // --------------------------------------------------------------------- //
         // BusElement
 
         @Override
         public void setBusController(@Nullable final BusController controller) {
             super.setBusController(controller);
-            if (controller instanceof ComponentHosted) {
-                final ComponentHosted hosted = (ComponentHosted) controller;
-                final long componentId = hosted.getHostComponent().getId();
+            if (controller instanceof BusControllerBlock.BlockBusControllerImpl) {
+                final BusControllerBlock.BlockBusControllerImpl hosted = (BusControllerBlock.BlockBusControllerImpl) controller;
+                final long componentId = hosted.getComponentId();
                 controllerId.set(componentId);
             } else {
                 controllerId.set(0);
@@ -90,14 +88,6 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
-        }
-
-        // --------------------------------------------------------------------- //
-        // ComponentHosted
-
-        @Override
-        public Component getHostComponent() {
-            return BusDeviceRandomAccessMemory.this;
         }
 
         // --------------------------------------------------------------------- //
