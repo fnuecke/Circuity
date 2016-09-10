@@ -80,8 +80,9 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
         @Override
         public void setBusController(@Nullable final BusController controller) {
             super.setBusController(controller);
-            if (controller instanceof BusControllerBlock.BlockBusControllerImpl) {
-                final long componentId = ((BusControllerBlock.BlockBusControllerImpl) controller).getComponentId();
+            if (controller instanceof ComponentHosted) {
+                final ComponentHosted hosted = (ComponentHosted) controller;
+                final long componentId = hosted.getHostComponent().getId();
                 controllerId.set(componentId);
             } else {
                 controllerId.set(0);
