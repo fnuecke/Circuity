@@ -12,13 +12,16 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 public class MapSerializer implements Serializer {
     private static final String KEY_CLASS_TAG = "keyClass";
     private static final String KEY_TAG = "key";
-    private static final String VALUE_CLASS_TAG = "keyClass";
+    private static final String VALUE_CLASS_TAG = "valueClass";
     private static final String VALUE_TAG = "value";
     private static final String ITEM_CLASSES_TAG = "classes";
     private static final String ENTRIES_TAG = "entries";
@@ -42,9 +45,10 @@ public class MapSerializer implements Serializer {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public NBTBase serialize(final Object object) {
-        final NBTTagList mapTag = new NBTTagList();
         final Map<Object, Object> map = (Map) object;
+        final NBTTagList mapTag = new NBTTagList();
 
         // List of types in the map, used as lookup table to avoid
         // having to write the full type name for each entry.
@@ -95,47 +99,70 @@ public class MapSerializer implements Serializer {
         final NBTTagList mapTag = (NBTTagList) wrapper.getTag(ENTRIES_TAG);
 
         // Try re-using previously present entries with the same keys in the map.
+        final Set reusedKeys = new HashSet<>();
         for (int newIndex = 0; newIndex < mapTag.tagCount(); newIndex++) {
             final NBTTagCompound itemInfoTag = mapTag.getCompoundTagAt(newIndex);
             final int keyClassIndex = itemInfoTag.getInteger(KEY_CLASS_TAG);
             final int valueClassIndex = itemInfoTag.getInteger(VALUE_CLASS_TAG);
 
-            final Object key, value;
+            final Class<?> keyClass, valueClass;
             if (keyClassIndex < 0) {
-                key = null;
+                keyClass = null;
             } else {
-                final Class<?> keyClass = entryClasses != null ? entryClasses.get(keyClassIndex) : null;
+                keyClass = entryClasses != null ? entryClasses.get(keyClassIndex) : null;
                 if (keyClass == null) {
                     ModSillyBee.getLogger().error("Failed deserializing map entry key, class is null.");
                     continue;
                 }
+            }
+            if (valueClassIndex < 0) {
+                valueClass = null;
+            } else {
+                valueClass = entryClasses != null ? entryClasses.get(valueClassIndex) : null;
+                if (valueClass == null) {
+                    ModSillyBee.getLogger().error("Failed deserializing map entry value, class is null.");
+                    continue;
+                }
+            }
 
+            final Map.Entry<Object, Object> oldEntry;
+            if (oldInstance != null) {
+                final Optional<Map.Entry<Object, Object>> oldEntryOpt = oldInstance.entrySet().stream().
+                        filter(e -> !reusedKeys.contains(e.getKey()) &&
+                                ((e.getKey() == null && keyClass == null) || (e.getKey().getClass() == keyClass)) &&
+                                ((e.getValue() == null && valueClass == null) || (e.getValue().getClass() == valueClass))).
+                        findFirst();
+                if (oldEntryOpt.isPresent()) {
+                    oldEntry = oldEntryOpt.get();
+                    reusedKeys.add(oldEntry.getKey());
+                } else {
+                    oldEntry = null;
+                }
+            } else {
+                oldEntry = null;
+            }
+
+            final Object key, value;
+            if (keyClass == null) {
+                key = null;
+            } else {
+                final Object oldKey = (oldEntry != null) ? oldEntry.getKey() : null;
                 final NBTBase keyTag = itemInfoTag.getTag(KEY_TAG);
                 try {
-                    key = serialization.deserialize(keyClass, keyTag);
+                    key = serialization.deserialize(oldKey, keyClass, keyTag);
                 } catch (final SerializationException e) {
                     ModSillyBee.getLogger().error("Failed deserializing map entry key.", e);
                     continue;
                 }
             }
 
-            final Object oldValue = (oldInstance != null) ? oldInstance.get(key) : null;
-            if (valueClassIndex < 0) {
+            if (valueClass == null) {
                 value = null;
             } else {
-                final Class<?> valueClass = entryClasses != null ? entryClasses.get(valueClassIndex) : null;
-                if (valueClass == null) {
-                    ModSillyBee.getLogger().error("Failed deserializing map entry value, class is null.");
-                    continue;
-                }
-
+                final Object oldValue = (oldEntry != null) ? oldEntry.getValue() : null;
                 final NBTBase valueTag = itemInfoTag.getTag(VALUE_TAG);
                 try {
-                    if (oldValue != null && oldValue.getClass() == valueClass) {
-                        value = serialization.deserialize(oldValue, valueClass, valueTag);
-                    } else {
-                        value = serialization.deserialize(valueClass, valueTag);
-                    }
+                    value = serialization.deserialize(oldValue, valueClass, valueTag);
                 } catch (final SerializationException e) {
                     ModSillyBee.getLogger().error("Failed deserializing map entry value.", e);
                     continue;
@@ -145,7 +172,15 @@ public class MapSerializer implements Serializer {
             instance.put(key, value);
         }
 
-        return ReflectionUtil.newInstance(ReflectionUtil.getConstructor(clazz, Map.class), instance);
+        if (oldInstance != null) {
+            oldInstance.clear();
+            oldInstance.putAll(instance);
+            return oldInstance;
+        } else {
+            final Map newInstance = (Map) ReflectionUtil.newInstance(ReflectionUtil.getConstructor(clazz));
+            newInstance.putAll(instance);
+            return newInstance;
+        }
     }
 
     @Nullable
