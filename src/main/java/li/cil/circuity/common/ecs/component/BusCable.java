@@ -2,9 +2,8 @@ package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusConnector;
 import li.cil.circuity.api.bus.BusController;
-import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusElement;
-import li.cil.circuity.api.bus.device.AbstractBusDevice;
+import li.cil.circuity.api.bus.device.AbstractBusElement;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.synchronization.value.SynchronizedLong;
 
@@ -36,10 +35,10 @@ public final class BusCable extends BusNeighborAware {
     }
 
     // --------------------------------------------------------------------- //
-    // BusDeviceHost
+    // AbstractComponentBusDevice
 
     @Override
-    public BusDevice getBusDevice() {
+    public BusElement getBusElement() {
         return connector;
     }
 
@@ -54,7 +53,7 @@ public final class BusCable extends BusNeighborAware {
 
     // --------------------------------------------------------------------- //
 
-    public final class BusCableImpl extends AbstractBusDevice implements BusConnector {
+    public final class BusCableImpl extends AbstractBusElement implements BusConnector {
         @Override
         public void setBusController(@Nullable final BusController controller) {
             super.setBusController(controller);

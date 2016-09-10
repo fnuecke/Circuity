@@ -1,6 +1,6 @@
 package li.cil.circuity.common.ecs.component;
 
-import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
@@ -37,10 +37,10 @@ public final class BusDeviceRedstoneController extends AbstractComponentBusDevic
     }
 
     // --------------------------------------------------------------------- //
-    // BusDeviceHost
+    // AbstractComponentBusDevice
 
     @Override
-    public BusDevice getBusDevice() {
+    public BusElement getBusElement() {
         return device;
     }
 

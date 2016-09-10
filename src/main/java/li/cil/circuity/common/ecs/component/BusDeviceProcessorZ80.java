@@ -1,7 +1,7 @@
 package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusController;
-import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AsyncTickable;
 import li.cil.circuity.api.bus.device.BusStateListener;
@@ -35,10 +35,10 @@ public final class BusDeviceProcessorZ80 extends AbstractComponentBusDevice {
     }
 
     // --------------------------------------------------------------------- //
-    // BusDeviceHost
+    // AbstractComponentBusDevice
 
     @Override
-    public BusDevice getBusDevice() {
+    public BusElement getBusElement() {
         return device;
     }
 

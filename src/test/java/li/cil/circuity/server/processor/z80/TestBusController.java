@@ -15,7 +15,7 @@ final class TestBusController extends BusControllerBlock {
     @Override
     protected boolean getConnected(final Collection<BusElement> devices) {
         for (final AbstractComponentBusDevice component : TestBusController.this.getComponents(AbstractComponentBusDevice.class)) {
-            devices.add(component.getBusDevice());
+            devices.add(component.getBusElement());
         }
         return true;
     }

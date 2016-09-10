@@ -71,10 +71,10 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
     }
 
     // --------------------------------------------------------------------- //
-    // BusDeviceHost
+    // AbstractComponentBusDevice
 
     @Override
-    public BusDevice getBusDevice() {
+    public BusDevice getBusElement() {
         return controller;
     }
 

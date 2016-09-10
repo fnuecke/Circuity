@@ -1,6 +1,6 @@
 package li.cil.circuity.common.ecs.component;
 
-import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.AddressMapper;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AsyncTickable;
@@ -38,10 +38,10 @@ public class BusDeviceProcessorMips3 extends AbstractComponentBusDevice {
     }
 
     // --------------------------------------------------------------------- //
-    // BusDeviceHost
+    // AbstractComponentBusDevice
 
     @Override
-    public BusDevice getBusDevice() {
+    public BusElement getBusElement() {
         return device;
     }
 

@@ -2,7 +2,7 @@ package li.cil.circuity.common.ecs.component;
 
 import io.netty.buffer.ByteBuf;
 import li.cil.circuity.api.bus.BusController;
-import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.AddressMapper;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
@@ -63,10 +63,10 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
     }
 
     // --------------------------------------------------------------------- //
-    // BusDeviceHost
+    // AbstractComponentBusDevice
 
     @Override
-    public BusDevice getBusDevice() {
+    public BusElement getBusElement() {
         return device;
     }
 

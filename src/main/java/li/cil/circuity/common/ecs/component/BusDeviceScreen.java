@@ -3,7 +3,6 @@ package li.cil.circuity.common.ecs.component;
 import io.netty.buffer.ByteBuf;
 import li.cil.circuity.ModCircuity;
 import li.cil.circuity.api.bus.BusController;
-import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.InterruptMapper;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
@@ -108,10 +107,10 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
     }
 
     // --------------------------------------------------------------------- //
-    // BusDeviceHost
+    // AbstractComponentBusDevice
 
     @Override
-    public BusDevice getBusDevice() {
+    public BusElement getBusElement() {
         return device;
     }
 

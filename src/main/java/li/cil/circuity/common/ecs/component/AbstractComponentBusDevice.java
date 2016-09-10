@@ -1,7 +1,7 @@
 package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusController;
-import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.common.capabilities.CapabilityBusElement;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.ecs.component.AbstractComponent;
@@ -16,7 +16,7 @@ public abstract class AbstractComponentBusDevice extends AbstractComponent imple
         super(manager, entity, id);
     }
 
-    public abstract BusDevice getBusDevice();
+    public abstract BusElement getBusElement();
 
     @Override
     public boolean hasCapability(final Capability<?> capability, @Nullable final EnumFacing facing) {
@@ -27,7 +27,7 @@ public abstract class AbstractComponentBusDevice extends AbstractComponent imple
     @Override
     public <T> T getCapability(final Capability<T> capability, @Nullable final EnumFacing facing) {
         if (capability == CapabilityBusElement.BUS_ELEMENT_CAPABILITY) {
-            return CapabilityBusElement.BUS_ELEMENT_CAPABILITY.cast(getBusDevice());
+            return CapabilityBusElement.BUS_ELEMENT_CAPABILITY.cast(getBusElement());
         }
         return null;
     }

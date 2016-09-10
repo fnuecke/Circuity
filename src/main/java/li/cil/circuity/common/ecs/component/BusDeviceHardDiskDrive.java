@@ -2,7 +2,7 @@ package li.cil.circuity.common.ecs.component;
 
 import io.netty.buffer.ByteBuf;
 import li.cil.circuity.api.bus.BusController;
-import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
@@ -38,10 +38,10 @@ public final class BusDeviceHardDiskDrive extends AbstractComponentBusDevice imp
     }
 
     // --------------------------------------------------------------------- //
-    // BusDeviceHost
+    // AbstractComponentBusDevice
 
     @Override
-    public BusDevice getBusDevice() {
+    public BusElement getBusElement() {
         return null;
     }
 

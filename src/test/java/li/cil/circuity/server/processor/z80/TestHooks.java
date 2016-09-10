@@ -1,7 +1,7 @@
 package li.cil.circuity.server.processor.z80;
 
 import com.google.common.base.Throwables;
-import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.AddressMapper;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
@@ -22,7 +22,7 @@ public final class TestHooks extends AbstractComponentBusDevice {
     }
 
     @Override
-    public BusDevice getBusDevice() {
+    public BusElement getBusElement() {
         return device;
     }
 
