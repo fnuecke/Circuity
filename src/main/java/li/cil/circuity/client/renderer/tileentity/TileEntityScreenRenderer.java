@@ -4,6 +4,7 @@ import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.common.ecs.component.BusDeviceScreen;
 import li.cil.circuity.common.tileentity.TileEntityScreen;
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
 
 import java.util.Optional;
@@ -17,7 +18,8 @@ public class TileEntityScreenRenderer extends TileEntitySpecialRenderer<TileEnti
             final ScreenRenderer renderer = screen.getScreenRenderer();
             if (renderer != null) {
                 GlStateManager.pushMatrix();
-                this.setLightmapDisabled(true);
+                setLightmapDisabled(true);
+                RenderHelper.disableStandardItemLighting();
                 GlStateManager.disableCull();
 
                 GlStateManager.translate(x, y, z);
@@ -27,10 +29,9 @@ public class TileEntityScreenRenderer extends TileEntitySpecialRenderer<TileEnti
 
                 renderer.render(256, 256);
 
-                super.renderTileEntityAt(tileEntity, x, y, z, partialTicks, destroyStage);
-
                 GlStateManager.enableCull();
-                this.setLightmapDisabled(false);
+                RenderHelper.enableStandardItemLighting();
+                setLightmapDisabled(false);
                 GlStateManager.popMatrix();
             }
         }

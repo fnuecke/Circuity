@@ -1,6 +1,7 @@
 package li.cil.circuity.client.renderer.tileentity;
 
 import net.minecraft.client.renderer.GlStateManager;
+import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.texture.TextureManager;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.renderer.tileentity.TileEntitySpecialRenderer;
@@ -26,9 +27,11 @@ public abstract class AbstractOverlayRenderer<T extends TileEntity> extends Tile
 
         GlStateManager.pushMatrix();
         GlStateManager.translate(x, y, z);
-        this.setLightmapDisabled(true);
+        setLightmapDisabled(true);
+        RenderHelper.disableStandardItemLighting();
         OverlayRenderer.renderOverlay(atlas, overlay);
-        this.setLightmapDisabled(false);
+        RenderHelper.enableStandardItemLighting();
+        setLightmapDisabled(false);
         GlStateManager.popMatrix();
     }
 

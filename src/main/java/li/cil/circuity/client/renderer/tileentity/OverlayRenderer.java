@@ -35,6 +35,7 @@ public final class OverlayRenderer {
      * @param overlay the overlay info.
      */
     public static void renderOverlay(final TextureMap atlas, final Overlay overlay) {
+        GlStateManager.depthMask(false);
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GlStateManager.color(1, 1, 1, getPulseAlpha());
@@ -54,6 +55,7 @@ public final class OverlayRenderer {
         GlStateManager.disableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_DST_ALPHA);
         GlStateManager.color(1, 1, 1, 1);
+        GlStateManager.depthMask(true);
     }
 
     public static void renderOverlayStatic(final TextureMap atlas, final Overlay overlay, final VertexBuffer buffer) {
