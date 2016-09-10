@@ -66,7 +66,7 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
         super.onDestroy();
 
         redstone = null;
-        controller.clear();
+        controller.dispose();
     }
 
     // --------------------------------------------------------------------- //
@@ -119,7 +119,7 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
     public boolean handleActivated(final EntityPlayer player, final EnumHand hand, @Nullable final ItemStack heldItem, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
         switch (state.get()) {
             case ERROR_MULTIPLE_BUS_CONTROLLERS:
-            case ERROR_ADDRESSES_OVERLAP:
+            case ERROR_SUBSYSTEM:
             case ERROR_SEGMENT_FAILED: {
                 final World world = getWorld();
                 if (world.isRemote) {
@@ -140,7 +140,7 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
             case ERROR_MULTIPLE_BUS_CONTROLLERS:
                 key = Constants.I18N.BUS_ERROR_MULTIPLE_CONTROLLERS;
                 break;
-            case ERROR_ADDRESSES_OVERLAP:
+            case ERROR_SUBSYSTEM:
                 key = Constants.I18N.BUS_ERROR_ADDRESSES_OVERLAP;
                 break;
             case ERROR_SEGMENT_FAILED:

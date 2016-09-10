@@ -6,7 +6,7 @@ import li.cil.circuity.api.bus.BusDevice;
  * When implemented on a {@link BusDevice}, it may be used by a screen to
  * render some content via this device.
  */
-public interface ScreenRenderer extends PersistentIdentifiable {
+public interface ScreenRenderer extends BusDevice {
     /**
      * Called when the device should render to a screen.
      * <p>

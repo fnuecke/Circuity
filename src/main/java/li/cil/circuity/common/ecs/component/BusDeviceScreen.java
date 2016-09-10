@@ -2,15 +2,18 @@ package li.cil.circuity.common.ecs.component;
 
 import io.netty.buffer.ByteBuf;
 import li.cil.circuity.ModCircuity;
+import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.device.AbstractAddressableInterruptSource;
+import li.cil.circuity.api.bus.controller.InterruptMapper;
+import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
+import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.BusChangeListener;
 import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
-import li.cil.circuity.api.bus.device.InterruptList;
+import li.cil.circuity.api.bus.device.InterruptSource;
 import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.client.gui.GuiType;
 import li.cil.circuity.common.Constants;
@@ -32,6 +35,7 @@ import net.minecraft.util.text.TextComponentTranslation;
 import javax.annotation.Nullable;
 import java.util.UUID;
 
+@Serializable
 public class BusDeviceScreen extends AbstractComponentBusDevice implements ActivationListener {
     private final Object lock = new Object();
 
@@ -81,7 +85,10 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
             if (device.buffer.isWritable()) {
                 device.buffer.write(data.readByte());
             }
-            device.triggerInterrupt(0, 0);
+            final BusController controller = device.getBusController();
+            if (controller != null) {
+                controller.getSubsystem(InterruptMapper.class).interrupt(device, 0, 0);
+            }
         }
     }
 
@@ -112,36 +119,25 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SCREEN, Constants.DeviceInfo.SCREEN_NAME);
 
     @Serializable
-    public final class ScreenImpl extends AbstractAddressableInterruptSource implements AddressHint, BusStateListener, BusChangeListener {
+    public final class ScreenImpl extends AbstractBusDevice implements Addressable, AddressHint, InterruptSource, BusStateListener, BusChangeListener {
         @Serialize
         public RingBuffer buffer = new RingBuffer(16);
 
         // --------------------------------------------------------------------- //
-        // AbstractAddressableInterruptSource
-
-        @Override
-        protected AddressBlock validateAddress(final AddressBlock memory) {
-            return memory.take(Constants.SCREEN_ADDRESS, 4);
-        }
-
-        @Override
-        protected int[] validateEmittedInterrupts(final InterruptList interrupts) {
-            return interrupts.take(1);
-        }
-
-        @Nullable
-        @Override
-        public ITextComponent getInterruptName(final int interruptId) {
-            return new TextComponentTranslation(Constants.I18N.INTERRUPT_SOURCE_KEYBOARD_INPUT);
-        }
-
-        // --------------------------------------------------------------------- //
-        // Addressable
+        // BusDevice
 
         @Nullable
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
+        }
+
+        // --------------------------------------------------------------------- //
+        // Addressable
+
+        @Override
+        public AddressBlock getPreferredAddressBlock(final AddressBlock memory) {
+            return memory.take(Constants.SCREEN_ADDRESS, 4);
         }
 
         @Override
@@ -183,6 +179,20 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
         @Override
         public int getSortHint() {
             return Constants.SCREEN_ADDRESS;
+        }
+
+        // --------------------------------------------------------------------- //
+        // InterruptSource
+
+        @Override
+        public int getEmittedInterrupts() {
+            return 1;
+        }
+
+        @Nullable
+        @Override
+        public ITextComponent getInterruptName(final int interrupt) {
+            return new TextComponentTranslation(Constants.I18N.INTERRUPT_SOURCE_KEYBOARD_INPUT);
         }
 
         // --------------------------------------------------------------------- //

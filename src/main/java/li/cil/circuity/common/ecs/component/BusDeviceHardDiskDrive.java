@@ -3,9 +3,10 @@ package li.cil.circuity.common.ecs.component;
 import io.netty.buffer.ByteBuf;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
+import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.item.HardDiskDrive;
@@ -82,23 +83,23 @@ public final class BusDeviceHardDiskDrive extends AbstractComponentBusDevice imp
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.HARD_DISK_DRIVE, Constants.DeviceInfo.HARD_DISK_DRIVE_NAME);
 
-    public final class HardDiskDriveImpl extends AbstractAddressable implements AddressHint {
+    public final class HardDiskDriveImpl extends AbstractBusDevice implements Addressable, AddressHint {
         // --------------------------------------------------------------------- //
-        // AbstractAddressable
-
-        @Override
-        protected AddressBlock validateAddress(final AddressBlock memory) {
-            final int size = data != null ? data.capacity() : 0;
-            return memory.take(Constants.DISK_DRIVE_ADDRESS, size);
-        }
-
-        // --------------------------------------------------------------------- //
-        // Addressable
+        // BusDevice
 
         @Nullable
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
+        }
+
+        // --------------------------------------------------------------------- //
+        // Addressable
+
+        @Override
+        public AddressBlock getPreferredAddressBlock(final AddressBlock memory) {
+            final int size = data != null ? data.capacity() : 0;
+            return memory.take(Constants.DISK_DRIVE_ADDRESS, size);
         }
 
         @Override

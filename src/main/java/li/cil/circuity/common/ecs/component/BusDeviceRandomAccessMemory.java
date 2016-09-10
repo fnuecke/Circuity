@@ -1,9 +1,10 @@
 package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
+import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
@@ -59,22 +60,22 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_WRITE_MEMORY, Constants.DeviceInfo.RANDOM_ACCESS_MEMORY_NAME);
 
-    public final class RandomAccessMemoryImpl extends AbstractAddressable implements AddressHint, BusStateListener {
+    public final class RandomAccessMemoryImpl extends AbstractBusDevice implements Addressable, AddressHint, BusStateListener {
         // --------------------------------------------------------------------- //
-        // AbstractAddressable
-
-        @Override
-        protected AddressBlock validateAddress(final AddressBlock memory) {
-            return memory.take(Constants.MEMORY_ADDRESS, BusDeviceRandomAccessMemory.this.memory.length);
-        }
-
-        // --------------------------------------------------------------------- //
-        // Addressable
+        // BusDevice
 
         @Nullable
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
+        }
+
+        // --------------------------------------------------------------------- //
+        // Addressable
+
+        @Override
+        public AddressBlock getPreferredAddressBlock(final AddressBlock memory) {
+            return memory.take(Constants.MEMORY_ADDRESS, BusDeviceRandomAccessMemory.this.memory.length);
         }
 
         @Override

@@ -1,6 +1,7 @@
 package li.cil.circuity.server.processor;
 
 import li.cil.circuity.api.bus.BusController;
+import li.cil.circuity.api.bus.controller.AddressMapper;
 
 import java.util.function.Supplier;
 
@@ -21,11 +22,13 @@ public class BusControllerAccess implements BusAccess {
 
     @Override
     public int read(final int address) {
-        return controller.get().mapAndRead((address & addressMask) + offset);
+        final AddressMapper mapper = controller.get().getSubsystem(AddressMapper.class);
+        return mapper.mapAndRead((address & addressMask) + offset);
     }
 
     @Override
     public void write(final int address, final int value) {
-        controller.get().mapAndWrite((address & addressMask) + offset, value);
+        final AddressMapper mapper = controller.get().getSubsystem(AddressMapper.class);
+        mapper.mapAndWrite((address & addressMask) + offset, value);
     }
 }

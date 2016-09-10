@@ -1,7 +1,7 @@
 package li.cil.circuity.api.bus.device;
 
-import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.controller.InterruptMapper;
 import net.minecraft.util.text.ITextComponent;
 
 import javax.annotation.Nullable;
@@ -10,57 +10,20 @@ import javax.annotation.Nullable;
  * Implemented by devices that can <em>accept</em> interrupts.
  * <p>
  * Typically this will be implemented by processors and programmable interrupt
- * controllers. Interruptable devices are collected by the {@link BusController}
+ * controllers. Interruptable devices are collected by the {@link InterruptMapper}
  * to build the global list of legal interrupts, as provided to the full list
  * of {@link BusDevice}s to assign them to the available interrupts.
- * <p>
- * <em>Important</em>: a device is responsible for persisting the interrupt
- * numbers assigned to it via {@link #setAcceptedInterrupts(int[])} until
- * <code>null</code> is passed to {@link #setAcceptedInterrupts(int[])}.
- * This is necessary for devices to have the same interrupt numbers assigned
- * to them after a save and load, because the {@link BusController} does not
- * store the interrupt numbers of the connected devices.
  */
 public interface InterruptSink extends BusDevice {
     /**
-     * Get the list of interrupt IDs accepted by this device.
-     * <p>
-     * These may be regular IRQs (interrupt requests) or NMI (non-maskable
-     * interrupts), depending on the implementation of the Device. There must
-     * be one interrupt ID for each interrupt the device accepts. For example,
-     * if the device accepts one IRQ and one NMI, it must return two IDs.
-     * <p>
-     * Interrupts are numbered globally by the {@link BusController}. The
-     * passed list provides an abstracted way of selecting the desired number
-     * of interrupt IDs (for as many interrupts as the device uses).
-     * <p>
-     * Returning an interrupt ID that is already in use is an error; a warning
-     * will be logged, and the device will be assigned no interrupt IDs.
-     * <p>
-     * The device <em>is required to persist the interrupts it is currently
-     * occupying</em>. In that case, the given list is to be ignored, and the
-     * persisted list of interrupt IDs is to be returned.
+     * Get the number of interrupts accepted by this device.
      *
-     * @param interrupts the list of available interrupts.
-     * @return the list of IDs equal in size as the number of accepted interrupts.
+     * @return the number of accepted interrupts.
      */
-    int[] getAcceptedInterrupts(final InterruptList interrupts);
+    int getAcceptedInterrupts();
 
     /**
-     * Sets the list of actual interrupt sink IDs bound to this device.
-     * <p>
-     * Passing <code>null</code> indicates unbinding the device from all
-     * interrupts.
-     * <p>
-     * The device <em>is required to persist the interrupts it is currently
-     * occupying</em>.
-     *
-     * @param interrupts the list of interrupt IDs the device is now bound to.
-     */
-    void setAcceptedInterrupts(@Nullable final int[] interrupts);
-
-    /**
-     * Get a descriptive name for the specified input ID.
+     * Get a descriptive name for the specified input.
      * <p>
      * This is used for communicating what a single interrupt of this device
      * does to the user (i.e. it will be shown to the user in status messages
@@ -69,17 +32,17 @@ public interface InterruptSink extends BusDevice {
      * While this may return <em>null</em>, it is strongly recommended to
      * return a meaningful, human-readable value here.
      *
-     * @param interruptId the ID to get the name for.
-     * @return the name for that ID.
+     * @param interrupt the index of the interrupt to get the name for.
+     * @return the name for that interrupt.
      */
     @Nullable
-    ITextComponent getInterruptName(final int interruptId);
+    ITextComponent getInterruptName(final int interrupt);
 
     /**
      * Activate the specified interrupt provided by this device.
      *
-     * @param interruptId the ID of the interrupt to activate.
-     * @param data        additional data passed along with the interrupt.
+     * @param interrupt the index of the interrupt to activate.
+     * @param data      additional data passed along with the interrupt.
      */
-    void interrupt(final int interruptId, final int data);
+    void interrupt(final int interrupt, final int data);
 }

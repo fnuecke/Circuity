@@ -1,10 +1,10 @@
 package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.device.AbstractInterruptSink;
+import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AsyncTickable;
 import li.cil.circuity.api.bus.device.BusStateListener;
-import li.cil.circuity.api.bus.device.InterruptList;
+import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.server.processor.BusControllerAccess;
 import li.cil.circuity.server.processor.z80.Z80;
@@ -13,6 +13,8 @@ import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentTranslation;
+
+import javax.annotation.Nullable;
 
 @Serializable
 public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
@@ -39,7 +41,7 @@ public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
     // ActivationListener
 
     @Serializable
-    public final class BusDeviceZ80Impl extends AbstractInterruptSink implements BusStateListener, AsyncTickable {
+    public final class BusDeviceZ80Impl extends AbstractBusDevice implements InterruptSink, BusStateListener, AsyncTickable {
         @Serialize
         public final Z80 z80;
 
@@ -50,28 +52,37 @@ public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
         }
 
         // --------------------------------------------------------------------- //
-        // AbstractInterruptSink
+        // InterruptSink
 
         @Override
-        protected int[] validateAcceptedInterrupts(final InterruptList interrupts) {
-            return interrupts.take(2);
+        public int getAcceptedInterrupts() {
+            return 2;
         }
 
+        @Nullable
         @Override
-        protected ITextComponent getInterruptNameIndexed(final int interrupt) {
-            if (interrupt == 0) {
-                return new TextComponentTranslation(Constants.I18N.INTERRUPT_SINK_NON_MASKABLE_INTERRUPT);
-            } else {
-                return new TextComponentTranslation(Constants.I18N.INTERRUPT_SINK_INTERRUPT_REQUEST);
+        public ITextComponent getInterruptName(final int interrupt) {
+            switch (interrupt) {
+                case 0:
+                    return new TextComponentTranslation(Constants.I18N.INTERRUPT_SINK_NON_MASKABLE_INTERRUPT);
+                case 1:
+                    return new TextComponentTranslation(Constants.I18N.INTERRUPT_SINK_INTERRUPT_REQUEST);
+                default:
+                    throw new IndexOutOfBoundsException();
             }
         }
 
         @Override
-        protected void interruptIndexed(final int interrupt, final int data) {
-            if (interrupt == 0) {
-                z80.nmi();
-            } else {
-                z80.irq((byte) data);
+        public void interrupt(final int interrupt, final int data) {
+            switch (interrupt) {
+                case 0:
+                    z80.nmi();
+                    break;
+                case 1:
+                    z80.irq((byte) data);
+                    break;
+                default:
+                    throw new IndexOutOfBoundsException();
             }
         }
 

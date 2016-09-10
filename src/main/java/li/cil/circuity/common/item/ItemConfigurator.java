@@ -2,7 +2,8 @@ package li.cil.circuity.common.item;
 
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.ConfigurableBusController;
+import li.cil.circuity.api.bus.controller.AddressMapper;
+import li.cil.circuity.api.bus.controller.InterruptMapper;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.InterruptSink;
@@ -122,7 +123,8 @@ public class ItemConfigurator extends Item {
             case SELECT_ADDRESS: {
                 if (device instanceof Addressable) {
                     final Addressable addressable = (Addressable) device;
-                    final AddressBlock memory = controller.getAddress(addressable);
+                    final AddressMapper mapper = controller.getSubsystem(AddressMapper.class);
+                    final AddressBlock memory = mapper.getAddressBlock(addressable);
 
                     if (memory == null) {
                         return EnumActionResult.SUCCESS;
@@ -143,7 +145,8 @@ public class ItemConfigurator extends Item {
             case SELECT_INTERRUPT_SOURCE: {
                 if (device instanceof InterruptSource) {
                     final InterruptSource source = (InterruptSource) device;
-                    final PrimitiveIterator.OfInt ids = controller.getInterruptSourceIds(source);
+                    final InterruptMapper mapper = controller.getSubsystem(InterruptMapper.class);
+                    final PrimitiveIterator.OfInt ids = mapper.getInterruptSourceIds(source);
                     final int oldId = tag.getInteger(INTERRUPT_SOURCE_TAG);
                     final int newId = getNextId(ids, oldId);
                     tag.setInteger(INTERRUPT_SOURCE_TAG, newId);
@@ -161,7 +164,8 @@ public class ItemConfigurator extends Item {
             case SELECT_INTERRUPT_SINK: {
                 if (device instanceof InterruptSink) {
                     final InterruptSink sink = (InterruptSink) device;
-                    final PrimitiveIterator.OfInt ids = controller.getInterruptSinkIds(sink);
+                    final InterruptMapper mapper = controller.getSubsystem(InterruptMapper.class);
+                    final PrimitiveIterator.OfInt ids = mapper.getInterruptSinkIds(sink);
                     final int oldId = tag.getInteger(INTERRUPT_SINK_TAG);
                     final int newId = getNextId(ids, oldId);
                     tag.setInteger(INTERRUPT_SINK_TAG, newId);
@@ -177,8 +181,7 @@ public class ItemConfigurator extends Item {
                 break;
             }
             case BIND_INTERRUPT: {
-                if (device instanceof ConfigurableBusController) {
-                    final ConfigurableBusController configurableController = (ConfigurableBusController) device;
+                if (device instanceof BusController) {
                     final int sourceId = tag.getInteger(INTERRUPT_SOURCE_TAG);
                     final int sinkId = tag.getInteger(INTERRUPT_SINK_TAG);
 
@@ -186,7 +189,8 @@ public class ItemConfigurator extends Item {
                         return EnumActionResult.SUCCESS;
                     }
 
-                    configurableController.setInterruptMapping(sourceId, sinkId);
+                    final InterruptMapper mapper = controller.getSubsystem(InterruptMapper.class);
+                    mapper.setInterruptMapping(sourceId, sinkId);
 
                     if (sinkId >= 0) {
                         player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_INTERRUPT_SET));

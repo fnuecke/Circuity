@@ -1,9 +1,10 @@
 package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
+import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
@@ -99,14 +100,14 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.SERIAL_CONSOLE_NAME);
 
-    public final class SerialConsoleImpl extends AbstractAddressable implements AddressHint, BusStateListener, ScreenRenderer {
+    public final class SerialConsoleImpl extends AbstractBusDevice implements Addressable, AddressHint, BusStateListener, ScreenRenderer {
         @Serialize
         private int scrX = 0; // Range: [0,CONS_WIDTH] (yes, inclusive)
         @Serialize
         private int scrY = 0; // Range: [0,CONS_HEIGHT) (not a typo!)
 
         // --------------------------------------------------------------------- //
-        // AbstractAddressableInterruptSource
+        // BusDevice
 
         @Nullable
         @Override
@@ -114,8 +115,11 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
             return DEVICE_INFO;
         }
 
+        // --------------------------------------------------------------------- //
+        // Addressable
+
         @Override
-        protected AddressBlock validateAddress(final AddressBlock memory) {
+        public AddressBlock getPreferredAddressBlock(final AddressBlock memory) {
             return memory.take(Constants.SERIAL_CONSOLE_ADDRESS, 1);
         }
 

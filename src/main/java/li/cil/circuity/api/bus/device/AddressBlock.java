@@ -40,6 +40,9 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
         if (length < 0) {
             throw new IllegalArgumentException("Length must not be negative.");
         }
+        if (Long.MAX_VALUE - length < offset) {
+            throw new IllegalArgumentException("Address block overflow long capacity.");
+        }
 
         this.offset = offset;
         this.length = length;
@@ -66,6 +69,18 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
 
     public AddressBlock take(final long minOffset, final int addresses) {
         return new AddressBlock(Math.max(offset, minOffset), addresses);
+    }
+
+    public AddressBlock clamp(final AddressBlock that) {
+        return new AddressBlock(Math.max(offset, that.offset), Math.min(offset + length, that.offset + that.length));
+    }
+
+    // --------------------------------------------------------------------- //
+    // Object
+
+    @Override
+    public String toString() {
+        return String.format("%08Xh-%08Xh", offset, offset + length);
     }
 
     // --------------------------------------------------------------------- //

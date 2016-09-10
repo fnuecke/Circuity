@@ -3,9 +3,11 @@ package li.cil.circuity.common.ecs.component;
 import io.netty.buffer.ByteBuf;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
-import li.cil.circuity.api.bus.device.AbstractAddressable;
+import li.cil.circuity.api.bus.controller.AddressMapper;
+import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
+import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
@@ -106,23 +108,23 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_ONLY_MEMORY, Constants.DeviceInfo.EEPROM_READER_NAME);
 
-    public final class EEPROMImpl extends AbstractAddressable implements AddressHint, BusStateListener {
+    public final class EEPROMImpl extends AbstractBusDevice implements Addressable, AddressHint, BusStateListener {
         // --------------------------------------------------------------------- //
-        // AbstractAddressable
-
-        @Override
-        protected AddressBlock validateAddress(final AddressBlock memory) {
-            final int size = data != null ? data.capacity() : 0;
-            return memory.take(Constants.EEPROM_ADDRESS, size);
-        }
-
-        // --------------------------------------------------------------------- //
-        // Addressable
+        // BusDevice
 
         @Nullable
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
+        }
+
+        // --------------------------------------------------------------------- //
+        // Addressable
+
+        @Override
+        public AddressBlock getPreferredAddressBlock(final AddressBlock memory) {
+            final int size = data != null ? data.capacity() : 0;
+            return memory.take(Constants.EEPROM_ADDRESS, size);
         }
 
         @Override
@@ -155,8 +157,9 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
 
         @Override
         public void handleBusOnline() {
+            final AddressMapper mapper = controller.getSubsystem(AddressMapper.class);
             try {
-                IntelHexLoader.load(Files.readAllLines(Paths.get("F:\\sdcc\\monitor.ihx")), controller::mapAndWrite);
+                IntelHexLoader.load(Files.readAllLines(Paths.get("F:\\sdcc\\monitor.ihx")), mapper::mapAndWrite);
             } catch (IOException | IllegalArgumentException e) {
                 e.printStackTrace();
             }

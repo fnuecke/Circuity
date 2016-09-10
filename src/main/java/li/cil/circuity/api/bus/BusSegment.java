@@ -1,7 +1,6 @@
 package li.cil.circuity.api.bus;
 
 import java.util.Collection;
-import java.util.List;
 
 /**
  * Represents a transitive part of a bus.
@@ -26,7 +25,7 @@ import java.util.List;
  * segments will be detected via the block change by either adjacent bus
  * segments or an adjacent bus controller.
  */
-public interface BusSegment extends BusDevice {
+public interface BusSegment {
     /**
      * Build the list of adjacent {@link BusDevice}s.
      * <p>

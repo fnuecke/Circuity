@@ -1,9 +1,10 @@
 package li.cil.circuity.api.bus.device;
 
 import li.cil.circuity.api.bus.BusDevice;
+import li.cil.circuity.api.bus.controller.AddressMapper;
 
 /**
- * May be implemented on {@link Addressable}s to give the {@link li.cil.circuity.api.bus.BusController}
+ * May be implemented on {@link Addressable}s to give the {@link AddressMapper}
  * some hints when distributing addresses to connected devices. This should be
  * implemented by devices that prefer or require to be mapped to a specific
  * address range.
