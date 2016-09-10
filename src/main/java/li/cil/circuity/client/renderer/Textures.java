@@ -25,6 +25,12 @@ public enum Textures {
 
     // --------------------------------------------------------------------- //
 
+    public static final Overlay BUS_CABLE_ONLINE = new Overlay(
+            add(OVERLAY_PATH + "bus_cable_online"),
+            add(OVERLAY_PATH + "bus_cable_online"),
+            add(OVERLAY_PATH + "bus_cable_online")
+    );
+
     public static final Overlay BUS_CONTROLLER_ERROR = new Overlay(
             add(OVERLAY_PATH + "bus_controller_top_error"),
             add(OVERLAY_PATH + "bus_controller_side_error"),

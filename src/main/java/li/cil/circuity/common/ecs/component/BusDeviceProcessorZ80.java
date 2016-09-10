@@ -19,18 +19,18 @@ import net.minecraft.util.text.TextComponentTranslation;
 import javax.annotation.Nullable;
 
 @Serializable
-public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
+public final class BusDeviceProcessorZ80 extends AbstractComponentBusDevice {
     private static final int CYCLES_PER_TICK = 2_000_000 / 20;
 
     @Serialize
-    private final BusDeviceZ80Impl device = new BusDeviceZ80Impl();
+    private final BusDeviceProcessorZ80Impl device = new BusDeviceProcessorZ80Impl();
 
     // Component ID of controller for client.
     public final SynchronizedLong controllerId = new SynchronizedLong();
 
     // --------------------------------------------------------------------- //
 
-    public BusDeviceZ80Processor(final EntityComponentManager manager, final long entity, final long id) {
+    public BusDeviceProcessorZ80(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
     }
 
@@ -46,13 +46,13 @@ public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
     // ActivationListener
 
     @Serializable
-    public final class BusDeviceZ80Impl extends AbstractBusDevice implements InterruptSink, BusStateListener, AsyncTickable {
+    public final class BusDeviceProcessorZ80Impl extends AbstractBusDevice implements InterruptSink, BusStateListener, AsyncTickable {
         @Serialize
         public final Z80 z80;
 
         // --------------------------------------------------------------------- //
 
-        public BusDeviceZ80Impl() {
+        public BusDeviceProcessorZ80Impl() {
             this.z80 = new Z80(new BusControllerAccess(this::getBusController, 0, 0xFFFF), new BusControllerAccess(this::getBusController, 0x10000, 0x00FF));
         }
 
@@ -62,13 +62,7 @@ public final class BusDeviceZ80Processor extends AbstractComponentBusDevice {
         @Override
         public void setBusController(@Nullable final BusController controller) {
             super.setBusController(controller);
-            if (controller instanceof BusControllerBlock.BlockBusControllerImpl) {
-                final BusControllerBlock.BlockBusControllerImpl hosted = (BusControllerBlock.BlockBusControllerImpl) controller;
-                final long componentId = hosted.getComponentId();
-                controllerId.set(componentId);
-            } else {
-                controllerId.set(0);
-            }
+            BusDeviceProcessorZ80.this.controllerId.set(getBusControllerId(controller));
         }
 
         // --------------------------------------------------------------------- //

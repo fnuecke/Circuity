@@ -6,16 +6,20 @@ import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
+import li.cil.lib.synchronization.value.SynchronizedLong;
 
 import javax.annotation.Nullable;
 import java.util.Collection;
 
-public final class BusConnectorBlock extends BusNeighborAware {
-    private final BlockBusConnectorImpl connector = new BlockBusConnectorImpl();
+public final class BusCable extends BusNeighborAware {
+    private final BusCableImpl connector = new BusCableImpl();
+
+    // Component ID of controller for client.
+    public final SynchronizedLong controllerId = new SynchronizedLong();
 
     // --------------------------------------------------------------------- //
 
-    public BusConnectorBlock(final EntityComponentManager manager, final long entity, final long id) {
+    public BusCable(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
     }
 
@@ -50,10 +54,16 @@ public final class BusConnectorBlock extends BusNeighborAware {
 
     // --------------------------------------------------------------------- //
 
-    public final class BlockBusConnectorImpl extends AbstractBusDevice implements BusConnector {
+    public final class BusCableImpl extends AbstractBusDevice implements BusConnector {
+        @Override
+        public void setBusController(@Nullable final BusController controller) {
+            super.setBusController(controller);
+            BusCable.this.controllerId.set(getBusControllerId(controller));
+        }
+
         @Override
         public boolean getConnected(final Collection<BusElement> devices) {
-            return BusConnectorBlock.this.getConnected(devices);
+            return BusCable.this.getConnected(devices);
         }
     }
 }

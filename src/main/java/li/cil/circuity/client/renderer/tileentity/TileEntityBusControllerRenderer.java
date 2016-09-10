@@ -17,9 +17,9 @@ public class TileEntityBusControllerRenderer extends AbstractOverlayRenderer<Til
             final BusControllerBlock device = maybeDevice.get();
 
             if (device.hasErrors()) {
-                return Textures.BUS_CONTROLLER_ERROR.get(device.hashCode());
+                return Textures.BUS_CONTROLLER_ERROR.get();
             } else if (device.isOnline()) {
-                return Textures.BUS_CONTROLLER_ONLINE.get(device.hashCode());
+                return Textures.BUS_CONTROLLER_ONLINE.get();
             }
         }
 

@@ -47,13 +47,7 @@ public final class OverlayRenderer {
      */
     public static void renderOverlay(final TextureMap atlas, final OverlayData overlay) {
         GlStateManager.depthMask(false);
-        GlStateManager.enableBlend();
-        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GlStateManager.color(1, 1, 1, overlay.alpha);
-
-        GlStateManager.translate(0.5f, 0.5f, 0.5f);
-        GlStateManager.scale(1, -1, 1);
-        GlStateManager.translate(-0.5f, -0.5f, -0.5f);
+        GlStateManager.color(overlay.alpha, overlay.alpha, overlay.alpha);
 
         final Tessellator tessellator = Tessellator.getInstance();
         final VertexBuffer buffer = tessellator.getBuffer();
@@ -63,8 +57,6 @@ public final class OverlayRenderer {
 
         tessellator.draw();
 
-        GlStateManager.disableBlend();
-        GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_DST_ALPHA);
         GlStateManager.color(1, 1, 1, 1);
         GlStateManager.depthMask(true);
     }
@@ -73,41 +65,41 @@ public final class OverlayRenderer {
         final float l = -0.002f, h = 1.002f;
         if (overlay.top != null) {
             final TextureAtlasSprite sprite = atlas.getAtlasSprite(overlay.top.toString());
-            buffer.pos(h, l, l).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
-            buffer.pos(l, l, l).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
-            buffer.pos(l, l, h).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
-            buffer.pos(h, l, h).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
+            buffer.pos(l, h, l).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
+            buffer.pos(l, h, h).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
+            buffer.pos(h, h, h).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
+            buffer.pos(h, h, l).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
         }
 
         if (overlay.side != null) {
             final TextureAtlasSprite sprite = atlas.getAtlasSprite(overlay.side.toString());
-            buffer.pos(l, h, l).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
-            buffer.pos(l, l, l).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
-            buffer.pos(h, l, l).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
-            buffer.pos(h, h, l).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
-
-            buffer.pos(h, h, l).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
-            buffer.pos(h, l, l).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
-            buffer.pos(h, l, h).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
-            buffer.pos(h, h, h).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
-
-            buffer.pos(h, h, h).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
-            buffer.pos(h, l, h).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
-            buffer.pos(l, l, h).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
-            buffer.pos(l, h, h).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
-
-            buffer.pos(l, h, h).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
-            buffer.pos(l, l, h).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
             buffer.pos(l, l, l).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
             buffer.pos(l, h, l).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
+            buffer.pos(h, h, l).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
+            buffer.pos(h, l, l).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
+
+            buffer.pos(h, l, l).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
+            buffer.pos(h, h, l).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
+            buffer.pos(h, h, h).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
+            buffer.pos(h, l, h).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
+
+            buffer.pos(h, l, h).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
+            buffer.pos(h, h, h).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
+            buffer.pos(l, h, h).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
+            buffer.pos(l, l, h).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
+
+            buffer.pos(l, l, h).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
+            buffer.pos(l, h, h).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
+            buffer.pos(l, h, l).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
+            buffer.pos(l, l, l).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
         }
 
         if (overlay.bottom != null) {
             final TextureAtlasSprite sprite = atlas.getAtlasSprite(overlay.bottom.toString());
-            buffer.pos(l, h, h).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
-            buffer.pos(l, h, l).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
-            buffer.pos(h, h, l).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
-            buffer.pos(h, h, h).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
+            buffer.pos(l, l, l).tex(sprite.getMinU(), sprite.getMaxV()).endVertex();
+            buffer.pos(h, l, l).tex(sprite.getMaxU(), sprite.getMaxV()).endVertex();
+            buffer.pos(h, l, h).tex(sprite.getMaxU(), sprite.getMinV()).endVertex();
+            buffer.pos(l, l, h).tex(sprite.getMinU(), sprite.getMinV()).endVertex();
         }
     }
 

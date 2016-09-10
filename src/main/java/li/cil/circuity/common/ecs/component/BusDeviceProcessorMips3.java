@@ -24,16 +24,16 @@ import java.nio.file.Paths;
 /**
  * MIPS3 implementation, heavily based on the NEC VR4300.
  */
-public class BusDeviceMips3Processor extends AbstractComponentBusDevice {
+public class BusDeviceProcessorMips3 extends AbstractComponentBusDevice {
 
     private static final int CYCLES_PER_TICK = 2_000_000 / 20;
 
     @Serialize
-    private final BusDeviceMips3Impl device = new BusDeviceMips3Impl();
+    private final BusDeviceProcessorMips3Impl device = new BusDeviceProcessorMips3Impl();
 
     // --------------------------------------------------------------------- //
 
-    public BusDeviceMips3Processor(final EntityComponentManager manager, final long entity, final long id) {
+    public BusDeviceProcessorMips3(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
     }
 
@@ -49,13 +49,13 @@ public class BusDeviceMips3Processor extends AbstractComponentBusDevice {
     // ActivationListener
 
     @Serializable
-    private class BusDeviceMips3Impl extends AbstractBusDevice implements InterruptSink, BusStateListener, AsyncTickable {
+    private class BusDeviceProcessorMips3Impl extends AbstractBusDevice implements InterruptSink, BusStateListener, AsyncTickable {
         @Serialize
         private final Mips3 mips;
 
         // --------------------------------------------------------------------- //
 
-        public BusDeviceMips3Impl() {
+        public BusDeviceProcessorMips3Impl() {
             this.mips = new Mips3(new BusControllerAccess(this::getBusController, 0));
         }
 

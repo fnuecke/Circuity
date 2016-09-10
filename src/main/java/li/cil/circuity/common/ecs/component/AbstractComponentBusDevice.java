@@ -1,5 +1,6 @@
 package li.cil.circuity.common.ecs.component;
 
+import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.common.capabilities.CapabilityBusElement;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
@@ -29,5 +30,14 @@ public abstract class AbstractComponentBusDevice extends AbstractComponent imple
             return CapabilityBusElement.BUS_ELEMENT_CAPABILITY.cast(getBusDevice());
         }
         return null;
+    }
+
+    protected static long getBusControllerId(@Nullable final BusController controller) {
+        if (controller instanceof BusControllerBlock.BlockBusControllerImpl) {
+            final BusControllerBlock.BlockBusControllerImpl hosted = (BusControllerBlock.BlockBusControllerImpl) controller;
+            return hosted.getComponentId();
+        } else {
+            return 0;
+        }
     }
 }

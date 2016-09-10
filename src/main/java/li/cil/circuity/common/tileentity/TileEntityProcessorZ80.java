@@ -1,6 +1,6 @@
 package li.cil.circuity.common.tileentity;
 
-import li.cil.circuity.common.ecs.component.BusDeviceZ80Processor;
+import li.cil.circuity.common.ecs.component.BusDeviceProcessorZ80;
 import li.cil.lib.tileentity.TileEntityEntityContainer;
 
 public class TileEntityProcessorZ80 extends TileEntityEntityContainer {
@@ -8,6 +8,6 @@ public class TileEntityProcessorZ80 extends TileEntityEntityContainer {
     protected void addComponents() {
         super.addComponents();
 
-        addComponent(BusDeviceZ80Processor.class);
+        addComponent(BusDeviceProcessorZ80.class);
     }
 }

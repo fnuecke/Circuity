@@ -1,7 +1,7 @@
 package li.cil.circuity.server.processor.z80;
 
 import li.cil.circuity.common.ecs.component.BusDeviceRandomAccessMemory;
-import li.cil.circuity.common.ecs.component.BusDeviceZ80Processor;
+import li.cil.circuity.common.ecs.component.BusDeviceProcessorZ80;
 import li.cil.lib.Manager;
 import li.cil.lib.Scheduler;
 import li.cil.lib.Serialization;
@@ -74,11 +74,11 @@ public class Z80Test {
         manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
         manager.addComponent(entity, BusDeviceRandomAccessMemory.class).setSize(4 * 1024);
 
-        final BusDeviceZ80Processor cpu = manager.addComponent(entity, BusDeviceZ80Processor.class);
+        final BusDeviceProcessorZ80 cpu = manager.addComponent(entity, BusDeviceProcessorZ80.class);
         final TestBusController controller = manager.addComponent(entity, TestBusController.class);
         final TestHooks hooks = manager.addComponent(entity, TestHooks.class);
 
-        final Z80 z80 = ((BusDeviceZ80Processor.BusDeviceZ80Impl) cpu.getBusDevice()).z80;
+        final Z80 z80 = ((BusDeviceProcessorZ80.BusDeviceProcessorZ80Impl) cpu.getBusDevice()).z80;
         hooks.device.setCpu(z80);
 
         for (int i = 0; i < 10; i++) {
