@@ -303,6 +303,7 @@ public class InterruptMapperImpl implements InterruptMapper, SerializationListen
         notIds.flip(0, notIds.length() + count);
         for (int id = notIds.nextSetBit(0), idx = 0; idx < count; id = notIds.nextSetBit(id + 1), idx++) {
             ids[idx] = id;
+            set.set(id);
             if (id == Integer.MAX_VALUE) {
                 break; // or (i+1) would overflow
             }
