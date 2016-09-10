@@ -4,9 +4,11 @@ import li.cil.circuity.ModCircuity;
 import li.cil.circuity.client.gui.GuiHandlerClient;
 import li.cil.circuity.client.renderer.Textures;
 import li.cil.circuity.client.renderer.tileentity.TileEntityBusControllerRenderer;
+import li.cil.circuity.client.renderer.tileentity.TileEntityRandomAccessMemoryRenderer;
 import li.cil.circuity.client.renderer.tileentity.TileEntityScreenRenderer;
 import li.cil.circuity.common.ProxyCommon;
 import li.cil.circuity.common.tileentity.TileEntityBusController;
+import li.cil.circuity.common.tileentity.TileEntityRandomAccessMemory;
 import li.cil.circuity.common.tileentity.TileEntityScreen;
 import net.minecraft.client.renderer.block.model.ModelResourceLocation;
 import net.minecraft.item.Item;
@@ -25,6 +27,7 @@ public final class ProxyClient extends ProxyCommon {
         Textures.init();
 
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityBusController.class, new TileEntityBusControllerRenderer());
+        ClientRegistry.bindTileEntitySpecialRenderer(TileEntityRandomAccessMemory.class, new TileEntityRandomAccessMemoryRenderer());
         ClientRegistry.bindTileEntitySpecialRenderer(TileEntityScreen.class, new TileEntityScreenRenderer());
     }
 

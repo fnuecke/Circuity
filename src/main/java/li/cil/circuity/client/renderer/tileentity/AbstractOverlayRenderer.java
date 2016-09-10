@@ -1,5 +1,7 @@
 package li.cil.circuity.client.renderer.tileentity;
 
+import li.cil.circuity.client.renderer.overlay.OverlayData;
+import li.cil.circuity.client.renderer.overlay.OverlayRenderer;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.RenderHelper;
 import net.minecraft.client.renderer.texture.TextureManager;
@@ -17,8 +19,8 @@ public abstract class AbstractOverlayRenderer<T extends TileEntity> extends Tile
             return;
         }
 
-        final Overlay overlay = getOverlay(tileEntity);
-        if (overlay == null) {
+        final OverlayData overlay = getOverlay(tileEntity);
+        if (overlay == null || overlay.alpha < 0.01f) {
             return;
         }
 
@@ -36,5 +38,5 @@ public abstract class AbstractOverlayRenderer<T extends TileEntity> extends Tile
     }
 
     @Nullable
-    protected abstract Overlay getOverlay(final T tileEntity);
+    protected abstract OverlayData getOverlay(final T tileEntity);
 }

@@ -1,4 +1,4 @@
-package li.cil.circuity.client.renderer.tileentity;
+package li.cil.circuity.client.renderer.overlay;
 
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
@@ -13,13 +13,24 @@ public final class OverlayRenderer {
     private static final float TWO_PI = 2 * (float) Math.PI;
 
     /**
-     * Get the current, time dependent, alpha for all pulsing overlays.
+     * Get the current, time dependent, alpha for all pulsing overlays
+     * using the default seed.
      *
      * @return the current overlay alpha.
      */
     public static float getPulseAlpha() {
+        return getPulseAlpha(0);
+    }
+
+    /**
+     * Get the current, time dependent, alpha for pulsing overlays using
+     * the specified seed.
+     *
+     * @return the current overlay alpha.
+     */
+    public static float getPulseAlpha(final long seed) {
         // Sine wave, frequency of 2/3hz.
-        final float phase = (System.currentTimeMillis() % 3000) / 3000f;
+        final float phase = ((System.currentTimeMillis() + seed) % 3000) / 3000f;
         final float normalized = (MathHelper.sin(phase * TWO_PI) + 1) * 0.5f;
         return 0.75f + 0.25f * normalized;
     }
@@ -34,11 +45,11 @@ public final class OverlayRenderer {
      * @param atlas   the texture atlas to look up the overlay sprites in.
      * @param overlay the overlay info.
      */
-    public static void renderOverlay(final TextureMap atlas, final Overlay overlay) {
+    public static void renderOverlay(final TextureMap atlas, final OverlayData overlay) {
         GlStateManager.depthMask(false);
         GlStateManager.enableBlend();
         GlStateManager.blendFunc(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA);
-        GlStateManager.color(1, 1, 1, getPulseAlpha());
+        GlStateManager.color(1, 1, 1, overlay.alpha);
 
         GlStateManager.translate(0.5f, 0.5f, 0.5f);
         GlStateManager.scale(1, -1, 1);
@@ -48,7 +59,7 @@ public final class OverlayRenderer {
         final VertexBuffer buffer = tessellator.getBuffer();
         buffer.begin(GL11.GL_QUADS, DefaultVertexFormats.POSITION_TEX);
 
-        renderOverlayStatic(atlas, overlay, buffer);
+        renderOverlayStatic(atlas, overlay.overlay, buffer);
 
         tessellator.draw();
 

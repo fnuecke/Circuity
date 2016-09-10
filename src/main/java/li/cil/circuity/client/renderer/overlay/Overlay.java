@@ -1,4 +1,4 @@
-package li.cil.circuity.client.renderer.tileentity;
+package li.cil.circuity.client.renderer.overlay;
 
 import net.minecraft.util.ResourceLocation;
 
@@ -14,5 +14,13 @@ public final class Overlay {
         this.top = top;
         this.side = side;
         this.bottom = bottom;
+    }
+
+    public OverlayData get() {
+        return new OverlayData(this, OverlayRenderer.getPulseAlpha());
+    }
+
+    public OverlayData get(final float alpha) {
+        return new OverlayData(this, alpha);
     }
 }

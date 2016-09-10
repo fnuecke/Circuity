@@ -1,7 +1,7 @@
 package li.cil.circuity.client.renderer;
 
 import li.cil.circuity.api.CircuityAPI;
-import li.cil.circuity.client.renderer.tileentity.Overlay;
+import li.cil.circuity.client.renderer.overlay.Overlay;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.TextureStitchEvent;
 import net.minecraftforge.common.MinecraftForge;
