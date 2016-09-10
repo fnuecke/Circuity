@@ -1,6 +1,7 @@
 package li.cil.circuity.common.bus;
 
 import com.google.common.base.Throwables;
+import li.cil.circuity.ModCircuity;
 import li.cil.circuity.api.bus.BusConnector;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
@@ -567,10 +568,10 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
                     scanErrored(State.ERROR_CONNECTION_FAILED);
                     return;
                 }
-                for (final BusElement device : adjacentElements) {
-                    newElements.add(device);
-                    if (device instanceof BusConnector) {
-                        open.add((BusConnector) device);
+                for (final BusElement element : adjacentElements) {
+                    newElements.add(element);
+                    if (element instanceof BusConnector) {
+                        open.add((BusConnector) element);
                     }
                 }
                 adjacentElements.clear();
@@ -599,6 +600,12 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
                 // when we're done. If it isn't in the list, then, well, it
                 // is gone, and we have to update our internal data.
                 if (!newElements.remove(element)) {
+                    try {
+                        element.setBusController(null);
+                    } catch (final Throwable t) {
+                        ModCircuity.getLogger().error("Bus element threw in setBusController.", t);
+                    }
+
                     it.remove();
 
                     if (element instanceof BusDevice) {
@@ -620,8 +627,6 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
                     for (final Subsystem subsystem : subsystems.values()) {
                         subsystem.remove(element);
                     }
-
-                    element.setBusController(null);
                 }
             }
         }
@@ -629,7 +634,14 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
         // The above leaves us with the list of added devices, update internal
         // data structures accordingly and notify them.
         for (final BusElement element : newElements) {
-            element.setBusController(this);
+            try {
+                element.setBusController(this);
+            } catch (final Throwable t) {
+                ModCircuity.getLogger().error("Bus element threw in setBusController.", t);
+                continue;
+            }
+
+            elements.add(element);
 
             if (element instanceof BusDevice) {
                 final BusDevice device = (BusDevice) element;
@@ -689,9 +701,9 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
 
         state = State.READY;
 
-        for (final BusDevice device : devices) {
-            if (device instanceof BusChangeListener) {
-                final BusChangeListener listener = (BusChangeListener) device;
+        for (final BusElement element : elements) {
+            if (element instanceof BusChangeListener) {
+                final BusChangeListener listener = (BusChangeListener) element;
                 listener.handleBusChanged();
             }
         }
