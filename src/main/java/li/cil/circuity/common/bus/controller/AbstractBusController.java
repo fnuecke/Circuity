@@ -4,13 +4,13 @@ import com.google.common.base.Throwables;
 import li.cil.circuity.ModCircuity;
 import li.cil.circuity.api.bus.BusConnector;
 import li.cil.circuity.api.bus.BusController;
-import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.AddressMapper;
-import li.cil.circuity.api.bus.controller.ElementManager;
+import li.cil.circuity.api.bus.controller.DeviceMapper;
 import li.cil.circuity.api.bus.controller.InterruptMapper;
-import li.cil.circuity.api.bus.controller.SerialInterfaceProvider;
 import li.cil.circuity.api.bus.controller.Subsystem;
+import li.cil.circuity.api.bus.controller.detail.ElementManager;
+import li.cil.circuity.api.bus.controller.detail.SerialInterfaceProvider;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
@@ -32,7 +32,6 @@ import net.minecraft.world.World;
 import javax.annotation.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -40,7 +39,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -62,19 +60,6 @@ import java.util.concurrent.Future;
  * call {@link #dispose()} when they get disposed/removed from the world.
  * </li>
  * </ul>
- * <p>
- * Ports:
- * <table>
- * <tr><td>0</td><td>API version of the selected device<sup>1</sup>. Read-only.</td></tr>
- * <tr><td>1</td><td>Number of mapped devices. Read-only.</td></tr>
- * <tr><td>2</td><td>Selected device. Read-write.</td></tr>
- * <tr><td>3</td><td>Type identifier of the device. Read-only.</td></tr>
- * <tr><td>4</td><td>Read a single word of the address the selected device is mapped to (low to high). Writing resets the shift.</td></tr>
- * <tr><td>5</td><td>Read a single word of the size of the selected device (low to high). Writing resets the shift.</td></tr>
- * <tr><td>6</td><td>Read a single character of the name of the selected device. Call until it returns zero to read the full name. Writing resets the offset.</td></tr>
- * </table>
- * <p>
- * <sup>1)</sup> This is guaranteed to be the first port. The initially selected device is guaranteed to be the bus controller itself. This way software may query the bus controller's API version before having to actually use the API.
  */
 public abstract class AbstractBusController extends AbstractBusDevice implements BusController, Addressable, AddressHint, BusStateListener, SerialPortManagerProxy {
     /**
@@ -159,19 +144,6 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     private final HashSet<BusElement> elements = new HashSet<>();
 
     /**
-     * List of all currently known bus devices on the bus.
-     * <p>
-     * Sorted by device UUID, allows binary search and stable access from
-     * serial interface by index.
-     */
-    private final List<BusDevice> devices = new ArrayList<>();
-
-    /**
-     * Direct access to bus devices based on their persistent ID.
-     */
-    private final Map<UUID, BusDevice> deviceById = new HashMap<>();
-
-    /**
      * The list of state aware bus devices, i.e. device that are notified when
      * the bus is powered on / off.
      */
@@ -215,50 +187,27 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     @Serialize
     private boolean isOnline;
 
-    /**
-     * Currently selected device for reading its address via serial interface.
-     */
-    @Serialize
-    private int selected;
-
-    /**
-     * Currently index in the name of the selected device for serial interface.
-     */
-    @Serialize
-    private int nameIndex;
-
     // --------------------------------------------------------------------- //
 
     public AbstractBusController() {
         serialPortManager.setPreferredAddressOffset(Constants.BUS_CONTROLLER_ADDRESS);
         serialPortManager.addSerialPort(this::readAPIVersion, null, null);
-        serialPortManager.addSerialPort(this::readDeviceCount, null, null);
-        serialPortManager.addSerialPort(this::readSelectedDevice, this::writeSelectedDevice, null);
-        serialPortManager.addSerialPort(this::readDeviceType, null, null);
-        serialPortManager.addSerialPort(this::readDeviceName, this::writeResetDeviceNameIndex, null);
 
         // TODO Populate based on some registry in which addons can register additional subsystems?
+        final DeviceMapperImpl selector = new DeviceMapperImpl();
+        subsystems.put(DeviceMapper.class, selector);
         subsystems.put(AddressMapper.class, new AddressMapperImpl(this));
         subsystems.put(InterruptMapper.class, new InterruptMapperImpl(this));
 
         for (final Subsystem subsystem : subsystems.values()) {
             if (subsystem instanceof SerialInterfaceProvider) {
                 final SerialInterfaceProvider provider = (SerialInterfaceProvider) subsystem;
-                provider.initializeSerialInterface(serialPortManager);
+                provider.initializeSerialInterface(serialPortManager, selector);
             }
         }
     }
 
     // --------------------------------------------------------------------- //
-
-    @Nullable
-    public BusDevice getSelectedDevice() {
-        if (selected >= 0 && selected < devices.size()) {
-            return devices.get(selected);
-        } else {
-            return null;
-        }
-    }
 
     /**
      * Get the controller's current state.
@@ -420,7 +369,9 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
 
     @Override
     public void handleBusOffline() {
-        selected = 0;
+        for (final Subsystem subsystem : subsystems.values()) {
+            subsystem.reset();
+        }
     }
 
     // --------------------------------------------------------------------- //
@@ -454,12 +405,6 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
         return elements;
     }
 
-    @Nullable
-    @Override
-    public BusDevice getDevice(final UUID persistentId) {
-        return deviceById.get(persistentId);
-    }
-
     // --------------------------------------------------------------------- //
     // SerialPortManagerProxy
 
@@ -472,53 +417,6 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
 
     private int readAPIVersion(final long address) {
         return API_VERSION;
-    }
-
-    private int readDeviceCount(final long address) {
-        return devices.size();
-    }
-
-    private int readSelectedDevice(final long address) {
-        return selected;
-    }
-
-    private void writeSelectedDevice(final long address, final int value) {
-        selected = value;
-        nameIndex = 0;
-
-        for (final Subsystem subsystem : subsystems.values()) {
-            if (subsystem instanceof SerialInterfaceProvider) {
-                final SerialInterfaceProvider provider = (SerialInterfaceProvider) subsystem;
-                try {
-                    provider.handleSelectedDeviceChanged();
-                } catch (final Throwable t) {
-                    ModCircuity.getLogger().error("SerialInterfaceProviderSubsystem threw in handleSelectedDeviceChanged.", t);
-                }
-            }
-        }
-    }
-
-    private int readDeviceType(final long address) {
-        final BusDevice device = getSelectedDevice();
-        if (device != null) {
-            final DeviceInfo info = device.getDeviceInfo();
-            return info != null ? info.type.id : 0xFFFFFFFF;
-        }
-        return 0xFFFFFFFF;
-    }
-
-    private int readDeviceName(final long address) {
-        final BusDevice device = getSelectedDevice();
-        if (device != null) {
-            final DeviceInfo info = device.getDeviceInfo();
-            final String name = info != null ? info.name : null;
-            return name != null && nameIndex < name.length() ? name.charAt(nameIndex++) : 0;
-        }
-        return 0xFFFFFFFF;
-    }
-
-    private void writeResetDeviceNameIndex(final long address, final int value) {
-        nameIndex = 0;
     }
 
     // --------------------------------------------------------------------- //
@@ -614,14 +512,6 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
 
                     it.remove();
 
-                    if (element instanceof BusDevice) {
-                        final BusDevice device = (BusDevice) element;
-                        final int index = Collections.binarySearch(devices, device);
-                        assert index >= 0 : "Device does not exist.";
-                        devices.remove(index);
-                        deviceById.remove(device.getPersistentId());
-                    }
-
                     if (element instanceof BusStateListener) {
                         stateListeners.remove(element);
                     }
@@ -655,14 +545,6 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
             }
 
             elements.add(element);
-
-            if (element instanceof BusDevice) {
-                final BusDevice device = (BusDevice) element;
-                final int index = Collections.binarySearch(devices, device);
-                assert index < 0 : "Device has been added twice.";
-                devices.add(~index, device);
-                deviceById.put(device.getPersistentId(), device);
-            }
 
             if (element instanceof BusStateListener) {
                 stateListeners.add((BusStateListener) element);

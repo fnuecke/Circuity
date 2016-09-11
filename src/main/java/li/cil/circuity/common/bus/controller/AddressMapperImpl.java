@@ -3,8 +3,9 @@ package li.cil.circuity.common.bus.controller;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.AddressMapper;
-import li.cil.circuity.api.bus.controller.ElementManager;
-import li.cil.circuity.api.bus.controller.SerialInterfaceProvider;
+import li.cil.circuity.api.bus.controller.detail.ElementManager;
+import li.cil.circuity.api.bus.controller.detail.SerialInterfaceDeviceSelector;
+import li.cil.circuity.api.bus.controller.detail.SerialInterfaceProvider;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
@@ -42,6 +43,11 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
     private final AbstractBusController controller;
 
     /**
+     * The instance tracking the currently selected device for the serial interface.
+     */
+    private SerialInterfaceDeviceSelector selector;
+
+    /**
      * Mapping of addressable devices to the address block they're assigned to.
      * <p>
      * We support multiple configurations that may be switched at any time.
@@ -53,7 +59,7 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
      * The currently active mapping.
      */
     @Serialize
-    private int selectedMapping = 0;
+    private int selectedMapping;
 
     /**
      * The currently set word size of the bus.
@@ -190,6 +196,15 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         }
     }
 
+    // --------------------------------------------------------------------- //
+    // Subsystem
+
+    @Override
+    public void reset() {
+        addressShift = 0;
+        sizeShift = 0;
+    }
+
     @Override
     public boolean validate() {
         boolean areAllMappingsValid = true;
@@ -204,14 +219,15 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
     // SerialInterfaceProvider
 
     @Override
-    public void initializeSerialInterface(final SerialPortManager manager) {
+    public void initializeSerialInterface(final SerialPortManager manager, final SerialInterfaceDeviceSelector selector) {
+        this.selector = selector;
+        selector.registerSelectionChangedListener(this::handleSelectedDeviceChanged);
         manager.addSerialPort(this::readDeviceAddress, this::writeResetDeviceAddressShift, null);
         manager.addSerialPort(this::readDeviceSize, this::writeResetDeviceSizeShift, null);
         manager.addSerialPort(this::readSelectedMapping, this::writeSelectedMapping, null);
     }
 
-    @Override
-    public void handleSelectedDeviceChanged() {
+    public void handleSelectedDeviceChanged(final BusDevice newDevice) {
         addressShift = 0;
         sizeShift = 0;
     }
@@ -219,7 +235,7 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
     // --------------------------------------------------------------------- //
 
     private int readDeviceAddress(final long address) {
-        final BusDevice device = controller.getSelectedDevice();
+        final BusDevice device = selector.getSelectedDevice();
         if (device instanceof Addressable) {
             final Addressable addressable = (Addressable) device;
             final AddressBlock memory = getAddressBlock(addressable);
@@ -233,7 +249,7 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
     }
 
     private int readDeviceSize(final long address) {
-        final BusDevice device = controller.getSelectedDevice();
+        final BusDevice device = selector.getSelectedDevice();
         if (device instanceof Addressable) {
             final Addressable addressable = (Addressable) device;
             final AddressBlock memory = getAddressBlock(addressable);

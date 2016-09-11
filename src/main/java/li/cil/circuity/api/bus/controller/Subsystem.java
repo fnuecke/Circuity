@@ -1,6 +1,7 @@
 package li.cil.circuity.api.bus.controller;
 
 import li.cil.circuity.api.bus.BusElement;
+import li.cil.circuity.api.bus.controller.detail.ElementManager;
 
 /**
  * A subsystem is a distinct module of functionality of a bus controller.
@@ -12,6 +13,14 @@ import li.cil.circuity.api.bus.BusElement;
  * behavior.
  */
 public interface Subsystem {
+    /**
+     * Called when the bus goes offline.
+     * <p>
+     * This resets any volatile state of the subsystem, typically state for the
+     * serial interface, such as read indices.
+     */
+    void reset();
+
     /**
      * Called after a scan to determine if the subsystem is in a valid state.
      * <p>

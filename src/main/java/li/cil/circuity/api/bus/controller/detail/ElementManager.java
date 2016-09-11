@@ -1,7 +1,8 @@
-package li.cil.circuity.api.bus.controller;
+package li.cil.circuity.api.bus.controller.detail;
 
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusElement;
+import li.cil.circuity.api.bus.controller.Subsystem;
 
 /**
  * Specialized interface for element managing subsystems.

@@ -1,6 +1,7 @@
-package li.cil.circuity.api.bus.controller;
+package li.cil.circuity.api.bus.controller.detail;
 
 import li.cil.circuity.api.bus.BusController;
+import li.cil.circuity.api.bus.controller.Subsystem;
 import li.cil.circuity.api.bus.device.util.SerialPortManager;
 
 /**
@@ -18,14 +19,8 @@ public interface SerialInterfaceProvider extends Subsystem {
      * Subsystems may register ports here if they wish to provide dynamic
      * functionality to the bus.
      *
-     * @param manager the manager to register ports with.
+     * @param manager  the manager to register ports with.
+     * @param selector the instance tracking the selected device.
      */
-    void initializeSerialInterface(final SerialPortManager manager);
-
-    /**
-     * Called when the selected device for serial interface queries changes.
-     * <p>
-     * TODO This feels... kinda meh. Also I'd actually like to move device stuff to a subsystem.
-     */
-    void handleSelectedDeviceChanged();
+    void initializeSerialInterface(final SerialPortManager manager, final SerialInterfaceDeviceSelector selector);
 }

@@ -8,9 +8,6 @@ import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.api.bus.device.InterruptSource;
 
-import javax.annotation.Nullable;
-import java.util.UUID;
-
 /**
  * Implemented by bus controllers responsible for managing a bus.
  * <p>
@@ -75,13 +72,4 @@ public interface BusController extends BusConnector {
      * @return the list of all connected bus devices.
      */
     Iterable<BusElement> getElements();
-
-    /**
-     * Fast lookup of a device by its persistent globally unique identifier.
-     *
-     * @param persistentId the ID of the device to get.
-     * @return the device with the specified ID if it is connected to the controller; <code>null</code> otherwise.
-     */
-    @Nullable
-    BusDevice getDevice(final UUID persistentId);
 }

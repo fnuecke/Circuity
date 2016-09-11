@@ -5,8 +5,8 @@ import gnu.trove.map.TObjectIntMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.map.hash.TObjectIntHashMap;
 import li.cil.circuity.api.bus.BusElement;
-import li.cil.circuity.api.bus.controller.ElementManager;
 import li.cil.circuity.api.bus.controller.InterruptMapper;
+import li.cil.circuity.api.bus.controller.detail.ElementManager;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.api.bus.device.InterruptSource;
 import li.cil.lib.api.serialization.Serializable;
@@ -199,6 +199,13 @@ public class InterruptMapperImpl implements InterruptMapper, ElementManager, Ser
 
             persistentSinkIdToInfo.remove(sink.getPersistentId());
         }
+    }
+
+    // --------------------------------------------------------------------- //
+    // Subsystem
+
+    @Override
+    public void reset() {
     }
 
     @Override
