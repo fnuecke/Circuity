@@ -428,9 +428,21 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
 
         isOnline = value;
         if (isOnline) {
-            stateAwares.forEach(BusStateListener::handleBusOnline);
+            for (final BusStateListener listener : stateAwares) {
+                try {
+                    listener.handleBusOnline();
+                } catch (final Throwable t) {
+                    ModCircuity.getLogger().error("BusStateListener threw in handleBusOnline.", t);
+                }
+            }
         } else {
-            stateAwares.forEach(BusStateListener::handleBusOffline);
+            for (final BusStateListener listener : stateAwares) {
+                try {
+                    listener.handleBusOffline();
+                } catch (final Throwable t) {
+                    ModCircuity.getLogger().error("BusStateListener threw in handleBusOffline.", t);
+                }
+            }
         }
     }
 
