@@ -167,7 +167,13 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
      * The list of state aware bus devices, i.e. device that are notified when
      * the bus is powered on / off.
      */
-    private final List<BusStateListener> stateAwares = new ArrayList<>();
+    private final List<BusStateListener> stateListeners = new ArrayList<>();
+
+    /**
+     * The list of change aware bus devices, i.e. device that are notified when
+     * the bus changes/devices are added/removed.
+     */
+    private final List<BusChangeListener> changeListeners = new ArrayList<>();
 
     /**
      * The list of bus devices that also implement {@link ITickable}.
@@ -428,7 +434,7 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
 
         isOnline = value;
         if (isOnline) {
-            for (final BusStateListener listener : stateAwares) {
+            for (final BusStateListener listener : stateListeners) {
                 try {
                     listener.handleBusOnline();
                 } catch (final Throwable t) {
@@ -436,7 +442,7 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
                 }
             }
         } else {
-            for (final BusStateListener listener : stateAwares) {
+            for (final BusStateListener listener : stateListeners) {
                 try {
                     listener.handleBusOffline();
                 } catch (final Throwable t) {
@@ -512,7 +518,8 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
                 elements.clear();
                 devices.clear();
                 deviceById.clear();
-                stateAwares.clear();
+                stateListeners.clear();
+                changeListeners.clear();
                 tickables.clear();
 
                 if (scheduledScan != null) {
@@ -629,7 +636,11 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
                     }
 
                     if (element instanceof BusStateListener) {
-                        stateAwares.remove(element);
+                        stateListeners.remove(element);
+                    }
+
+                    if (element instanceof BusChangeListener) {
+                        changeListeners.remove(element);
                     }
 
                     if (element instanceof AsyncTickable) {
@@ -664,7 +675,11 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
             }
 
             if (element instanceof BusStateListener) {
-                stateAwares.add((BusStateListener) element);
+                stateListeners.add((BusStateListener) element);
+            }
+
+            if (element instanceof BusChangeListener) {
+                changeListeners.add((BusChangeListener) element);
             }
 
             if (element instanceof AsyncTickable) {
@@ -713,10 +728,11 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
 
         state = State.READY;
 
-        for (final BusElement element : elements) {
-            if (element instanceof BusChangeListener) {
-                final BusChangeListener listener = (BusChangeListener) element;
+        for (final BusChangeListener listener : changeListeners) {
+            try {
                 listener.handleBusChanged();
+            } catch (final Throwable t) {
+                ModCircuity.getLogger().error("BusChangeListener threw in handleBusChanged.", t);
             }
         }
     }
