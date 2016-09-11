@@ -129,7 +129,7 @@ public class AddressMapperImpl implements AddressMapper {
         final Addressable device = getDevice(address);
         if (device != null) {
             final AddressBlock memory = getAddressBlock(device);
-            final int mappedAddress = (int) (address - memory.getOffset());
+            final long mappedAddress = address - memory.getOffset();
             device.write(mappedAddress, value);
         } else {
             segfault();
@@ -141,7 +141,7 @@ public class AddressMapperImpl implements AddressMapper {
         final Addressable device = getDevice(address);
         if (device != null) {
             final AddressBlock memory = getAddressBlock(device);
-            final int mappedAddress = (int) (address - memory.getOffset());
+            final long mappedAddress = address - memory.getOffset();
             return device.read(mappedAddress);
         } else {
             segfault();

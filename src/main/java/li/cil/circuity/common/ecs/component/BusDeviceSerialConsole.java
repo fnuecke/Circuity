@@ -2,14 +2,15 @@ package li.cil.circuity.common.ecs.component;
 
 import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
-import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.bus.device.ScreenRenderer;
+import li.cil.circuity.api.bus.device.util.SerialPortManager;
 import li.cil.circuity.common.Constants;
+import li.cil.circuity.common.bus.util.SerialPortManagerProxy;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
@@ -100,11 +101,20 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SERIAL_INTERFACE, Constants.DeviceInfo.SERIAL_CONSOLE_NAME);
 
-    public final class SerialConsoleImpl extends AbstractBusDevice implements Addressable, AddressHint, BusStateListener, ScreenRenderer {
+    public final class SerialConsoleImpl extends AbstractBusDevice implements Addressable, AddressHint, BusStateListener, ScreenRenderer, SerialPortManagerProxy {
+        private final SerialPortManager serialPortManager = new SerialPortManager();
+
         @Serialize
         private int scrX = 0; // Range: [0,CONS_WIDTH] (yes, inclusive)
         @Serialize
         private int scrY = 0; // Range: [0,CONS_HEIGHT) (not a typo!)
+
+        // --------------------------------------------------------------------- //
+
+        public SerialConsoleImpl() {
+            serialPortManager.setPreferredAddressOffset(Constants.SERIAL_CONSOLE_ADDRESS);
+            serialPortManager.addSerialPort(null, this::writeCharacter, null);
+        }
 
         // --------------------------------------------------------------------- //
         // BusDevice
@@ -113,86 +123,6 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
-        }
-
-        // --------------------------------------------------------------------- //
-        // Addressable
-
-        @Override
-        public AddressBlock getPreferredAddressBlock(final AddressBlock memory) {
-            return memory.take(Constants.SERIAL_CONSOLE_ADDRESS, 1);
-        }
-
-        @Override
-        public int read(final int address) {
-            switch (address) {
-                case 0: {
-                    return 0;
-                }
-            }
-            return 0;
-        }
-
-        @Override
-        public void write(final int address, final int value) {
-            switch (address) {
-                case 0: {
-                    final char ch = (char) value;
-
-                    switch (ch) {
-                        case '\b': { // Backspace
-                            do {
-                                scrX--;
-                            } while (scrX >= 0 && scrX % CONS_WIDTH != 0
-                                    && get(scrX, line()) == '\t');
-
-                            if (scrX < 0) {
-                                scrX = 0;
-                            }
-                            break;
-                        }
-
-                        case '\t': { // Tab
-                            do {
-                                set(scrX, line(), '\t');
-                                scrX++;
-                                if (scrX >= CONS_WIDTH) {
-                                    advanceLine();
-                                    scrX = 0;
-                                }
-                            } while (scrX % CONS_TAB_STOP != 0);
-                            break;
-                        }
-
-                        case '\n': // Line feed
-                            advanceLine();
-                            scrX = 0;
-                            break;
-
-                        case '\r': // Carriage return
-                            scrX = 0;
-                            break;
-
-                        case '\u001B': // Escape
-                            // TODO: VT-100/VT-220 codes
-                            break;
-
-                        default: {
-                            if (scrX >= CONS_WIDTH) {
-                                advanceLine();
-                                scrX = 0;
-                            }
-                            set(scrX, line(), ch);
-                            scrX++;
-                            break;
-                        }
-                    }
-
-                    BusDeviceSerialConsole.this.markChanged();
-
-                    break;
-                }
-            }
         }
 
         // --------------------------------------------------------------------- //
@@ -255,6 +185,71 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
             }
 
             GlStateManager.popMatrix();
+        }
+
+        // --------------------------------------------------------------------- //
+        // SerialPortManagerProxy
+
+        @Override
+        public SerialPortManager getSerialPortManager() {
+            return serialPortManager;
+        }
+
+        // --------------------------------------------------------------------- //
+
+        private void writeCharacter(final long address, final int value) {
+            final char ch = (char) value;
+
+            switch (ch) {
+                case '\b': { // Backspace
+                    do {
+                        scrX--;
+                    } while (scrX >= 0 && scrX % CONS_WIDTH != 0
+                            && get(scrX, line()) == '\t');
+
+                    if (scrX < 0) {
+                        scrX = 0;
+                    }
+                    break;
+                }
+
+                case '\t': { // Tab
+                    do {
+                        set(scrX, line(), '\t');
+                        scrX++;
+                        if (scrX >= CONS_WIDTH) {
+                            advanceLine();
+                            scrX = 0;
+                        }
+                    } while (scrX % CONS_TAB_STOP != 0);
+                    break;
+                }
+
+                case '\n': // Line feed
+                    advanceLine();
+                    scrX = 0;
+                    break;
+
+                case '\r': // Carriage return
+                    scrX = 0;
+                    break;
+
+                case '\u001B': // Escape
+                    // TODO: VT-100/VT-220 codes
+                    break;
+
+                default: {
+                    if (scrX >= CONS_WIDTH) {
+                        advanceLine();
+                        scrX = 0;
+                    }
+                    set(scrX, line(), ch);
+                    scrX++;
+                    break;
+                }
+            }
+
+            BusDeviceSerialConsole.this.markChanged();
         }
 
         // --------------------------------------------------------------------- //

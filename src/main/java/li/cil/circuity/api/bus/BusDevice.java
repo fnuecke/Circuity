@@ -18,8 +18,11 @@ import java.util.UUID;
  * Note that on its own, this interface is only of limited usefulness. You'll
  * typically want to implement {@link BusConnector}, {@link Addressable},
  * {@link InterruptSink} and/or {@link InterruptSource} for more functionality.
+ * <p>
+ * When implementing {@link Comparable}, devices must be compared using their
+ * persistent IDs.
  */
-public interface BusDevice extends BusElement {
+public interface BusDevice extends BusElement, Comparable<BusDevice> {
     /**
      * The globally unique, persistent ID of this device.
      * <p>

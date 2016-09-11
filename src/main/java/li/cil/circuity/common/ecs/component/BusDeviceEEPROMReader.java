@@ -128,16 +128,16 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
         }
 
         @Override
-        public int read(final int address) {
+        public int read(final long address) {
             if (data != null) {
-                return data.getByte(address);
+                return data.getByte((int) address);
             } else {
-                return 0;
+                return 0xFFFFFFFF;
             }
         }
 
         @Override
-        public void write(final int address, final int value) {
+        public void write(final long address, final int value) {
             // It's a *reader*... for now, anyway.
 //            if (data != null) {
 //                data.setByte(address, value);

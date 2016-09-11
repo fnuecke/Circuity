@@ -6,7 +6,6 @@ import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.InterruptMapper;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
-import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.BusChangeListener;
@@ -15,8 +14,10 @@ import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.bus.device.InterruptSource;
 import li.cil.circuity.api.bus.device.ScreenRenderer;
+import li.cil.circuity.api.bus.device.util.SerialPortManager;
 import li.cil.circuity.client.gui.GuiType;
 import li.cil.circuity.common.Constants;
+import li.cil.circuity.common.bus.util.SerialPortManagerProxy;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.event.ActivationListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
@@ -33,6 +34,9 @@ import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentTranslation;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 @Serializable
@@ -119,9 +123,28 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SCREEN, Constants.DeviceInfo.SCREEN_NAME);
 
     @Serializable
-    public final class ScreenImpl extends AbstractBusDevice implements Addressable, AddressHint, InterruptSource, BusStateListener, BusChangeListener {
+    public final class ScreenImpl extends AbstractBusDevice implements Addressable, AddressHint, InterruptSource, BusStateListener, BusChangeListener, SerialPortManagerProxy {
+        private final SerialPortManager serialPortManager = new SerialPortManager();
+        private final List<ScreenRenderer> renderers = new ArrayList<>();
+
         @Serialize
-        public RingBuffer buffer = new RingBuffer(16);
+        private final RingBuffer buffer = new RingBuffer(16);
+
+        @Serialize
+        private int selectedRenderer;
+
+        @Serialize
+        private int uuidIndex;
+
+        // --------------------------------------------------------------------- //
+
+        public ScreenImpl() {
+            serialPortManager.setPreferredAddressOffset(Constants.SCREEN_ADDRESS);
+            serialPortManager.addSerialPort(this::readRendererCount, null, null);
+            serialPortManager.addSerialPort(this::readSelectedRenderer, this::writeSelectedRenderer, null);
+            serialPortManager.addSerialPort(this::readSelectedUUID, this::writeResetUUIDIndex, null);
+            serialPortManager.addSerialPort(this::readKey, null, null);
+        }
 
         // --------------------------------------------------------------------- //
         // BusDevice
@@ -130,47 +153,6 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
         @Override
         public DeviceInfo getDeviceInfo() {
             return DEVICE_INFO;
-        }
-
-        // --------------------------------------------------------------------- //
-        // Addressable
-
-        @Override
-        public AddressBlock getPreferredAddressBlock(final AddressBlock memory) {
-            return memory.take(Constants.SCREEN_ADDRESS, 4);
-        }
-
-        @Override
-        public int read(final int address) {
-            switch (address) {
-                case 0: { // Number of available renderers.
-                    return 0;
-                }
-                case 1: { // Selected renderer.
-                    return 0;
-                }
-                case 2: { // Read UUID of selected renderer.
-                    return 0;
-                }
-                case 3: { // Read keyboard input.
-                    synchronized (BusDeviceScreen.this.lock) {
-                        return buffer.isReadable() ? buffer.read() : 0;
-                    }
-                }
-            }
-            return 0;
-        }
-
-        @Override
-        public void write(final int address, final int value) {
-            switch (address) {
-                case 1: { // Select renderer.
-                    break;
-                }
-                case 2: { // Reset UUID read index.
-                    break;
-                }
-            }
         }
 
         // --------------------------------------------------------------------- //
@@ -212,13 +194,73 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
 
         @Override
         public void handleBusChanged() {
-            // TODO Build list of candidates, allow user to select current one.
+            renderers.clear();
             for (final BusElement element : controller.getElements()) {
                 if (element instanceof ScreenRenderer) {
                     final ScreenRenderer renderer = (ScreenRenderer) element;
-                    BusDeviceScreen.this.rendererId.set(renderer.getPersistentId());
-                    return;
+                    final int index = Collections.binarySearch(renderers, renderer);
+                    assert index < 0 : "Two renderers with the same persistent ID.";
+                    renderers.add(~index, renderer);
                 }
+            }
+
+            selectRenderer(selectedRenderer);
+        }
+
+        // --------------------------------------------------------------------- //
+        // SerialPortManagerProxy
+
+        @Override
+        public SerialPortManager getSerialPortManager() {
+            return serialPortManager;
+        }
+
+        // --------------------------------------------------------------------- //
+
+        private int readRendererCount(final long address) {
+            return renderers.size();
+        }
+
+        private int readSelectedRenderer(final long address) {
+            return selectedRenderer;
+        }
+
+        private void writeSelectedRenderer(final long address, final int value) {
+            selectRenderer(value);
+        }
+
+        private int readSelectedUUID(final long address) {
+            if (selectedRenderer >= 0 && selectedRenderer < renderers.size()) {
+                final String uuid = renderers.get(selectedRenderer).getPersistentId().toString();
+                return uuidIndex < uuid.length() ? uuid.charAt(uuidIndex++) : 0;
+            }
+            return 0;
+        }
+
+        private void writeResetUUIDIndex(final long address, final int value) {
+            uuidIndex = 0;
+        }
+
+        private int readKey(final long address) {
+            synchronized (BusDeviceScreen.this.lock) {
+                return buffer.isReadable() ? buffer.read() : 0;
+            }
+        }
+
+        private void selectRenderer(final int value) {
+            selectedRenderer = value;
+
+            if (selectedRenderer < 0) {
+                selectedRenderer = 0;
+            }
+            if (selectedRenderer >= renderers.size()) {
+                selectedRenderer = renderers.size() - 1;
+            }
+
+            if (renderers.size() > 0) {
+                BusDeviceScreen.this.rendererId.set(renderers.get(selectedRenderer).getPersistentId());
+            } else {
+                BusDeviceScreen.this.rendererId.set(null);
             }
         }
     }

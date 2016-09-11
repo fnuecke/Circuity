@@ -83,7 +83,7 @@ public interface AddressMapper extends Subsystem {
      * <p>
      * This will find the device mapped to the specified address, transform the
      * address to an address local to the device, and then write the value at
-     * that local address to the device via {@link Addressable#write(int, int)}.
+     * that local address to the device via {@link Addressable#write(long, int)}.
      * <p>
      * The address must fit into the address width supported by the bus
      * controller, otherwise an {@link IndexOutOfBoundsException} will be
@@ -95,8 +95,8 @@ public interface AddressMapper extends Subsystem {
      * Note that calling this method while the bus is offline is an illegal
      * operation. Either check before calling this, or, preferably, only call
      * this while processing a call from the bus controller. This includes
-     * {@link AsyncTickable#updateAsync()}, {@link Addressable#read(int)},
-     * {@link Addressable#write(int, int)} and {@link InterruptSink#interrupt(int, int)}.
+     * {@link AsyncTickable#updateAsync()}, {@link Addressable#read(long)},
+     * {@link Addressable#write(long, int)} and {@link InterruptSink#interrupt(int, int)}.
      * Doing so will lead to undefined behavior. No exception is thrown
      * <p>
      * This method is <em>not</em> thread safe. It must only be called while in
@@ -114,7 +114,7 @@ public interface AddressMapper extends Subsystem {
      * <p>
      * This will find the device mapped to the specified address, transform the
      * address to an address local to the device, and then read a value at
-     * that local address from the device via {@link Addressable#read(int)}.
+     * that local address from the device via {@link Addressable#read(long)}.
      * <p>
      * The address must fit into the address width supported by the bus
      * controller, otherwise an {@link IndexOutOfBoundsException} will be
@@ -123,8 +123,8 @@ public interface AddressMapper extends Subsystem {
      * Note that calling this method while the bus is offline is an illegal
      * operation. Either check before calling this, or, preferably, only call
      * this while processing a call from the bus controller. This includes
-     * {@link AsyncTickable#updateAsync()}, {@link Addressable#read(int)},
-     * {@link Addressable#write(int, int)} and {@link InterruptSink#interrupt(int, int)}.
+     * {@link AsyncTickable#updateAsync()}, {@link Addressable#read(long)},
+     * {@link Addressable#write(long, int)} and {@link InterruptSink#interrupt(int, int)}.
      * <p>
      * This method is <em>not</em> thread safe. It must only be called while in
      * a callback initiated from the bus controller (as listed in the previous

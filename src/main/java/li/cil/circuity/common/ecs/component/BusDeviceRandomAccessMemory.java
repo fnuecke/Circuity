@@ -93,13 +93,13 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
         }
 
         @Override
-        public int read(final int address) {
-            return BusDeviceRandomAccessMemory.this.memory[address] & 0xFF;
+        public int read(final long address) {
+            return BusDeviceRandomAccessMemory.this.memory[(int) address] & 0xFF;
         }
 
         @Override
-        public void write(final int address, final int value) {
-            BusDeviceRandomAccessMemory.this.memory[address] = (byte) value;
+        public void write(final long address, final int value) {
+            BusDeviceRandomAccessMemory.this.memory[(int) address] = (byte) value;
             BusDeviceRandomAccessMemory.this.markChanged();
         }
 

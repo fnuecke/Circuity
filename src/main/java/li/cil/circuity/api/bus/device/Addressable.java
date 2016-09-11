@@ -34,7 +34,7 @@ public interface Addressable extends BusDevice {
      * @param address the local address to read from.
      * @return the value read.
      */
-    int read(final int address);
+    int read(final long address);
 
     /**
      * Write a value to this device to the specified local address.
@@ -42,5 +42,5 @@ public interface Addressable extends BusDevice {
      * @param address the local address to write to.
      * @param value   the value to write to the device.
      */
-    void write(final int address, final int value);
+    void write(final long address, final int value);
 }

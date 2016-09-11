@@ -44,7 +44,7 @@ public final class TestHooks extends AbstractComponentBusDevice {
         }
 
         @Override
-        public int read(final int address) {
+        public int read(final long address) {
             if (cpu.C() == 2) {
                 serialConsole.append((char) cpu.E());
                 System.out.print((char) cpu.E());
@@ -56,11 +56,11 @@ public final class TestHooks extends AbstractComponentBusDevice {
                 }
             }
             System.out.flush();
-            return 0;
+            return 0xFFFFFFFF;
         }
 
         @Override
-        public void write(final int address, final int value) {
+        public void write(final long address, final int value) {
         }
 
         @Override

@@ -27,7 +27,7 @@ import java.util.Collection;
  */
 public interface BusConnector extends BusElement {
     /**
-     * Build the list of adjacent {@link BusDevice}s.
+     * Build the list of adjacent {@link BusElement}s.
      * <p>
      * There are cases where this may fail, for example due to a neighboring
      * block not being loaded (and we don't want to cause chunk loads by

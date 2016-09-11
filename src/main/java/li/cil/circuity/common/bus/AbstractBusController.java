@@ -29,7 +29,6 @@ import javax.annotation.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -89,11 +88,6 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
      * General device information about this bus controller.
      */
     private static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.BUS_CONTROLLER, Constants.DeviceInfo.BUS_CONTROLLER_NAME);
-
-    /**
-     * Comparator used to keep the {@link #devices} list sorted.
-     */
-    private static final Comparator<BusDevice> DEVICE_COMPARATOR = Comparator.comparing(BusDevice::getPersistentId);
 
     // --------------------------------------------------------------------- //
 
@@ -271,8 +265,8 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
 
     // TODO Allow subsystems to dynamically extend the serial protocol. Will also need some way to dynamically document it then, tho.
     @Override
-    public int read(final int address) {
-        switch (address) {
+    public int read(final long address) {
+        switch ((int) address) {
             case 0: // Version of this serial API.
                 return API_VERSION;
             case 1: // Number of addressable devices.
@@ -320,13 +314,15 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
                 }
                 break;
             }
+            default:
+                throw new IndexOutOfBoundsException();
         }
         return 0xFFFFFFFF;
     }
 
     @Override
-    public void write(final int address, final int value) {
-        switch (address) {
+    public void write(final long address, final int value) {
+        switch ((int) address) {
             case 2: // Select device.
                 selected = value;
                 addressShift = 0;
@@ -613,7 +609,7 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
 
                     if (element instanceof BusDevice) {
                         final BusDevice device = (BusDevice) element;
-                        final int index = Collections.binarySearch(devices, device, DEVICE_COMPARATOR);
+                        final int index = Collections.binarySearch(devices, device);
                         assert index >= 0 : "Device does not exist.";
                         devices.remove(index);
                         deviceById.remove(device.getPersistentId());
@@ -648,7 +644,7 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
 
             if (element instanceof BusDevice) {
                 final BusDevice device = (BusDevice) element;
-                final int index = Collections.binarySearch(devices, device, DEVICE_COMPARATOR);
+                final int index = Collections.binarySearch(devices, device);
                 assert index < 0 : "Device has been added twice.";
                 devices.add(~index, device);
                 deviceById.put(device.getPersistentId(), device);

@@ -103,23 +103,23 @@ public final class BusDeviceHardDiskDrive extends AbstractComponentBusDevice imp
         }
 
         @Override
-        public int read(final int address) {
+        public int read(final long address) {
             if (data != null) {
-                switch (address) {
+                switch ((int) address) {
                     case 0xA0: { //
                         break;
                     }
                 }
-                return data.getByte(address);
+                return data.getByte((int) address);
             } else {
-                return 0;
+                return 0xFFFFFFFF;
             }
         }
 
         @Override
-        public void write(final int address, final int value) {
+        public void write(final long address, final int value) {
             if (data != null) {
-                data.setByte(address, value);
+                data.setByte((int) address, value);
             }
         }
 

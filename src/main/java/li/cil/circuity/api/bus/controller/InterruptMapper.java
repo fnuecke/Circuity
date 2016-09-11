@@ -52,8 +52,8 @@ public interface InterruptMapper extends Subsystem {
      * Note that calling this method while the bus is offline is an illegal
      * operation. Either check before calling this, or, preferably, only call
      * this while processing a call from the bus controller. This includes
-     * {@link AsyncTickable#updateAsync()}, {@link Addressable#read(int)},
-     * {@link Addressable#write(int, int)} and {@link InterruptSink#interrupt(int, int)}.
+     * {@link AsyncTickable#updateAsync()}, {@link Addressable#read(long)},
+     * {@link Addressable#write(long, int)} and {@link InterruptSink#interrupt(int, int)}.
      * <p>
      * This method is thread safe.
      *

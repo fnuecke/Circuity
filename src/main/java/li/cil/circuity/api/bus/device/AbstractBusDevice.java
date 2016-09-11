@@ -25,4 +25,12 @@ public abstract class AbstractBusDevice extends AbstractBusElement implements Bu
     public DeviceInfo getDeviceInfo() {
         return null;
     }
+
+    // --------------------------------------------------------------------- //
+    // Comparable
+
+    @Override
+    public int compareTo(final BusDevice that) {
+        return this.getPersistentId().compareTo(that.getPersistentId());
+    }
 }
