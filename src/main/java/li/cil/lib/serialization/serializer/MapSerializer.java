@@ -11,8 +11,8 @@ import net.minecraft.nbt.NBTTagList;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -79,7 +79,7 @@ public class MapSerializer implements Serializer {
     @SuppressWarnings("unchecked")
     public Object deserialize(@Nullable final Object object, final Class<?> clazz, final NBTBase tagBase) {
         final Map<Object, Object> oldInstance = (Map) object;
-        final Map<Object, Object> instance = new HashMap();
+        final Map<Object, Object> instance = new LinkedHashMap();
         final NBTTagCompound wrapper = (NBTTagCompound) tagBase;
         final List<Class<?>> entryClasses;
 
