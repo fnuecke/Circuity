@@ -1,10 +1,14 @@
 package li.cil.circuity.common.bus.controller;
 
+import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.AddressMapper;
+import li.cil.circuity.api.bus.controller.ElementManager;
+import li.cil.circuity.api.bus.controller.SerialInterfaceProvider;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
+import li.cil.circuity.api.bus.device.util.SerialPortManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.util.RangeMap;
@@ -19,7 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Serializable
-public class AddressMapperImpl implements AddressMapper {
+public class AddressMapperImpl implements AddressMapper, ElementManager, SerialInterfaceProvider {
     /**
      * The number of addressable words via this buses address space.
      */
@@ -58,6 +62,18 @@ public class AddressMapperImpl implements AddressMapper {
      */
     @Serialize
     private byte wordSize = 8;
+
+    /**
+     * Current index/shift of the address of the selected device for serial interface.
+     */
+    @Serialize
+    private int addressShift;
+
+    /**
+     * Current index/shift of the size of the selected device for serial interface.
+     */
+    @Serialize
+    private int sizeShift;
 
     // --------------------------------------------------------------------- //
 
@@ -150,7 +166,7 @@ public class AddressMapperImpl implements AddressMapper {
     }
 
     // --------------------------------------------------------------------- //
-    // Subsystem
+    // ElementManager
 
     @Override
     public void add(final BusElement element) {
@@ -184,12 +200,65 @@ public class AddressMapperImpl implements AddressMapper {
         return areAllMappingsValid;
     }
 
+    // --------------------------------------------------------------------- //
+    // SerialInterfaceProvider
+
     @Override
-    public void dispose() {
-        for (final Mapping mapping : mappings) {
-            mapping.dispose();
+    public void initializeSerialInterface(final SerialPortManager manager) {
+        manager.addSerialPort(this::readDeviceAddress, this::writeResetDeviceAddressShift, null);
+        manager.addSerialPort(this::readDeviceSize, this::writeResetDeviceSizeShift, null);
+        manager.addSerialPort(this::readSelectedMapping, this::writeSelectedMapping, null);
+    }
+
+    @Override
+    public void handleSelectedDeviceChanged() {
+        addressShift = 0;
+        sizeShift = 0;
+    }
+
+    // --------------------------------------------------------------------- //
+
+    private int readDeviceAddress(final long address) {
+        final BusDevice device = controller.getSelectedDevice();
+        if (device instanceof Addressable) {
+            final Addressable addressable = (Addressable) device;
+            final AddressBlock memory = getAddressBlock(addressable);
+            return (int) ((memory.getOffset() >>> (addressShift++ * getWordSize())) & getWordMask());
         }
-        selectedMapping = 0;
+        return 0xFFFFFFFF;
+    }
+
+    private void writeResetDeviceAddressShift(final long address, final int value) {
+        addressShift = 0;
+    }
+
+    private int readDeviceSize(final long address) {
+        final BusDevice device = controller.getSelectedDevice();
+        if (device instanceof Addressable) {
+            final Addressable addressable = (Addressable) device;
+            final AddressBlock memory = getAddressBlock(addressable);
+            return (int) ((memory.getLength() >>> (sizeShift++ * getWordSize())) & getWordMask());
+        }
+        return 0xFFFFFFFF;
+    }
+
+    private void writeResetDeviceSizeShift(final long address, final int value) {
+        sizeShift = 0;
+    }
+
+    private int readSelectedMapping(final long address) {
+        return selectedMapping;
+    }
+
+    private void writeSelectedMapping(final long address, final int value) {
+        selectedMapping = value;
+
+        if (selectedMapping < 0) {
+            selectedMapping = 0;
+        }
+        if (selectedMapping >= mappings.length) {
+            selectedMapping = mappings.length - 1;
+        }
     }
 
     // --------------------------------------------------------------------- //
@@ -268,12 +337,6 @@ public class AddressMapperImpl implements AddressMapper {
             // We have no overlap if all devices were successfully added to the
             // mapping of address to device.
             return addressToDevice.size() == deviceToAddress.size();
-        }
-
-        public void dispose() {
-            addressToDevice.clear();
-            deviceToAddress.clear();
-            persistentDeviceToAddress.clear();
         }
 
         // --------------------------------------------------------------------- //

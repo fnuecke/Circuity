@@ -7,10 +7,11 @@ import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.AddressMapper;
+import li.cil.circuity.api.bus.controller.ElementManager;
 import li.cil.circuity.api.bus.controller.InterruptMapper;
+import li.cil.circuity.api.bus.controller.SerialInterfaceProvider;
 import li.cil.circuity.api.bus.controller.Subsystem;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
-import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.AsyncTickable;
@@ -18,8 +19,10 @@ import li.cil.circuity.api.bus.device.BusChangeListener;
 import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
+import li.cil.circuity.api.bus.device.util.SerialPortManager;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.bus.util.BusThreadPool;
+import li.cil.circuity.common.bus.util.SerialPortManagerProxy;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.scheduler.ScheduledCallback;
 import li.cil.lib.api.serialization.Serialize;
@@ -73,7 +76,7 @@ import java.util.concurrent.Future;
  * <p>
  * <sup>1)</sup> This is guaranteed to be the first port. The initially selected device is guaranteed to be the bus controller itself. This way software may query the bus controller's API version before having to actually use the API.
  */
-public abstract class AbstractBusController extends AbstractBusDevice implements BusController, Addressable, AddressHint, BusStateListener {
+public abstract class AbstractBusController extends AbstractBusDevice implements BusController, Addressable, AddressHint, BusStateListener, SerialPortManagerProxy {
     /**
      * The interval in which to re-scan the bus in case multiple controllers
      * were detected or the scan hit the end of the loaded world, in seconds.
@@ -138,6 +141,11 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
      * and rescanning/changing addresses/interrupts of devices.
      */
     private final Object lock = new Object();
+
+    /**
+     * Manages the serial interface of the bus controller.
+     */
+    private final SerialPortManager serialPortManager = new SerialPortManager();
 
     /**
      * Sub systems in use by this bus controller.
@@ -219,193 +227,38 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     @Serialize
     private int nameIndex;
 
-    /**
-     * Current index/shift of the address of the selected device for serial interface.
-     */
-    @Serialize
-    private int addressShift;
-
-    /**
-     * Current index/shift of the size of the selected device for serial interface.
-     */
-    @Serialize
-    private int sizeShift;
-
     // --------------------------------------------------------------------- //
 
     public AbstractBusController() {
+        serialPortManager.setPreferredAddressOffset(Constants.BUS_CONTROLLER_ADDRESS);
+        serialPortManager.addSerialPort(this::readAPIVersion, null, null);
+        serialPortManager.addSerialPort(this::readDeviceCount, null, null);
+        serialPortManager.addSerialPort(this::readSelectedDevice, this::writeSelectedDevice, null);
+        serialPortManager.addSerialPort(this::readDeviceType, null, null);
+        serialPortManager.addSerialPort(this::readDeviceName, this::writeResetDeviceNameIndex, null);
+
         // TODO Populate based on some registry in which addons can register additional subsystems?
         subsystems.put(AddressMapper.class, new AddressMapperImpl(this));
         subsystems.put(InterruptMapper.class, new InterruptMapperImpl(this));
-    }
 
-    // --------------------------------------------------------------------- //
-    // BusElement
-
-    @Nullable
-    @Override
-    public BusController getBusController() {
-        return this;
-    }
-
-    @Override
-    public void setBusController(@Nullable final BusController controller) {
-        assert controller == this : "Multiple controllers on one bus.";
-    }
-
-    // --------------------------------------------------------------------- //
-    // BusDevice
-
-    @Nullable
-    @Override
-    public DeviceInfo getDeviceInfo() {
-        return DEVICE_INFO;
-    }
-
-    // --------------------------------------------------------------------- //
-    // Addressable
-
-    @Override
-    public AddressBlock getPreferredAddressBlock(final AddressBlock memory) {
-        return memory.take(Constants.BUS_CONTROLLER_ADDRESS, 7);
-    }
-
-    // TODO Allow subsystems to dynamically extend the serial protocol. Will also need some way to dynamically document it then, tho.
-    @Override
-    public int read(final long address) {
-        switch ((int) address) {
-            case 0: // Version of this serial API.
-                return API_VERSION;
-            case 1: // Number of addressable devices.
-                return devices.size();
-            case 2: // Selected device.
-                return selected;
-            case 3: { // Type identifier of selected addressable device.
-                if (selected >= 0 && selected < devices.size()) {
-                    final BusDevice device = devices.get(selected);
-                    final DeviceInfo info = device.getDeviceInfo();
-                    return info != null ? info.type.id : 0xFFFFFFFF;
-                }
-                break;
-            }
-            case 4: { // Read a byte of the address the device is mapped to.
-                if (selected >= 0 && selected < devices.size()) {
-                    final BusDevice device = devices.get(selected);
-                    if (device instanceof Addressable) {
-                        final Addressable addressable = (Addressable) device;
-                        final AddressMapper mapper = getSubsystem(AddressMapper.class);
-                        final AddressBlock memory = mapper.getAddressBlock(addressable);
-                        return (int) ((memory.getOffset() >>> (addressShift++ * mapper.getWordSize())) & mapper.getWordMask());
-                    }
-                }
-                break;
-            }
-            case 5: { // Read a byte of the size of the device.
-                if (selected >= 0 && selected < devices.size()) {
-                    final BusDevice device = devices.get(selected);
-                    if (device instanceof Addressable) {
-                        final Addressable addressable = (Addressable) device;
-                        final AddressMapper mapper = getSubsystem(AddressMapper.class);
-                        final AddressBlock memory = mapper.getAddressBlock(addressable);
-                        return (int) ((memory.getLength() >>> (sizeShift++ * mapper.getWordSize())) & mapper.getWordMask());
-                    }
-                }
-                break;
-            }
-            case 6: { // Read a single character of the name of the selected device.
-                if (selected >= 0 && selected < devices.size()) {
-                    final BusDevice device = devices.get(selected);
-                    final DeviceInfo info = device.getDeviceInfo();
-                    final String name = info != null ? info.name : null;
-                    return name != null && nameIndex < name.length() ? name.charAt(nameIndex++) : 0;
-                }
-                break;
-            }
-            default:
-                throw new IndexOutOfBoundsException();
-        }
-        return 0xFFFFFFFF;
-    }
-
-    @Override
-    public void write(final long address, final int value) {
-        switch ((int) address) {
-            case 2: // Select device.
-                selected = value;
-                addressShift = 0;
-                sizeShift = 0;
-                nameIndex = 0;
-                break;
-            case 4: // Reset address shift.
-                addressShift = 0;
-                break;
-            case 5: // Reset size shift.
-                sizeShift = 0;
-                break;
-            case 6: // Reset device name pointer.
-                nameIndex = 0;
-                break;
-        }
-    }
-
-    // --------------------------------------------------------------------- //
-    // AddressHint
-
-    @Override
-    public int getSortHint() {
-        return Constants.BUS_CONTROLLER_ADDRESS;
-    }
-
-    // --------------------------------------------------------------------- //
-    // BusStateAware
-
-    @Override
-    public void handleBusOnline() {
-    }
-
-    @Override
-    public void handleBusOffline() {
-        selected = 0;
-    }
-
-    // --------------------------------------------------------------------- //
-    // BusController
-
-    @Override
-    public boolean isOnline() {
-        return isOnline && state == State.READY;
-    }
-
-    @Override
-    public void scheduleScan() {
-        final World world = getBusWorld();
-        if (world.isRemote) return;
-        synchronized (lock) {
-            if (scheduledScan == null) {
-                scheduledScan = SillyBeeAPI.scheduler.schedule(world, this::scanSynchronized);
-                state = State.SCANNING;
+        for (final Subsystem subsystem : subsystems.values()) {
+            if (subsystem instanceof SerialInterfaceProvider) {
+                final SerialInterfaceProvider provider = (SerialInterfaceProvider) subsystem;
+                provider.initializeSerialInterface(serialPortManager);
             }
         }
     }
 
-    @SuppressWarnings("unchecked")
-    @Override
-    public <T extends Subsystem> T getSubsystem(final Class<T> subsystem) {
-        return (T) subsystems.get(subsystem);
-    }
-
-    @Override
-    public Iterable<BusElement> getElements() {
-        return elements;
-    }
+    // --------------------------------------------------------------------- //
 
     @Nullable
-    @Override
-    public BusDevice getDevice(final UUID persistentId) {
-        return deviceById.get(persistentId);
+    public BusDevice getSelectedDevice() {
+        if (selected >= 0 && selected < devices.size()) {
+            return devices.get(selected);
+        } else {
+            return null;
+        }
     }
-
-    // --------------------------------------------------------------------- //
 
     /**
      * Get the controller's current state.
@@ -509,23 +362,16 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
         // Needs to be synchronized as it may be called when owner is disposed,
         // which may happen during a tick, i.e. while async update is running.
         synchronized (lock) {
-            try {
-                for (final BusElement element : elements) {
+            for (final BusElement element : elements) {
+                try {
                     element.setBusController(null);
+                } catch (final Throwable t) {
+                    ModCircuity.getLogger().error("BusElement threw in setBusController.", t);
                 }
-            } finally {
-                subsystems.values().forEach(Subsystem::dispose);
-                elements.clear();
-                devices.clear();
-                deviceById.clear();
-                stateListeners.clear();
-                changeListeners.clear();
-                tickables.clear();
-
-                if (scheduledScan != null) {
-                    SillyBeeAPI.scheduler.cancel(getBusWorld(), scheduledScan);
-                    scheduledScan = null;
-                }
+            }
+            if (scheduledScan != null) {
+                SillyBeeAPI.scheduler.cancel(getBusWorld(), scheduledScan);
+                scheduledScan = null;
             }
         }
     }
@@ -533,6 +379,147 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     // --------------------------------------------------------------------- //
 
     protected abstract World getBusWorld();
+
+    // --------------------------------------------------------------------- //
+    // BusElement
+
+    @Nullable
+    @Override
+    public BusController getBusController() {
+        return this;
+    }
+
+    @Override
+    public void setBusController(@Nullable final BusController controller) {
+        assert controller == this : "Multiple controllers on one bus.";
+    }
+
+    // --------------------------------------------------------------------- //
+    // BusDevice
+
+    @Nullable
+    @Override
+    public DeviceInfo getDeviceInfo() {
+        return DEVICE_INFO;
+    }
+
+    // --------------------------------------------------------------------- //
+    // AddressHint
+
+    @Override
+    public int getSortHint() {
+        return Constants.BUS_CONTROLLER_ADDRESS;
+    }
+
+    // --------------------------------------------------------------------- //
+    // BusStateAware
+
+    @Override
+    public void handleBusOnline() {
+    }
+
+    @Override
+    public void handleBusOffline() {
+        selected = 0;
+    }
+
+    // --------------------------------------------------------------------- //
+    // BusController
+
+    @Override
+    public boolean isOnline() {
+        return isOnline && state == State.READY;
+    }
+
+    @Override
+    public void scheduleScan() {
+        final World world = getBusWorld();
+        if (world.isRemote) return;
+        synchronized (lock) {
+            if (scheduledScan == null) {
+                scheduledScan = SillyBeeAPI.scheduler.schedule(world, this::scanSynchronized);
+                state = State.SCANNING;
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T extends Subsystem> T getSubsystem(final Class<T> subsystem) {
+        return (T) subsystems.get(subsystem);
+    }
+
+    @Override
+    public Iterable<BusElement> getElements() {
+        return elements;
+    }
+
+    @Nullable
+    @Override
+    public BusDevice getDevice(final UUID persistentId) {
+        return deviceById.get(persistentId);
+    }
+
+    // --------------------------------------------------------------------- //
+    // SerialPortManagerProxy
+
+    @Override
+    public SerialPortManager getSerialPortManager() {
+        return serialPortManager;
+    }
+
+    // --------------------------------------------------------------------- //
+
+    private int readAPIVersion(final long address) {
+        return API_VERSION;
+    }
+
+    private int readDeviceCount(final long address) {
+        return devices.size();
+    }
+
+    private int readSelectedDevice(final long address) {
+        return selected;
+    }
+
+    private void writeSelectedDevice(final long address, final int value) {
+        selected = value;
+        nameIndex = 0;
+
+        for (final Subsystem subsystem : subsystems.values()) {
+            if (subsystem instanceof SerialInterfaceProvider) {
+                final SerialInterfaceProvider provider = (SerialInterfaceProvider) subsystem;
+                try {
+                    provider.handleSelectedDeviceChanged();
+                } catch (final Throwable t) {
+                    ModCircuity.getLogger().error("SerialInterfaceProviderSubsystem threw in handleSelectedDeviceChanged.", t);
+                }
+            }
+        }
+    }
+
+    private int readDeviceType(final long address) {
+        final BusDevice device = getSelectedDevice();
+        if (device != null) {
+            final DeviceInfo info = device.getDeviceInfo();
+            return info != null ? info.type.id : 0xFFFFFFFF;
+        }
+        return 0xFFFFFFFF;
+    }
+
+    private int readDeviceName(final long address) {
+        final BusDevice device = getSelectedDevice();
+        if (device != null) {
+            final DeviceInfo info = device.getDeviceInfo();
+            final String name = info != null ? info.name : null;
+            return name != null && nameIndex < name.length() ? name.charAt(nameIndex++) : 0;
+        }
+        return 0xFFFFFFFF;
+    }
+
+    private void writeResetDeviceNameIndex(final long address, final int value) {
+        nameIndex = 0;
+    }
 
     // --------------------------------------------------------------------- //
 
@@ -648,7 +635,10 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
                     }
 
                     for (final Subsystem subsystem : subsystems.values()) {
-                        subsystem.remove(element);
+                        if (subsystem instanceof ElementManager) {
+                            final ElementManager manager = (ElementManager) subsystem;
+                            manager.remove(element);
+                        }
                     }
                 }
             }
@@ -687,7 +677,10 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
             }
 
             for (final Subsystem subsystem : subsystems.values()) {
-                subsystem.add(element);
+                if (subsystem instanceof ElementManager) {
+                    final ElementManager manager = (ElementManager) subsystem;
+                    manager.add(element);
+                }
             }
         }
 

@@ -5,6 +5,7 @@ import gnu.trove.map.TObjectIntMap;
 import gnu.trove.map.hash.TIntObjectHashMap;
 import gnu.trove.map.hash.TObjectIntHashMap;
 import li.cil.circuity.api.bus.BusElement;
+import li.cil.circuity.api.bus.controller.ElementManager;
 import li.cil.circuity.api.bus.controller.InterruptMapper;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.api.bus.device.InterruptSource;
@@ -34,7 +35,7 @@ import java.util.stream.Collectors;
  * instance and sink local interrupt.
  */
 @Serializable
-public class InterruptMapperImpl implements InterruptMapper, SerializationListener {
+public class InterruptMapperImpl implements InterruptMapper, ElementManager, SerializationListener {
     /**
      * The controller hosting this system.
      */
@@ -121,7 +122,7 @@ public class InterruptMapperImpl implements InterruptMapper, SerializationListen
     }
 
     // --------------------------------------------------------------------- //
-    // Subsystem
+    // ElementManager
 
     @Override
     public void add(final BusElement device) {
@@ -250,17 +251,6 @@ public class InterruptMapperImpl implements InterruptMapper, SerializationListen
         }
 
         return true;
-    }
-
-    @Override
-    public void dispose() {
-        interruptSourceIds.clear();
-        interruptSinkIds.clear();
-        infoToSourceId.clear();
-        persistentInfoToSourceId.clear();
-        sinkIdToInfo.clear();
-        persistentSinkIdToInfo.clear();
-        Arrays.fill(sourceIdToSinkId, -1);
     }
 
     // --------------------------------------------------------------------- //
