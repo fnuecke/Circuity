@@ -4,7 +4,7 @@ import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.common.Constants;
-import li.cil.circuity.common.bus.AbstractBusController;
+import li.cil.circuity.common.bus.controller.AbstractBusController;
 import li.cil.lib.api.ecs.component.LateTickable;
 import li.cil.lib.api.ecs.component.Redstone;
 import li.cil.lib.api.ecs.component.event.ActivationListener;

@@ -1,4 +1,4 @@
-package li.cil.circuity.common.bus;
+package li.cil.circuity.common.bus.controller;
 
 import com.google.common.base.Throwables;
 import li.cil.circuity.ModCircuity;
@@ -19,6 +19,7 @@ import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.common.Constants;
+import li.cil.circuity.common.bus.util.BusThreadPool;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.scheduler.ScheduledCallback;
 import li.cil.lib.api.serialization.Serialize;

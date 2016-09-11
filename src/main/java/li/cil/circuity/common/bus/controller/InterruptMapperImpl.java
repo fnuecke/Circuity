@@ -1,4 +1,4 @@
-package li.cil.circuity.common.bus;
+package li.cil.circuity.common.bus.controller;
 
 import gnu.trove.map.TIntObjectMap;
 import gnu.trove.map.TObjectIntMap;

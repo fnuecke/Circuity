@@ -1,4 +1,4 @@
-package li.cil.circuity.common.bus;
+package li.cil.circuity.common.bus.controller;
 
 import li.cil.circuity.api.bus.BusElement;
 import li.cil.circuity.api.bus.controller.AddressMapper;

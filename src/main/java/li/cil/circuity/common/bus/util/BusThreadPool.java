@@ -1,4 +1,4 @@
-package li.cil.circuity.common.bus;
+package li.cil.circuity.common.bus.util;
 
 import li.cil.circuity.ModCircuity;
 import li.cil.lib.api.SillyBeeAPI;
