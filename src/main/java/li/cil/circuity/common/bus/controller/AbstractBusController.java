@@ -32,9 +32,9 @@ import net.minecraft.world.World;
 import javax.annotation.Nullable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -136,7 +136,7 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
      * Sub systems in use by this bus controller.
      */
     @Serialize
-    private final Map<Class, Subsystem> subsystems = new HashMap<>();
+    private final Map<Class, Subsystem> subsystems = new LinkedHashMap<>();
 
     /**
      * Set of all currently known bus elements.
