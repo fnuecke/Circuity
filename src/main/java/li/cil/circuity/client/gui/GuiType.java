@@ -1,7 +1,8 @@
 package li.cil.circuity.client.gui;
 
 public enum GuiType {
-    SCREEN;
+    SCREEN,
+    SELECT_ADDRESS;
 
     public static final GuiType[] VALUES = values();
 }

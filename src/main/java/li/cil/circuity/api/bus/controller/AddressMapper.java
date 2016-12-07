@@ -46,6 +46,13 @@ public interface AddressMapper extends Subsystem {
     int getConfigurationCount();
 
     /**
+     * Get the index of the currently active configuration.
+     *
+     * @return the currently active configuration.
+     */
+    int getActiveConfiguration();
+
+    /**
      * Set the currently active configuration.
      * <p>
      * This can be called at any time, to switch between legal configurations.

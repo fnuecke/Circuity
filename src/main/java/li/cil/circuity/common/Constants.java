@@ -32,7 +32,8 @@ public final class Constants {
 
         public static final String CONFIGURATOR_MODE_CHANGED = "configurator.mode_changed";
         public static final String CONFIGURATOR_CLEARED = "configurator.cleared";
-        public static final String CONFIGURATOR_ADDRESS_SELECTED = "configurator.address_selected";
+        public static final String CONFIGURATOR_MAPPING_SELECTED = "configurator.mapping_selected";
+        public static final String CONFIGURATOR_ADDRESS_APPLIED = "configurator.address_selected";
         public static final String CONFIGURATOR_INTERRUPT_SOURCE = "configurator.interrupt_source";
         public static final String CONFIGURATOR_NO_INTERRUPT_SOURCE = "configurator.no_interrupt_source";
         public static final String CONFIGURATOR_INTERRUPT_SINK = "configurator.interrupt_sink";
@@ -43,6 +44,9 @@ public final class Constants {
         public static final String INTERRUPT_SINK_NON_MASKABLE_INTERRUPT = "interrupt_sink.nmi";
         public static final String INTERRUPT_SINK_INTERRUPT_REQUEST = "interrupt_sink.irq";
         public static final String INTERRUPT_SOURCE_KEYBOARD_INPUT = "interrupt_source.keyboard_input";
+
+        public static final String BUTTON_OK = "button.ok";
+        public static final String BUTTON_CANCEL = "button.cancel";
 
         public static final String UNKNOWN = "generic.unknown";
 

@@ -1,7 +1,7 @@
 package li.cil.circuity.client;
 
 import li.cil.circuity.ModCircuity;
-import li.cil.circuity.client.gui.GuiHandlerClient;
+import li.cil.circuity.client.network.GuiHandlerClient;
 import li.cil.circuity.client.renderer.Textures;
 import li.cil.circuity.client.renderer.tileentity.TileEntityBusCableRenderer;
 import li.cil.circuity.client.renderer.tileentity.TileEntityBusControllerRenderer;

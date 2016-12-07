@@ -8,6 +8,7 @@ import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.Addressable;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.api.bus.device.InterruptSource;
+import li.cil.circuity.client.gui.GuiType;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.capabilities.CapabilityBusElement;
 import li.cil.lib.util.CapabilityUtil;
@@ -36,9 +37,9 @@ public class ItemConfigurator extends Item {
     private static final String INTERRUPT_SINK_TAG = "sink";
 
     public enum Mode {
-        CHANGE_ADDRESS,
+        SELECT_ADDRESS_MAPPING,
         SELECT_ADDRESS,
-        BIND_ADDRESS,
+        APPLY_ADDRESS,
         SELECT_INTERRUPT_SOURCE,
         SELECT_INTERRUPT_SINK,
         BIND_INTERRUPT;
@@ -113,32 +114,24 @@ public class ItemConfigurator extends Item {
         final NBTTagCompound tag = ItemUtil.getOrAddTagCompound(stack);
         final Mode mode = Mode.readFromNBT(tag);
         switch (mode) {
-            case CHANGE_ADDRESS: {
-                if (element instanceof Addressable) {
-                    final Addressable addressable = (Addressable) element;
-                    // TODO Open GUI for address input, send it back to server, apply to device via controller.
-                }
-                break;
-            }
             case SELECT_ADDRESS: {
                 if (element instanceof Addressable) {
                     final Addressable addressable = (Addressable) element;
                     final AddressMapper mapper = controller.getSubsystem(AddressMapper.class);
                     final AddressBlock memory = mapper.getAddressBlock(addressable);
-
-                    if (memory == null) {
-                        return EnumActionResult.SUCCESS;
-                    }
-
                     tag.setLong(ADDRESS_TAG, memory.getOffset());
 
-                    player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_ADDRESS_SELECTED, String.format("%04X", memory.getOffset())));
+                    PlayerUtil.openGui(player, GuiType.SELECT_ADDRESS, memory.getOffset());
                 }
                 break;
             }
-            case BIND_ADDRESS: {
-                if (element instanceof Object) {
-                    // TODO Custom interface for setting target addresses on devices.
+            case APPLY_ADDRESS: {
+                if (element instanceof Addressable) {
+                    final Addressable addressable = (Addressable) element;
+                    final AddressMapper mapper = controller.getSubsystem(AddressMapper.class);
+                    final AddressBlock memory = mapper.getAddressBlock(addressable);
+                    mapper.setDeviceAddress(addressable, memory.at(tag.getLong(ADDRESS_TAG)));
+                    player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_ADDRESS_APPLIED, String.format("%04X", memory.getOffset())));
                 }
                 break;
             }
@@ -197,6 +190,15 @@ public class ItemConfigurator extends Item {
                     } else {
                         player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_INTERRUPT_CLEARED));
                     }
+                }
+                break;
+            }
+            case SELECT_ADDRESS_MAPPING: {
+                if (element instanceof BusController) {
+                    final AddressMapper mapper = controller.getSubsystem(AddressMapper.class);
+                    final int count = mapper.getConfigurationCount();
+                    mapper.setActiveConfiguration((mapper.getActiveConfiguration() + 1) % count);
+                    player.addChatComponentMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_MAPPING_SELECTED, count));
                 }
                 break;
             }

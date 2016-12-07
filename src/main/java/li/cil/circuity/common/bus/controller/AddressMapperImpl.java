@@ -128,6 +128,11 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
     }
 
     @Override
+    public int getActiveConfiguration() {
+        return selectedMapping;
+    }
+
+    @Override
     public void setActiveConfiguration(final int index) {
         if (index < 0 || index >= mappings.length) {
             throw new IndexOutOfBoundsException();

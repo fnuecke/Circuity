@@ -1,6 +1,5 @@
 package li.cil.circuity.server.processor.mips;
 
-import li.cil.circuity.common.bus.AbstractBusController;
 import li.cil.circuity.server.processor.BusControllerAccess;
 import li.cil.lib.api.serialization.Serialize;
 

@@ -13,7 +13,7 @@ import org.lwjgl.opengl.GL11;
 
 import java.io.IOException;
 
-public final class GuiScreenImpl extends GuiScreen {
+public final class GuiBlockScreen extends GuiScreen {
     // --------------------------------------------------------------------- //
     // Settings
 
@@ -29,7 +29,7 @@ public final class GuiScreenImpl extends GuiScreen {
 
     // --------------------------------------------------------------------- //
 
-    public GuiScreenImpl(final BusDeviceScreen screen) {
+    public GuiBlockScreen(final BusDeviceScreen screen) {
         this.screen = screen;
     }
 

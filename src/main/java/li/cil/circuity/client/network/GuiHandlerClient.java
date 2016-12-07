@@ -1,5 +1,8 @@
-package li.cil.circuity.client.gui;
+package li.cil.circuity.client.network;
 
+import li.cil.circuity.client.gui.GuiAddressSelector;
+import li.cil.circuity.client.gui.GuiBlockScreen;
+import li.cil.circuity.client.gui.GuiType;
 import li.cil.circuity.common.ecs.component.BusDeviceScreen;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
@@ -24,16 +27,21 @@ public enum GuiHandlerClient implements IGuiHandler {
     @Override
     public Object getClientGuiElement(final int id, final EntityPlayer player, final World world, final int x, final int y, final int z) {
         // In case a UI was opened for a component, its ID is encoded in the x and y arguments.
-        final long componentId = (((long) x) << 32) | y;
+        final long longData = (((long) x) << 32) | y;
 
         switch (GuiType.VALUES[id]) {
             case SCREEN: {
+                final long componentId = longData;
                 final Component component = SillyBeeAPI.manager.getManager(world).getComponent(componentId);
                 if (component instanceof BusDeviceScreen) {
                     final BusDeviceScreen screen = (BusDeviceScreen) component;
-                    return new GuiScreenImpl(screen);
+                    return new GuiBlockScreen(screen);
                 }
                 break;
+            }
+            case SELECT_ADDRESS: {
+                final long offset = longData;
+                return new GuiAddressSelector(offset);
             }
         }
 
