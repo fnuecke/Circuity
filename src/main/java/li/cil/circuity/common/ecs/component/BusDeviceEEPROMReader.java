@@ -95,9 +95,11 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
 
         final IItemHandler inventory = getComponent(InventoryMutable.class).orElseThrow(IllegalStateException::new);
         final ItemStack stack = inventory.getStackInSlot(0);
-        if (stack != null) {
+        if (!stack.isEmpty()) {
             final EEPROM medium = stack.getCapability(CapabilityEEPROM.EEPROM_CAPABILITY, null);
-            data = medium.getData();
+            if (medium != null) {
+                data = medium.getData();
+            }
         }
 
         final BusController controller = device.getBusController();

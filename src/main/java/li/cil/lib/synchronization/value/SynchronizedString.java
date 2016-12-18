@@ -53,6 +53,6 @@ public final class SynchronizedString extends AbstractSynchronizedValue {
     }
 
     public void deserialize(final PacketBuffer packet) {
-        value = packet.readStringFromBuffer(MAX_LENGTH);
+        value = packet.readString(MAX_LENGTH);
     }
 }

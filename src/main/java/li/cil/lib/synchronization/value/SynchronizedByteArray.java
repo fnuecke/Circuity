@@ -140,7 +140,7 @@ public final class SynchronizedByteArray implements SynchronizedValue {
             final TIntIterator it = indices.iterator();
             while (it.hasNext()) {
                 final int index = it.next();
-                BUFFERS[value[index] & 0xFF].writeVarIntToBuffer(index);
+                BUFFERS[value[index] & 0xFF].writeVarInt(index);
             }
 
             for (int item = 0; item < BUFFERS.length; item++) {
@@ -148,7 +148,7 @@ public final class SynchronizedByteArray implements SynchronizedValue {
                 if (buffer.isReadable()) {
                     if (packet.writerIndex() < maxWriterIndex) {
                         packet.writeByte(item);
-                        packet.writeVarIntToBuffer(buffer.writerIndex());
+                        packet.writeVarInt(buffer.writerIndex());
                         packet.writeBytes(buffer);
                     }
                     buffer.clear();
@@ -171,10 +171,10 @@ public final class SynchronizedByteArray implements SynchronizedValue {
     private void deserializeChanges(final PacketBuffer packet) {
         while (packet.isReadable()) {
             final byte item = packet.readByte();
-            final int length = packet.readVarIntFromBuffer();
+            final int length = packet.readVarInt();
             final int end = packet.readerIndex() + length;
             while (packet.readerIndex() < end) {
-                final int index = packet.readVarIntFromBuffer();
+                final int index = packet.readVarInt();
                 value[index] = item;
             }
         }

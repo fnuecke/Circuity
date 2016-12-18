@@ -171,7 +171,7 @@ public enum Manager implements ManagerAPI {
     }
 
     private static World getClientWorld(final World world) {
-        return Minecraft.getMinecraft().theWorld;
+        return Minecraft.getMinecraft().world;
     }
 
     private static World getServerWorld(final World world) {

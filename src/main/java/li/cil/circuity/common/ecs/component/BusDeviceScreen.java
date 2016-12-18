@@ -27,7 +27,6 @@ import li.cil.lib.synchronization.value.SynchronizedUUID;
 import li.cil.lib.util.PlayerUtil;
 import li.cil.lib.util.RingBuffer;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.text.ITextComponent;
@@ -100,7 +99,7 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
     // ActivationListener
 
     @Override
-    public boolean handleActivated(final EntityPlayer player, final EnumHand hand, @Nullable final ItemStack heldItem, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
+    public boolean handleActivated(final EntityPlayer player, final EnumHand hand, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
         if (player.isSneaking()) {
             return false;
         }

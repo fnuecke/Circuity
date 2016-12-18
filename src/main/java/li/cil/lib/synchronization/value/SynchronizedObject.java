@@ -77,7 +77,7 @@ public final class SynchronizedObject<T> extends AbstractSynchronizedValue {
         if (value != null) {
             NBTUtil.write(SillyBeeAPI.serialization.get(Side.SERVER).serialize(value), packet);
             if (!Modifier.isFinal(valueClass.getModifiers())) { // No need if final.
-                packet.writeVarIntToBuffer(SillyBeeAPI.synchronization.getServer().getTypeIdByType(value.getClass()));
+                packet.writeVarInt(SillyBeeAPI.synchronization.getServer().getTypeIdByType(value.getClass()));
             }
         } else {
             NBTUtil.write(null, packet);
@@ -92,7 +92,7 @@ public final class SynchronizedObject<T> extends AbstractSynchronizedValue {
             if (Modifier.isFinal(valueClass.getModifiers())) {
                 clazz = valueClass;
             } else {
-                clazz = SillyBeeAPI.synchronization.getClient().getTypeByTypeId(packet.readVarIntFromBuffer());
+                clazz = SillyBeeAPI.synchronization.getClient().getTypeByTypeId(packet.readVarInt());
             }
             assert (clazz != null);
             value = (T) SillyBeeAPI.serialization.get(Side.CLIENT).deserialize(value, clazz, valueNbt);

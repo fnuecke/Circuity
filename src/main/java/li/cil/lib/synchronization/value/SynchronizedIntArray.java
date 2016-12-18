@@ -100,12 +100,12 @@ public final class SynchronizedIntArray implements SynchronizedValue {
                 packet.writeBoolean(false);
 
                 final Set<Object> indices = new HashSet<>(tokens);
-                packet.writeVarIntToBuffer(indices.size());
+                packet.writeVarInt(indices.size());
 
                 for (final Object i : indices) {
                     final int index = (Integer) i;
-                    packet.writeVarIntToBuffer(index);
-                    packet.writeVarIntToBuffer(value[index]);
+                    packet.writeVarInt(index);
+                    packet.writeVarInt(value[index]);
                 }
             }
         }
@@ -116,11 +116,11 @@ public final class SynchronizedIntArray implements SynchronizedValue {
         if (packet.readBoolean()) {
             value = packet.readVarIntArray();
         } else {
-            final int count = packet.readVarIntFromBuffer();
+            final int count = packet.readVarInt();
 
             for (int i = 0; i < count; i++) {
-                final int index = packet.readVarIntFromBuffer();
-                value[index] = packet.readVarIntFromBuffer();
+                final int index = packet.readVarInt();
+                value[index] = packet.readVarInt();
             }
         }
     }

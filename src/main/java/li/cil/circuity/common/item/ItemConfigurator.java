@@ -71,7 +71,8 @@ public class ItemConfigurator extends Item {
     }
 
     @Override
-    public ActionResult<ItemStack> onItemRightClick(final ItemStack stack, final World world, final EntityPlayer player, final EnumHand hand) {
+    public ActionResult<ItemStack> onItemRightClick(final World world, final EntityPlayer player, final EnumHand hand) {
+        final ItemStack stack = player.getHeldItem(hand);
         final NBTTagCompound tag = ItemUtil.getOrAddTagCompound(stack);
         final Mode oldMode = Mode.readFromNBT(tag);
 
@@ -96,14 +97,15 @@ public class ItemConfigurator extends Item {
     }
 
     @Override
-    public EnumActionResult onItemUse(final ItemStack stack, final EntityPlayer player, final World world, final BlockPos pos, final EnumHand hand, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
+    public EnumActionResult onItemUse(final EntityPlayer player, final World world, final BlockPos pos, final EnumHand hand, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
+        final ItemStack stack = player.getHeldItem(hand);
         final BusElement element = CapabilityUtil.getCapability(world, pos, side, CapabilityBusElement.BUS_ELEMENT_CAPABILITY, BusElement.class);
         if (element == null) {
             if (player.isSneaking()) {
                 cycleMode(stack, world, player);
                 return EnumActionResult.SUCCESS;
             }
-            return super.onItemUse(stack, player, world, pos, hand, side, hitX, hitY, hitZ);
+            return super.onItemUse(player, world, pos, hand, side, hitX, hitY, hitZ);
         }
 
         final BusController controller = element.getBusController();
@@ -131,7 +133,7 @@ public class ItemConfigurator extends Item {
                     final AddressMapper mapper = controller.getSubsystem(AddressMapper.class);
                     final AddressBlock memory = mapper.getAddressBlock(addressable);
                     mapper.setDeviceAddress(addressable, memory.at(tag.getLong(ADDRESS_TAG)));
-                    player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_ADDRESS_APPLIED, String.format("%04X", memory.getOffset())));
+                    player.sendMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_ADDRESS_APPLIED, String.format("%04X", memory.getOffset())));
                 }
                 break;
             }
@@ -147,9 +149,9 @@ public class ItemConfigurator extends Item {
                     if (newId >= 0) {
                         final ITextComponent interruptName = source.getInterruptName(newId);
                         final ITextComponent displayName = interruptName != null ? interruptName : new TextComponentTranslation(Constants.I18N.UNKNOWN);
-                        player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_INTERRUPT_SOURCE, displayName, newId));
+                        player.sendMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_INTERRUPT_SOURCE, displayName, newId));
                     } else {
-                        player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_NO_INTERRUPT_SOURCE));
+                        player.sendMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_NO_INTERRUPT_SOURCE));
                     }
                 }
                 break;
@@ -166,9 +168,9 @@ public class ItemConfigurator extends Item {
                     if (newId >= 0) {
                         final ITextComponent interruptName = sink.getInterruptName(newId);
                         final ITextComponent displayName = interruptName != null ? interruptName : new TextComponentTranslation(Constants.I18N.UNKNOWN);
-                        player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_INTERRUPT_SINK, displayName, newId));
+                        player.sendMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_INTERRUPT_SINK, displayName, newId));
                     } else {
-                        player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_NO_INTERRUPT_SINK));
+                        player.sendMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_NO_INTERRUPT_SINK));
                     }
                 }
                 break;
@@ -186,9 +188,9 @@ public class ItemConfigurator extends Item {
                     mapper.setInterruptMapping(sourceId, sinkId);
 
                     if (sinkId >= 0) {
-                        player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_INTERRUPT_SET));
+                        player.sendMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_INTERRUPT_SET));
                     } else {
-                        player.addChatMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_INTERRUPT_CLEARED));
+                        player.sendMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_INTERRUPT_CLEARED));
                     }
                 }
                 break;
@@ -198,7 +200,7 @@ public class ItemConfigurator extends Item {
                     final AddressMapper mapper = controller.getSubsystem(AddressMapper.class);
                     final int count = mapper.getConfigurationCount();
                     mapper.setActiveConfiguration((mapper.getActiveConfiguration() + 1) % count);
-                    player.addChatComponentMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_MAPPING_SELECTED, count));
+                    player.sendMessage(new TextComponentTranslation(Constants.I18N.CONFIGURATOR_MAPPING_SELECTED, count));
                 }
                 break;
             }

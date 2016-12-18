@@ -34,29 +34,35 @@ public final class CombinedItemHandlerWrapper implements IItemHandler {
 
     @Override
     public ItemStack getStackInSlot(final int slot) {
-        final int index = getIndexForSlot(slot);
+        final int index = getHandlerIndex(slot);
         final IItemHandler handler = getHandlerFromIndex(index);
-        return handler.getStackInSlot(getSlotFromIndex(slot, index));
+        return handler.getStackInSlot(getLocalSlot(slot, index));
     }
 
     @Override
     public ItemStack insertItem(final int slot, final ItemStack stack, final boolean simulate) {
-        final int index = getIndexForSlot(slot);
+        final int index = getHandlerIndex(slot);
         final IItemHandler handler = getHandlerFromIndex(index);
-        return handler.insertItem(getSlotFromIndex(slot, index), stack, simulate);
+        return handler.insertItem(getLocalSlot(slot, index), stack, simulate);
     }
 
     @Override
     public ItemStack extractItem(final int slot, final int amount, final boolean simulate) {
-        final int index = getIndexForSlot(slot);
+        final int index = getHandlerIndex(slot);
         final IItemHandler handler = getHandlerFromIndex(index);
-        return handler.extractItem(getSlotFromIndex(slot, index), amount, simulate);
+        return handler.extractItem(getLocalSlot(slot, index), amount, simulate);
+    }
+
+    @Override
+    public int getSlotLimit(final int slot) {
+        final int index = getHandlerIndex(slot);
+        final IItemHandler handler = getHandlerFromIndex(index);
+        return handler.getSlotLimit(getLocalSlot(slot, index));
     }
 
     // --------------------------------------------------------------------- //
 
-    // returns the handler index for the slot
-    private int getIndexForSlot(final int slot) {
+    private int getHandlerIndex(final int slot) {
         if (slot < 0)
             return -1;
 
@@ -75,7 +81,7 @@ public final class CombinedItemHandlerWrapper implements IItemHandler {
         return itemHandler[index];
     }
 
-    private int getSlotFromIndex(final int slot, final int index) {
+    private int getLocalSlot(final int slot, final int index) {
         if (index <= 0 || index >= baseIndex.length) {
             return slot;
         }

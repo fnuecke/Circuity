@@ -35,10 +35,10 @@ public class MessageTypeInfoList implements IMessage {
     @Override
     public void fromBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
-        final int count = packet.readVarIntFromBuffer();
+        final int count = packet.readVarInt();
         try {
             for (int i = 0; i < count; i++) {
-                types.add(ReflectionUtil.getClass(packet.readStringFromBuffer(0xFFFF)));
+                types.add(ReflectionUtil.getClass(packet.readString(0xFFFF)));
             }
         } catch (final ClassNotFoundException e) {
             Throwables.propagate(e);
@@ -48,7 +48,7 @@ public class MessageTypeInfoList implements IMessage {
     @Override
     public void toBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
-        packet.writeVarIntToBuffer(types.size());
+        packet.writeVarInt(types.size());
         for (final Class type : types) {
             packet.writeString(type.getName());
         }

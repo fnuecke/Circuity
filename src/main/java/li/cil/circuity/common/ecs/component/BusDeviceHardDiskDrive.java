@@ -70,9 +70,11 @@ public final class BusDeviceHardDiskDrive extends AbstractComponentBusDevice imp
 
         final IItemHandler inventory = getComponent(InventoryMutable.class).orElseThrow(IllegalStateException::new);
         final ItemStack stack = inventory.getStackInSlot(0);
-        if (stack != null) {
+        if (!stack.isEmpty()) {
             final HardDiskDrive medium = stack.getCapability(CapabilityHardDiskDrive.HARD_DISK_DRIVE_CAPABILITY, null);
-            data = medium.getData();
+            if (medium != null) {
+                data = medium.getData();
+            }
         }
 
         final BusController controller = device.getBusController();

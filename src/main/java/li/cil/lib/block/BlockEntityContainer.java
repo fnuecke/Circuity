@@ -80,7 +80,7 @@ public class BlockEntityContainer extends BlockWithTileEntity {
     // Redstone logic
 
     @Override
-    public boolean canConnectRedstone(final IBlockState state, final IBlockAccess world, final BlockPos pos, final EnumFacing side) {
+    public boolean canConnectRedstone(final IBlockState state, final IBlockAccess world, final BlockPos pos, @Nullable final EnumFacing side) {
         final Optional<Redstone> redstone = getComponent(world, pos, Redstone.class);
         return redstone.isPresent();
     }
@@ -114,21 +114,21 @@ public class BlockEntityContainer extends BlockWithTileEntity {
     }
 
     @Override
-    public void neighborChanged(final IBlockState state, final World world, final BlockPos pos, final Block block) {
+    public void neighborChanged(final IBlockState state, final World world, final BlockPos pos, final Block block, final BlockPos fromPos) {
         final Iterable<NeighborChangeListener> listeners = getComponents(world, pos, NeighborChangeListener.class);
-        listeners.forEach(listener -> listener.handleNeighborChange(null));
-        super.neighborChanged(state, world, pos, block);
+        listeners.forEach(listener -> listener.handleNeighborChange(fromPos));
+        super.neighborChanged(state, world, pos, block, fromPos);
     }
 
     @Override
-    public boolean onBlockActivated(final World world, final BlockPos pos, final IBlockState state, final EntityPlayer player, final EnumHand hand, @Nullable final ItemStack heldItem, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
+    public boolean onBlockActivated(final World world, final BlockPos pos, final IBlockState state, final EntityPlayer player, final EnumHand hand, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
         final Iterable<ActivationListener> listeners = getComponents(world, pos, ActivationListener.class);
         for (final ActivationListener listener : listeners) {
-            if (listener.handleActivated(player, hand, heldItem, side, hitX, hitY, hitZ)) {
+            if (listener.handleActivated(player, hand, side, hitX, hitY, hitZ)) {
                 return true;
             }
         }
-        return super.onBlockActivated(world, pos, state, player, hand, heldItem, side, hitX, hitY, hitZ);
+        return super.onBlockActivated(world, pos, state, player, hand, side, hitX, hitY, hitZ);
     }
 
     @Override

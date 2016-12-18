@@ -130,7 +130,7 @@ public enum Scheduler implements SchedulerAPI {
     }
 
     private static boolean isWorldLoadedClient(final World world) {
-        return Minecraft.getMinecraft().theWorld == world;
+        return Minecraft.getMinecraft().world == world;
     }
 
     // --------------------------------------------------------------------- //

@@ -55,12 +55,16 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
             InventoryImmutable.this.fireInventoryChanged(slot);
         }
 
-        @Nullable
         @Override
         public ItemStack insertItem(final int slot, final ItemStack stack, final boolean simulate) {
-            if (filter != null && !filter.canInsertItem(this, slot, stack))
-                return stack;
-            return super.insertItem(slot, stack, simulate);
+            if (filter == null || filter.canInsertItem(this, slot, stack))
+                return super.insertItem(slot, stack, simulate);
+            return stack;
+        }
+
+        @Override
+        public int getSlotLimit(final int slot) {
+            return stackLimit >= 0 ? stackLimit : super.getSlotLimit(slot);
         }
     };
 
@@ -76,7 +80,15 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
     // --------------------------------------------------------------------- //
 
     public InventoryImmutable setSize(final int size) {
+        final int oldSize = stacks.size();
+
         stacks.setSize(size);
+
+        // When growing, avoid null entries.
+        for (int slot = oldSize; slot < size; ++slot) {
+            stacks.set(slot, ItemStack.EMPTY);
+        }
+
         return this;
     }
 
@@ -135,7 +147,7 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
         final Vec3d pos = location.getPositionVector();
         for (int slot = 0; slot < inventory.getSlots(); slot++) {
             final ItemStack stack = inventory.getStackInSlot(slot);
-            if (stack != null) {
+            if (!stack.isEmpty()) {
                 InventoryHelper.spawnItemStack(world, pos.xCoord, pos.yCoord, pos.zCoord, stack);
             }
         }

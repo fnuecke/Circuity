@@ -87,7 +87,7 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
     @Override
     public void handleUpdateTag(final NBTTagCompound tag) {
         SillyBeeAPI.synchronization.getClient().subscribe(getManager(), entity = tag.getLong(ENTITY_TAG));
-        getWorld().notifyNeighborsOfStateChange(getPos(), getBlockType());
+        getWorld().notifyNeighborsOfStateChange(getPos(), getBlockType(), false);
     }
 
     @Override
@@ -109,7 +109,7 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
     }
 
     @Override
-    public boolean hasCapability(final Capability<?> capability, final EnumFacing facing) {
+    public boolean hasCapability(final Capability<?> capability, @Nullable final EnumFacing facing) {
         if (super.hasCapability(capability, facing)) {
             return true;
         }
@@ -126,10 +126,9 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
         return false;
     }
 
-    @SuppressWarnings("NullableProblems") // getCapability *is* nullable, just missing the tag in TileEntity.
     @Nullable
     @Override
-    public <T> T getCapability(final Capability<T> capability, final EnumFacing facing) {
+    public <T> T getCapability(final Capability<T> capability, @Nullable final EnumFacing facing) {
         final List<T> instances = new ArrayList<>();
 
         if (super.hasCapability(capability, facing)) {

@@ -103,7 +103,7 @@ public class Z80Test {
         }
 
         @Override
-        public boolean startServer() throws IOException {
+        public boolean init() throws IOException {
             return false;
         }
 

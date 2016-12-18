@@ -38,10 +38,10 @@ public final class SynchronizedInt extends AbstractSynchronizedValue {
     // SynchronizedValue
 
     public void serialize(final PacketBuffer packet, @Nullable final List<Object> tokens) {
-        packet.writeVarIntToBuffer(value);
+        packet.writeVarInt(value);
     }
 
     public void deserialize(final PacketBuffer packet) {
-        value = packet.readVarIntFromBuffer();
+        value = packet.readVarInt();
     }
 }

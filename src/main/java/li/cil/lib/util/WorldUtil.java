@@ -26,7 +26,7 @@ public final class WorldUtil {
 
     @Nullable
     private static World getWorldClient(final int dimension) {
-        final World world = Minecraft.getMinecraft().theWorld;
+        final World world = Minecraft.getMinecraft().world;
         if (world.provider.getDimension() == dimension) {
             return world;
         } else {

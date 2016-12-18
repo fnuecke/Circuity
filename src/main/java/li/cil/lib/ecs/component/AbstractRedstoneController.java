@@ -98,7 +98,7 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
         final World world = location.getWorld();
         final BlockPos pos = location.getPosition();
         final IBlockState state = world.getBlockState(pos);
-        world.notifyNeighborsOfStateChange(pos, state.getBlock());
+        world.notifyNeighborsOfStateChange(pos, state.getBlock(), false);
     }
 
     private void scheduleInputComputation() {

@@ -35,14 +35,14 @@ public class MessageUnsubscribeComponent implements IMessage {
     @Override
     public void fromBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
-        dimension = packet.readVarIntFromBuffer();
+        dimension = packet.readVarInt();
         componentId = packet.readVarLong();
     }
 
     @Override
     public void toBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
-        packet.writeVarIntToBuffer(dimension);
+        packet.writeVarInt(dimension);
         packet.writeVarLong(componentId);
     }
 }

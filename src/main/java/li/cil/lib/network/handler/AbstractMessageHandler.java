@@ -24,7 +24,7 @@ public abstract class AbstractMessageHandler<REQ extends IMessage, REPLY extends
     // --------------------------------------------------------------------- //
 
     @Nullable
-    protected World getWorld(final int dimension, final MessageContext context) {
+    protected static World getWorld(final int dimension, final MessageContext context) {
         return WorldUtil.getWorld(dimension, context.side);
     }
 }

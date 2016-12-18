@@ -70,7 +70,7 @@ public class MessageInitialize implements IMessage {
     @Override
     public void fromBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
-        dimension = packet.readVarIntFromBuffer();
+        dimension = packet.readVarInt();
         entity = packet.readVarLong();
         components = (NBTTagList) NBTUtil.read(packet);
     }
@@ -78,7 +78,7 @@ public class MessageInitialize implements IMessage {
     @Override
     public void toBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
-        packet.writeVarIntToBuffer(dimension);
+        packet.writeVarInt(dimension);
         packet.writeVarLong(entity);
         NBTUtil.write(components, packet);
     }

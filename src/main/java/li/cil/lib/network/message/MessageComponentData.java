@@ -41,9 +41,9 @@ public class MessageComponentData implements IMessage {
     @Override
     public void fromBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
-        dimension = packet.readVarIntFromBuffer();
+        dimension = packet.readVarInt();
         componentId = packet.readVarLong();
-        final int length = packet.readVarIntFromBuffer();
+        final int length = packet.readVarInt();
         data = new PacketBuffer(Unpooled.buffer(length));
         packet.readBytes(data, length);
     }
@@ -51,9 +51,9 @@ public class MessageComponentData implements IMessage {
     @Override
     public void toBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
-        packet.writeVarIntToBuffer(dimension);
+        packet.writeVarInt(dimension);
         packet.writeVarLong(componentId);
-        packet.writeVarIntToBuffer(data.readableBytes());
+        packet.writeVarInt(data.readableBytes());
         packet.writeBytes(data, 0, data.readableBytes());
     }
 }

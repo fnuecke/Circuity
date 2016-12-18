@@ -28,4 +28,9 @@ public interface ItemHandlerProxy extends IItemHandler {
     default ItemStack extractItem(final int slot, final int amount, final boolean simulate) {
         return getItemHandler().extractItem(slot, amount, simulate);
     }
+
+    @Override
+    default int getSlotLimit(final int slot) {
+        return getItemHandler().getSlotLimit(slot);
+    }
 }

@@ -8,7 +8,6 @@ import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import net.minecraftforge.items.ItemHandlerHelper;
 
-import javax.annotation.Nullable;
 import java.util.List;
 
 public abstract class ItemHandlerListWrapper implements IItemHandler, IItemHandlerModifiable, INBTSerializable<NBTTagList> {
@@ -29,81 +28,83 @@ public abstract class ItemHandlerListWrapper implements IItemHandler, IItemHandl
         return getList().size();
     }
 
-    @Nullable
     @Override
     public ItemStack getStackInSlot(final int slot) {
         return getList().get(slot);
     }
 
-    @Nullable
     @Override
     public ItemStack insertItem(final int slot, final ItemStack stack, final boolean simulate) {
-        if (stack == null || stack.stackSize <= 0) {
-            return null;
+        if (stack.isEmpty()) {
+            return ItemStack.EMPTY;
         }
 
         final ItemStack existing = getStackInSlot(slot);
 
         int limit = getStackLimit(slot, stack);
 
-        if (existing != null) {
+        if (!existing.isEmpty()) {
             if (!ItemHandlerHelper.canItemStacksStack(stack, existing)) {
                 return stack.copy();
             }
 
-            limit -= existing.stackSize;
+            limit -= existing.getCount();
         }
 
         if (limit <= 0) {
             return stack.copy();
         }
 
-        final boolean reachedLimit = stack.stackSize > limit;
+        final boolean reachedLimit = stack.getCount() > limit;
 
         if (!simulate) {
-            if (existing == null) {
+            if (existing.isEmpty()) {
                 setStackInSlot(slot, reachedLimit ? ItemHandlerHelper.copyStackWithSize(stack, limit) : stack.copy());
             } else {
-                setStackInSlot(slot, ItemHandlerHelper.copyStackWithSize(stack, existing.stackSize + (reachedLimit ? limit : stack.stackSize)));
+                setStackInSlot(slot, ItemHandlerHelper.copyStackWithSize(stack, existing.getCount() + (reachedLimit ? limit : stack.getCount())));
             }
         }
 
-        return reachedLimit ? ItemHandlerHelper.copyStackWithSize(stack, stack.stackSize - limit) : null;
+        return reachedLimit ? ItemHandlerHelper.copyStackWithSize(stack, stack.getCount() - limit) : ItemStack.EMPTY;
     }
 
-    @Nullable
     public ItemStack extractItem(final int slot, final int amount, final boolean simulate) {
         if (amount <= 0) {
-            return null;
+            return ItemStack.EMPTY;
         }
 
         final ItemStack existing = getStackInSlot(slot);
 
-        if (existing == null) {
-            return null;
+        if (existing.isEmpty()) {
+            return ItemStack.EMPTY;
         }
 
         final int toExtract = Math.min(amount, existing.getMaxStackSize());
 
-        if (existing.stackSize <= toExtract) {
+        if (existing.getCount() <= toExtract) {
             if (!simulate) {
-                setStackInSlot(slot, null);
+                setStackInSlot(slot, ItemStack.EMPTY);
             }
             return existing.copy();
         } else {
             if (!simulate) {
-                setStackInSlot(slot, ItemHandlerHelper.copyStackWithSize(existing, existing.stackSize - toExtract));
+                setStackInSlot(slot, ItemHandlerHelper.copyStackWithSize(existing, existing.getCount() - toExtract));
             }
 
             return ItemHandlerHelper.copyStackWithSize(existing, toExtract);
         }
     }
 
+    @Override
+    public int getSlotLimit(final int slot) {
+        return 64;
+    }
+
     // --------------------------------------------------------------------- //
     // IItemHandlerModifiable
 
     @Override
-    public void setStackInSlot(final int slot, @Nullable final ItemStack stack) {
+    public void setStackInSlot(final int slot, final ItemStack stack) {
         if (!ItemStack.areItemStacksEqual(getList().get(slot), stack)) {
             getList().set(slot, stack);
             onContentsChanged(slot);
@@ -119,7 +120,7 @@ public abstract class ItemHandlerListWrapper implements IItemHandler, IItemHandl
         for (int slot = 0; slot < getSlots(); slot++) {
             final NBTTagCompound itemNbt = new NBTTagCompound();
             final ItemStack stack = getStackInSlot(slot);
-            if (stack != null) {
+            if (!stack.isEmpty()) {
                 stack.writeToNBT(itemNbt);
             }
             itemsNbt.appendTag(itemNbt);
@@ -132,7 +133,7 @@ public abstract class ItemHandlerListWrapper implements IItemHandler, IItemHandl
         getList().clear();
         for (int slot = 0; slot < itemsNbt.tagCount(); slot++) {
             final NBTTagCompound itemNbt = itemsNbt.getCompoundTagAt(slot);
-            getList().add(ItemStack.loadItemStackFromNBT(itemNbt));
+            getList().add(new ItemStack(itemNbt));
         }
     }
 }

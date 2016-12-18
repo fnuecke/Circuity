@@ -61,7 +61,7 @@ public final class FutureSerializer implements Serializer {
         }
         final NBTTagCompound futureInfo = (NBTTagCompound) tag;
         if (futureInfo.hasKey(CLASS_TAG) && futureInfo.hasKey(VALUE_TAG)) {
-            final Class valueClazz = serialization.deserialize(Class.class, futureInfo.getTag(CLASS_TAG));
+            final Class<?> valueClazz = serialization.deserialize(Class.class, futureInfo.getTag(CLASS_TAG));
             if (valueClazz != null) {
                 final NBTBase valueTag = futureInfo.getTag(VALUE_TAG);
                 return new LazyFuture(() -> serialization.deserialize(valueClazz, valueTag));

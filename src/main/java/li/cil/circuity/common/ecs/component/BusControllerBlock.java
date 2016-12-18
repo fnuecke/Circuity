@@ -15,7 +15,6 @@ import li.cil.lib.synchronization.value.SynchronizedBoolean;
 import li.cil.lib.synchronization.value.SynchronizedEnum;
 import li.cil.lib.util.PlayerUtil;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.item.ItemStack;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.EnumHand;
 import net.minecraft.util.ITickable;
@@ -117,7 +116,7 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
     // ActivationListener
 
     @Override
-    public boolean handleActivated(final EntityPlayer player, final EnumHand hand, @Nullable final ItemStack heldItem, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
+    public boolean handleActivated(final EntityPlayer player, final EnumHand hand, final EnumFacing side, final float hitX, final float hitY, final float hitZ) {
         switch (state.get()) {
             case ERROR_MULTIPLE_BUS_CONTROLLERS:
             case ERROR_SUBSYSTEM:

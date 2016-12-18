@@ -14,7 +14,7 @@ public final class PlayerUtil {
     @SideOnly(Side.CLIENT)
     public static void addLocalChatMessage(final EntityPlayer player, final ITextComponent message) {
         if (player instanceof EntityPlayerSP) {
-            player.addChatMessage(message);
+            player.sendMessage(message);
         }
     }
 

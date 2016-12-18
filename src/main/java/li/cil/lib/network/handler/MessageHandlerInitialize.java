@@ -45,6 +45,7 @@ public class MessageHandlerInitialize extends AbstractMessageHandler<MessageInit
                 final Class componentClass = SillyBeeAPI.synchronization.getClient().getTypeByTypeId(componentInfo.getInteger(MessageInitialize.COMPONENT_CLASS_TAG));
                 assert (componentClass != null);
 
+                @SuppressWarnings("unchecked")
                 final Component component = manager.addComponent(entity, componentId, componentClass);
                 if (manager.hasComponent(component) && componentInfo.hasKey(MessageInitialize.COMPONENT_TAG)) {
                     final NBTTagList componentNbt = componentInfo.getTagList(MessageInitialize.COMPONENT_TAG, Constants.NBT.TAG_COMPOUND);

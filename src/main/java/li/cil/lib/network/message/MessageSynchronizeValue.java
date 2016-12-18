@@ -45,7 +45,7 @@ public class MessageSynchronizeValue implements IMessage {
     @Override
     public void fromBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
-        dimension = packet.readVarIntFromBuffer();
+        dimension = packet.readVarInt();
         componentId = packet.readVarLong();
         values = (NBTTagList) NBTUtil.read(packet);
     }
@@ -53,7 +53,7 @@ public class MessageSynchronizeValue implements IMessage {
     @Override
     public void toBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
-        packet.writeVarIntToBuffer(dimension);
+        packet.writeVarInt(dimension);
         packet.writeVarLong(componentId);
         NBTUtil.write(values, packet);
     }

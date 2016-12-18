@@ -151,7 +151,7 @@ public final class SynchronizedArray<E> extends AbstractList<E> implements Synch
     }
 
     private void serializeComplete(final PacketBuffer packet) {
-        packet.writeVarIntToBuffer(value.length);
+        packet.writeVarInt(value.length);
 
         final Stream<E> elements = Arrays.stream(value);
         final Class commonType = findAndWriteCommonElementType(elements, packet);
@@ -162,20 +162,20 @@ public final class SynchronizedArray<E> extends AbstractList<E> implements Synch
     }
 
     private void serializePartial(final PacketBuffer packet, final Set<Object> indices) {
-        packet.writeVarIntToBuffer(indices.size());
+        packet.writeVarInt(indices.size());
 
         final Stream<E> elements = indices.stream().map(o -> value[(Integer) o]);
         final Class commonType = findAndWriteCommonElementType(elements, packet);
 
         for (final Object i : indices) {
             final int index = (Integer) i;
-            packet.writeVarIntToBuffer(index);
+            packet.writeVarInt(index);
             writeElement(value[index], packet, commonType);
         }
     }
 
     private void deserializeComplete(final PacketBuffer packet) {
-        final int count = packet.readVarIntFromBuffer();
+        final int count = packet.readVarInt();
         value = Arrays.copyOf(value, count);
 
         final Class commonType = tryReadCommonElementType(packet);
@@ -187,12 +187,12 @@ public final class SynchronizedArray<E> extends AbstractList<E> implements Synch
     }
 
     private void deserializePartial(final PacketBuffer packet) {
-        final int count = packet.readVarIntFromBuffer();
+        final int count = packet.readVarInt();
 
         final Class commonType = tryReadCommonElementType(packet);
 
         for (int i = 0; i < count; i++) {
-            final int index = packet.readVarIntFromBuffer();
+            final int index = packet.readVarInt();
             final E element = readElement(packet, commonType);
             value[index] = element;
         }
@@ -223,7 +223,7 @@ public final class SynchronizedArray<E> extends AbstractList<E> implements Synch
 
         packet.writeBoolean(areAllElementsOfSameType);
         if (areAllElementsOfSameType) {
-            packet.writeVarIntToBuffer(synchronization.getTypeIdByType(commonType));
+            packet.writeVarInt(synchronization.getTypeIdByType(commonType));
         }
 
         return areAllElementsOfSameType ? commonType : NoCommonType.class;
@@ -231,7 +231,7 @@ public final class SynchronizedArray<E> extends AbstractList<E> implements Synch
 
     private void writeElement(@Nullable final E element, final PacketBuffer packet, @Nullable final Class commonType) {
         if (commonType == NoCommonType.class) {
-            packet.writeVarIntToBuffer(SillyBeeAPI.synchronization.getServer().getTypeIdByValue(element));
+            packet.writeVarInt(SillyBeeAPI.synchronization.getServer().getTypeIdByValue(element));
             if (element == null) {
                 return; // Type being null implies value is null when reading.
             }
@@ -252,7 +252,7 @@ public final class SynchronizedArray<E> extends AbstractList<E> implements Synch
         final boolean areAllElementsOfSameType = packet.readBoolean();
         final Class commonType;
         if (areAllElementsOfSameType) {
-            commonType = SillyBeeAPI.synchronization.getClient().getTypeByTypeId(packet.readVarIntFromBuffer());
+            commonType = SillyBeeAPI.synchronization.getClient().getTypeByTypeId(packet.readVarInt());
         } else {
             commonType = NoCommonType.class;
         }
@@ -266,7 +266,7 @@ public final class SynchronizedArray<E> extends AbstractList<E> implements Synch
         if (commonType != NoCommonType.class) {
             type = commonType;
         } else {
-            type = SillyBeeAPI.synchronization.getClient().getTypeByTypeId(packet.readVarIntFromBuffer());
+            type = SillyBeeAPI.synchronization.getClient().getTypeByTypeId(packet.readVarInt());
         }
         if (type == null) {
             return null;
