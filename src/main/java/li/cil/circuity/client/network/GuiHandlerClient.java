@@ -1,9 +1,10 @@
 package li.cil.circuity.client.network;
 
-import li.cil.circuity.client.gui.GuiAddressSelector;
+import li.cil.circuity.client.gui.GuiBlockBusController;
 import li.cil.circuity.client.gui.GuiBlockScreen;
 import li.cil.circuity.client.gui.GuiType;
 import li.cil.circuity.common.ecs.component.BusDeviceScreen;
+import li.cil.circuity.common.inventory.ContainerAddressSelector;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
 import net.minecraft.entity.player.EntityPlayer;
@@ -20,6 +21,14 @@ public enum GuiHandlerClient implements IGuiHandler {
     @Nullable
     @Override
     public Object getServerGuiElement(final int id, final EntityPlayer player, final World world, final int x, final int y, final int z) {
+        // In case a UI was opened for a component, its ID is encoded in the x and y arguments.
+        final long longData = (((long) x) << 32) | y;
+
+        switch (GuiType.VALUES[id]) {
+            case SELECT_ADDRESS: {
+                return new ContainerAddressSelector();
+            }
+        }
         return null;
     }
 
@@ -41,7 +50,7 @@ public enum GuiHandlerClient implements IGuiHandler {
             }
             case SELECT_ADDRESS: {
                 final long offset = longData;
-                return new GuiAddressSelector(offset);
+                return new GuiBlockBusController(new ContainerAddressSelector(), offset);
             }
         }
 

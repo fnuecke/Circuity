@@ -2,14 +2,15 @@ package li.cil.circuity.client.gui;
 
 import li.cil.circuity.common.Constants;
 import net.minecraft.client.gui.GuiButton;
-import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.client.gui.GuiTextField;
+import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.client.resources.I18n;
+import net.minecraft.inventory.Container;
 import org.lwjgl.input.Keyboard;
 
 import java.io.IOException;
 
-public class GuiAddressSelector extends GuiScreen {
+public class GuiBlockBusController extends GuiContainer {
     private enum ButtonId {
         OK,
         CANCEL
@@ -32,7 +33,8 @@ public class GuiAddressSelector extends GuiScreen {
     private GuiButton buttonCancel;
     private GuiTextField textFieldAddress;
 
-    public GuiAddressSelector(final long initialAddress) {
+    public GuiBlockBusController(final Container container, final long initialAddress) {
+        super(container);
         address = initialAddress;
     }
 
@@ -50,6 +52,11 @@ public class GuiAddressSelector extends GuiScreen {
 
         buttonOk.enabled = false;
         buttonCancel.enabled = false;
+    }
+
+    @Override
+    protected void drawGuiContainerBackgroundLayer(final float partialTicks, final int mouseX, final int mouseY) {
+
     }
 
     public void onGuiClosed() {
