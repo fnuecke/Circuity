@@ -24,7 +24,7 @@ public class TileEntityRandomAccessMemoryRenderer extends AbstractOverlayRendere
             final Component component = SillyBeeAPI.manager.getManager(tileEntity.getWorld()).getComponent(componentId);
             if (component instanceof BusControllerBlock) {
                 final BusControllerBlock host = (BusControllerBlock) component;
-                if (host.isOnline()) {
+                if (host.isOnline() && !host.hasErrors()) {
                     return Textures.RANDOM_ACCESS_MEMORY_ONLINE.get(OverlayRenderer.getPulseAlpha(device.hashCode()));
                 }
             }

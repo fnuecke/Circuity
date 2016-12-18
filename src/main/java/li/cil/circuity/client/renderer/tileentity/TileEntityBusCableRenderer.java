@@ -23,7 +23,7 @@ public class TileEntityBusCableRenderer extends AbstractOverlayRenderer<TileEnti
             final Component component = SillyBeeAPI.manager.getManager(tileEntity.getWorld()).getComponent(componentId);
             if (component instanceof BusControllerBlock) {
                 final BusControllerBlock host = (BusControllerBlock) component;
-                if (host.isOnline()) {
+                if (host.isOnline() && !host.hasErrors()) {
                     return Textures.BUS_CABLE_ONLINE.get();
                 }
             }

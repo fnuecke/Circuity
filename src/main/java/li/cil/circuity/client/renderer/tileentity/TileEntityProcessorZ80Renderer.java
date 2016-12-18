@@ -24,7 +24,7 @@ public class TileEntityProcessorZ80Renderer extends AbstractOverlayRenderer<Tile
             final Component component = SillyBeeAPI.manager.getManager(tileEntity.getWorld()).getComponent(componentId);
             if (component instanceof BusControllerBlock) {
                 final BusControllerBlock host = (BusControllerBlock) component;
-                if (host.isOnline()) {
+                if (host.isOnline() && !host.hasErrors()) {
                     return Textures.PROCESSOR_Z80_ONLINE.get(OverlayRenderer.getPulseAlpha(device.hashCode()));
                 }
             }
