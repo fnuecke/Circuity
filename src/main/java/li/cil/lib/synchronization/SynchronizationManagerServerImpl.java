@@ -231,6 +231,8 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
 
             // TODO Package info by distance to player (via Location component on entity) where possible, send further away data less frequently.
 
+            assert client.playerEntity != null : "welp, need to check this here then. threading, yay";
+
             for (final Map.Entry<World, Map<Component, NBTTagList>> infoByWorld : infos.entrySet()) {
                 final World world = infoByWorld.getKey();
                 for (final Map.Entry<Component, NBTTagList> infoByComponent : infoByWorld.getValue().entrySet()) {
