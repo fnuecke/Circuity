@@ -11,6 +11,7 @@ import li.cil.circuity.api.bus.device.InterruptSource;
 import li.cil.circuity.client.gui.GuiType;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.capabilities.CapabilityBusElement;
+import li.cil.circuity.util.GUIUtil;
 import li.cil.lib.util.CapabilityUtil;
 import li.cil.lib.util.ItemUtil;
 import li.cil.lib.util.PlayerUtil;
@@ -123,7 +124,7 @@ public class ItemConfigurator extends Item {
                     final AddressBlock memory = mapper.getAddressBlock(addressable);
                     tag.setLong(ADDRESS_TAG, memory.getOffset());
 
-                    PlayerUtil.openGui(player, GuiType.SELECT_ADDRESS, memory.getOffset());
+                    GUIUtil.openGui(player, GuiType.SELECT_ADDRESS, memory.getOffset());
                 }
                 break;
             }

@@ -18,13 +18,13 @@ import li.cil.circuity.api.bus.device.util.SerialPortManager;
 import li.cil.circuity.client.gui.GuiType;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.bus.util.SerialPortManagerProxy;
+import li.cil.circuity.util.GUIUtil;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.event.ActivationListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.synchronization.value.SynchronizedUUID;
-import li.cil.lib.util.PlayerUtil;
 import li.cil.lib.util.RingBuffer;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumFacing;
@@ -104,7 +104,7 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
             return false;
         }
 
-        PlayerUtil.openGui(player, GuiType.SCREEN, this);
+        GUIUtil.openGui(player, GuiType.SCREEN, this);
 
         return true;
     }

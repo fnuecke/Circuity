@@ -18,10 +18,14 @@ public final class SpatialUtil {
         VECTOR_TO_FACING.put(BlockPos.ORIGIN.east(), EnumFacing.EAST);
     }
 
+    // --------------------------------------------------------------------- //
+
     public static EnumFacing getNeighborFacing(final BlockPos pos, final BlockPos neighborPos) {
         final BlockPos delta = neighborPos.subtract(pos);
         return VECTOR_TO_FACING.get(delta);
     }
+
+    // --------------------------------------------------------------------- //
 
     private SpatialUtil() {
     }
