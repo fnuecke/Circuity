@@ -13,7 +13,7 @@ import java.util.stream.IntStream;
 /**
  * Base implementation for texture based font rendering.
  */
-public abstract class AbstractFontRenderer implements FontRenderer {
+public abstract class AbstractMonospaceFontRenderer implements FontRenderer {
     private final int[] CHAR_MAP = IntStream.range(0, 256).map(getCharacters()::indexOf).toArray();
 
     private final int COLUMNS = getResolution() / (getCharWidth() + getGapU());
@@ -26,18 +26,22 @@ public abstract class AbstractFontRenderer implements FontRenderer {
 
     @Override
     public void drawString(final String value) {
-        drawString(value, value.length());
+        drawString(value, Integer.MAX_VALUE);
     }
 
     @Override
-    public void drawString(final String value, final int maxChars) {
+    public void drawString(final String value, final int maxWidth) {
         final VertexBuffer buffer = prologue(getTextureLocation());
 
         float tx = 0f;
-        for (int i = 0, end = Math.min(maxChars, value.length()); i < end; i++) {
+        for (int i = 0, end = value.length(); i < end; i++) {
             final char ch = value.charAt(i);
+            tx += getCharWidth();
+            if (tx > maxWidth) {
+                break;
+            }
+            tx += getGapU();
             drawChar(tx, ch, buffer);
-            tx += getCharWidth() + getGapU();
         }
 
         epilogue();
@@ -57,7 +61,19 @@ public abstract class AbstractFontRenderer implements FontRenderer {
         epilogue();
     }
 
+    @Override
+    public int getCharWidth(final char character) {
+        return getCharWidth();
+    }
+
+    @Override
+    public int getStringWidth(final String string) {
+        return getCharWidth() * string.length();
+    }
+
     // --------------------------------------------------------------------- //
+
+    abstract public int getCharWidth();
 
     abstract protected String getCharacters();
 

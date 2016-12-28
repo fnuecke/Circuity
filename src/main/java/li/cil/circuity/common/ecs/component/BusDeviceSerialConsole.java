@@ -17,7 +17,7 @@ import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.api.synchronization.SynchronizationListener;
 import li.cil.lib.api.synchronization.SynchronizedValue;
-import li.cil.lib.client.renderer.font.FontRenderer;
+import li.cil.lib.client.renderer.font.AbstractMonospaceFontRenderer;
 import li.cil.lib.client.renderer.font.FontRendererCodePage437;
 import li.cil.lib.synchronization.value.SynchronizedByteArray;
 import li.cil.lib.synchronization.value.SynchronizedInt;
@@ -159,7 +159,7 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
 
         @Override
         public void render(final int width, final int height) {
-            final FontRenderer fontRenderer = FontRendererCodePage437.INSTANCE;
+            final AbstractMonospaceFontRenderer fontRenderer = FontRendererCodePage437.INSTANCE;
             final byte[] data = BusDeviceSerialConsole.this.buffer.array();
             final int yOffset = BusDeviceSerialConsole.this.scrOffY.get();
 
