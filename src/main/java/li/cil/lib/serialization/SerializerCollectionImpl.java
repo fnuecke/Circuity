@@ -16,6 +16,7 @@ import li.cil.lib.serialization.serializer.FloatSerializer;
 import li.cil.lib.serialization.serializer.FutureSerializer;
 import li.cil.lib.serialization.serializer.IntArraySerializer;
 import li.cil.lib.serialization.serializer.IntSerializer;
+import li.cil.lib.serialization.serializer.ItemStackSerializer;
 import li.cil.lib.serialization.serializer.LongSerializer;
 import li.cil.lib.serialization.serializer.MapSerializer;
 import li.cil.lib.serialization.serializer.NBTSerializableSerializer;
@@ -78,6 +79,7 @@ public final class SerializerCollectionImpl implements SerializerCollection {
         // Minecraft type serializers.
         serializerList.add(new BlockPosSerializer());
         serializerList.add(new EntitySerializer(this));
+        serializerList.add(new ItemStackSerializer());
         serializerList.add(new TileEntitySerializer(this));
         serializerList.add(new WorldSerializer(this));
         serializerList.add(new NBTSerializableSerializer());
