@@ -29,11 +29,11 @@ public enum Manager implements ManagerAPI {
 
     // --------------------------------------------------------------------- //
 
-    private final WeakHashMap<World, EntityComponentManager> managersServer = new WeakHashMap<>();
+    private final WeakHashMap<World, EntityComponentManagerImpl> managersServer = new WeakHashMap<>();
     private final WeakHashMap<EntityComponentManager, WeakReference<World>> worldsServer = new WeakHashMap<>();
     private final Object lockServer = new Object();
 
-    private final WeakHashMap<World, EntityComponentManager> managersClient = new WeakHashMap<>();
+    private final WeakHashMap<World, EntityComponentManagerImpl> managersClient = new WeakHashMap<>();
     private final WeakHashMap<EntityComponentManager, WeakReference<World>> worldsClient = new WeakHashMap<>();
     private final Object lockClient = new Object();
 
@@ -84,7 +84,7 @@ public enum Manager implements ManagerAPI {
     // --------------------------------------------------------------------- //
 
     @Override
-    public EntityComponentManager getManager(final World world) {
+    public EntityComponentManagerImpl getManager(final World world) {
         if (!world.isRemote) {
             synchronized (lockServer) {
                 return managersServer.computeIfAbsent(world, this::createManagerForWorld);
@@ -112,8 +112,8 @@ public enum Manager implements ManagerAPI {
 
     // --------------------------------------------------------------------- //
 
-    private EntityComponentManager createManagerForWorld(final World world) {
-        final EntityComponentManager manager = new EntityComponentManagerImpl();
+    private EntityComponentManagerImpl createManagerForWorld(final World world) {
+        final EntityComponentManagerImpl manager = new EntityComponentManagerImpl();
 
         final SynchronizationManager synchronizationManager = SillyBeeAPI.synchronization.get(world);
         if (synchronizationManager instanceof EntityChangeListener) {
@@ -131,7 +131,7 @@ public enum Manager implements ManagerAPI {
         return manager;
     }
 
-    private static void handleTick(final TickEvent.Phase phase, final WeakHashMap<World, EntityComponentManager> managers, final WeakHashMap<EntityComponentManager, WeakReference<World>> worlds, final Function<World, World> actualWorldGetter) {
+    private static void handleTick(final TickEvent.Phase phase, final WeakHashMap<World, EntityComponentManagerImpl> managers, final WeakHashMap<EntityComponentManager, WeakReference<World>> worlds, final Function<World, World> actualWorldGetter) {
         if (phase == TickEvent.Phase.START) {
             updateManagers(managers, worlds, actualWorldGetter, EntityComponentManagerImpl::update);
         } else if (phase == TickEvent.Phase.END) {
@@ -139,17 +139,15 @@ public enum Manager implements ManagerAPI {
         }
     }
 
-    private static void updateManagers(final WeakHashMap<World, EntityComponentManager> managers, final WeakHashMap<EntityComponentManager, WeakReference<World>> worlds, final Function<World, World> actualWorldGetter, final Consumer<EntityComponentManagerImpl> updater) {
-        final Iterator<Map.Entry<World, EntityComponentManager>> iterator = managers.entrySet().iterator();
+    private static void updateManagers(final WeakHashMap<World, EntityComponentManagerImpl> managers, final WeakHashMap<EntityComponentManager, WeakReference<World>> worlds, final Function<World, World> actualWorldGetter, final Consumer<EntityComponentManagerImpl> updater) {
+        final Iterator<Map.Entry<World, EntityComponentManagerImpl>> iterator = managers.entrySet().iterator();
         while (iterator.hasNext()) {
-            final Map.Entry<World, EntityComponentManager> entry = iterator.next();
+            final Map.Entry<World, EntityComponentManagerImpl> entry = iterator.next();
             final World world = entry.getKey();
-            final EntityComponentManager manager = entry.getValue();
+            final EntityComponentManagerImpl manager = entry.getValue();
 
             if (world == actualWorldGetter.apply(world)) {
-                // We need/want to cast here, because we don't want this method in the public API.
-                final EntityComponentManagerImpl managerImpl = (EntityComponentManagerImpl) manager;
-                updater.accept(managerImpl);
+                updater.accept(manager);
             } else {
                 iterator.remove();
                 worlds.remove(entry.getValue());

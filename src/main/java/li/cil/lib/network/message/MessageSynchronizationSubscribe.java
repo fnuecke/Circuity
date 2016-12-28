@@ -4,19 +4,19 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.PacketBuffer;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 
-public class MessageUnsubscribeComponent implements IMessage {
+public class MessageSynchronizationSubscribe implements IMessage {
     private int dimension;
-    private long componentId;
+    private long entity;
 
     // --------------------------------------------------------------------- //
 
-    public MessageUnsubscribeComponent(final int dimension, final long componentId) {
+    public MessageSynchronizationSubscribe(final int dimension, final long entity) {
         this.dimension = dimension;
-        this.componentId = componentId;
+        this.entity = entity;
     }
 
     @SuppressWarnings("unused")
-    public MessageUnsubscribeComponent() {
+    public MessageSynchronizationSubscribe() {
     }
 
     // --------------------------------------------------------------------- //
@@ -25,8 +25,8 @@ public class MessageUnsubscribeComponent implements IMessage {
         return dimension;
     }
 
-    public long getComponentId() {
-        return componentId;
+    public long getEntity() {
+        return entity;
     }
 
     // --------------------------------------------------------------------- //
@@ -36,13 +36,13 @@ public class MessageUnsubscribeComponent implements IMessage {
     public void fromBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
         dimension = packet.readVarInt();
-        componentId = packet.readVarLong();
+        entity = packet.readVarLong();
     }
 
     @Override
     public void toBytes(final ByteBuf buf) {
         final PacketBuffer packet = new PacketBuffer(buf);
         packet.writeVarInt(dimension);
-        packet.writeVarLong(componentId);
+        packet.writeVarLong(entity);
     }
 }

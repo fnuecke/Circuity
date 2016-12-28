@@ -9,7 +9,7 @@ import li.cil.lib.api.ecs.manager.event.ComponentChangeListener;
 import li.cil.lib.api.synchronization.SynchronizationManagerServer;
 import li.cil.lib.api.synchronization.SynchronizedValue;
 import li.cil.lib.network.Network;
-import li.cil.lib.network.message.MessageInitialize;
+import li.cil.lib.network.message.MessageSynchronizationInitialize;
 import li.cil.lib.network.message.MessageSynchronizeValue;
 import li.cil.lib.network.message.MessageTypeInfo;
 import li.cil.lib.network.message.MessageTypeInfoList;
@@ -308,8 +308,8 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
             final TrackingInfo oldInfo = findTrackingInfo(component.getManager().getComponents(component.getEntity()));
             if (oldInfo != null) {
                 final NBTTagList componentsNbt = new NBTTagList();
-                componentsNbt.appendTag(MessageInitialize.getComponentNBT(component));
-                final MessageInitialize message = new MessageInitialize(world.provider.getDimension(), component.getEntity(), componentsNbt);
+                componentsNbt.appendTag(MessageSynchronizationInitialize.getComponentNBT(component));
+                final MessageSynchronizationInitialize message = new MessageSynchronizationInitialize(world.provider.getDimension(), component.getEntity(), componentsNbt);
 
                 for (final NetHandlerPlayServer client : oldInfo.clients) {
                     subscribeComponent(client, component);

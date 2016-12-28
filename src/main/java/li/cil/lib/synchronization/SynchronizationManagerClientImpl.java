@@ -11,8 +11,8 @@ import li.cil.lib.api.synchronization.SynchronizationManagerClient;
 import li.cil.lib.api.synchronization.SynchronizedValue;
 import li.cil.lib.ecs.manager.EntityComponentManagerImpl;
 import li.cil.lib.network.Network;
-import li.cil.lib.network.message.MessageSubscribe;
-import li.cil.lib.network.message.MessageUnsubscribeEntity;
+import li.cil.lib.network.message.MessageSynchronizationSubscribe;
+import li.cil.lib.network.message.MessageSynchronizationUnsubscribeEntity;
 import li.cil.lib.util.ReflectionUtil;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.nbt.NBTTagList;
@@ -143,7 +143,7 @@ public final class SynchronizationManagerClientImpl extends AbstractSynchronizat
     public void handleEntityAdded(final EntityComponentManager manager, final long entity) {
         final World world = SillyBeeAPI.manager.getWorld(manager, true);
         if (world != null) {
-            Network.INSTANCE.getWrapper().sendToServer(new MessageSubscribe(world.provider.getDimension(), entity));
+            Network.INSTANCE.getWrapper().sendToServer(new MessageSynchronizationSubscribe(world.provider.getDimension(), entity));
         }
     }
 
@@ -151,7 +151,7 @@ public final class SynchronizationManagerClientImpl extends AbstractSynchronizat
     public void handleEntityRemoved(final EntityComponentManager manager, final long entity) {
         final World world = SillyBeeAPI.manager.getWorld(manager, true);
         if (world != null) {
-            Network.INSTANCE.getWrapper().sendToServer(new MessageUnsubscribeEntity(world.provider.getDimension(), entity));
+            Network.INSTANCE.getWrapper().sendToServer(new MessageSynchronizationUnsubscribeEntity(world.provider.getDimension(), entity));
         }
     }
 

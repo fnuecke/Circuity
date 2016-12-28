@@ -4,19 +4,19 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.network.PacketBuffer;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 
-public class MessageSubscribe implements IMessage {
+public class MessageSynchronizationUnsubscribeEntity implements IMessage {
     private int dimension;
     private long entity;
 
     // --------------------------------------------------------------------- //
 
-    public MessageSubscribe(final int dimension, final long entity) {
+    public MessageSynchronizationUnsubscribeEntity(final int dimension, final long entity) {
         this.dimension = dimension;
         this.entity = entity;
     }
 
     @SuppressWarnings("unused")
-    public MessageSubscribe() {
+    public MessageSynchronizationUnsubscribeEntity() {
     }
 
     // --------------------------------------------------------------------- //

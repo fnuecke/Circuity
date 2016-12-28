@@ -3,8 +3,6 @@ package li.cil.lib;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.SynchronizationAPI;
 import li.cil.lib.api.synchronization.SynchronizationManager;
-import li.cil.lib.api.synchronization.SynchronizationManagerClient;
-import li.cil.lib.api.synchronization.SynchronizationManagerServer;
 import li.cil.lib.synchronization.SynchronizationManagerClientImpl;
 import li.cil.lib.synchronization.SynchronizationManagerServerImpl;
 import net.minecraft.world.World;
@@ -37,12 +35,12 @@ public enum Synchronization implements SynchronizationAPI {
     // --------------------------------------------------------------------- //
 
     @Override
-    public SynchronizationManagerClient getClient() {
+    public SynchronizationManagerClientImpl getClient() {
         return client;
     }
 
     @Override
-    public SynchronizationManagerServer getServer() {
+    public SynchronizationManagerServerImpl getServer() {
         return server;
     }
 

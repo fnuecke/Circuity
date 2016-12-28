@@ -1,6 +1,6 @@
 package li.cil.lib.network.handler;
 
-import li.cil.lib.api.SillyBeeAPI;
+import li.cil.lib.Synchronization;
 import li.cil.lib.network.message.MessageTypeInfo;
 import li.cil.lib.synchronization.SynchronizationManagerClientImpl;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
@@ -15,8 +15,7 @@ public class MessageHandlerTypeInfo extends AbstractMessageHandlerNoResponse<Mes
         final Class type = message.getType();
         final int typeId = message.getTypeId();
 
-        // We need/want to cast here, because we don't want this method in the public API.
-        final SynchronizationManagerClientImpl synchronization = (SynchronizationManagerClientImpl) SillyBeeAPI.synchronization.getClient();
+        final SynchronizationManagerClientImpl synchronization = Synchronization.INSTANCE.getClient();
 
         synchronization.registerType(type, typeId);
 

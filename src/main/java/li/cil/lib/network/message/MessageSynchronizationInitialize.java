@@ -1,6 +1,7 @@
 package li.cil.lib.network.message;
 
 import io.netty.buffer.ByteBuf;
+import li.cil.lib.Synchronization;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.synchronization.SynchronizationManagerServerImpl;
@@ -10,7 +11,7 @@ import net.minecraft.nbt.NBTTagList;
 import net.minecraft.network.PacketBuffer;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;
 
-public class MessageInitialize implements IMessage {
+public class MessageSynchronizationInitialize implements IMessage {
     public static final String COMPONENT_ID_TAG = "componentId";
     public static final String COMPONENT_CLASS_TAG = "componentClass";
     public static final String COMPONENT_TAG = "component";
@@ -22,9 +23,8 @@ public class MessageInitialize implements IMessage {
         componentInfo.setLong(COMPONENT_ID_TAG, component.getId());
         componentInfo.setInteger(COMPONENT_CLASS_TAG, SillyBeeAPI.synchronization.getServer().getTypeIdByValue(component));
 
-        // We need/want to cast here, because we don't want this method in the public API.
-        final SynchronizationManagerServerImpl synchronizationManager = (SynchronizationManagerServerImpl) SillyBeeAPI.synchronization.getServer();
-        final NBTTagList componentNbt = synchronizationManager.getAllFieldValues(component);
+        final SynchronizationManagerServerImpl synchronization = Synchronization.INSTANCE.getServer();
+        final NBTTagList componentNbt = synchronization.getAllFieldValues(component);
         if (componentNbt != null) {
             componentInfo.setTag(COMPONENT_TAG, componentNbt);
         }
@@ -40,14 +40,14 @@ public class MessageInitialize implements IMessage {
 
     // --------------------------------------------------------------------- //
 
-    public MessageInitialize(final int dimension, final long entity, final NBTTagList components) {
+    public MessageSynchronizationInitialize(final int dimension, final long entity, final NBTTagList components) {
         this.dimension = dimension;
         this.entity = entity;
         this.components = components;
     }
 
     @SuppressWarnings("unused")
-    public MessageInitialize() {
+    public MessageSynchronizationInitialize() {
     }
 
     // --------------------------------------------------------------------- //

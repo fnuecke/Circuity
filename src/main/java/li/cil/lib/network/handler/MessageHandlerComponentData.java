@@ -1,8 +1,8 @@
 package li.cil.lib.network.handler;
 
 import io.netty.buffer.ByteBuf;
+import li.cil.lib.Manager;
 import li.cil.lib.ModSillyBee;
-import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.component.MessageReceiver;
 import li.cil.lib.ecs.manager.EntityComponentManagerImpl;
@@ -24,8 +24,7 @@ public class MessageHandlerComponentData extends AbstractMessageHandlerNoRespons
 
         final World world = getWorld(dimension, context);
         if (world != null) {
-            // We need/want to cast here, because we don't want this method in the public API.
-            final EntityComponentManagerImpl manager = (EntityComponentManagerImpl) SillyBeeAPI.manager.getManager(world);
+            final EntityComponentManagerImpl manager = Manager.INSTANCE.getManager(world);
 
             final ReentrantLock lock = manager.getLock();
             lock.lock();

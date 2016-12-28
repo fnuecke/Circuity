@@ -1,10 +1,11 @@
 package li.cil.lib.network.handler;
 
-import li.cil.lib.api.SillyBeeAPI;
+import li.cil.lib.Manager;
+import li.cil.lib.Synchronization;
 import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.ecs.manager.EntityComponentManagerImpl;
+import li.cil.lib.network.message.MessageSynchronizationUnsubscribeComponent;
 import li.cil.lib.network.message.MessageSynchronizeValue;
-import li.cil.lib.network.message.MessageUnsubscribeComponent;
 import li.cil.lib.synchronization.SynchronizationManagerClientImpl;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
@@ -12,10 +13,10 @@ import net.minecraftforge.fml.common.network.simpleimpl.MessageContext;
 import javax.annotation.Nullable;
 import java.util.concurrent.locks.ReentrantLock;
 
-public class MessageHandlerSynchronizeValue extends AbstractMessageHandler<MessageSynchronizeValue, MessageUnsubscribeComponent> {
+public class MessageHandlerSynchronizeValue extends AbstractMessageHandler<MessageSynchronizeValue, MessageSynchronizationUnsubscribeComponent> {
     @Nullable
     @Override
-    public MessageUnsubscribeComponent onMessage(final MessageSynchronizeValue message, final MessageContext context) {
+    public MessageSynchronizationUnsubscribeComponent onMessage(final MessageSynchronizeValue message, final MessageContext context) {
         final int dimension = message.getDimension();
         final long componentId = message.getComponentId();
 
@@ -25,11 +26,10 @@ public class MessageHandlerSynchronizeValue extends AbstractMessageHandler<Messa
         // server when this packet was sent to the client.
         final World world = getWorld(dimension, context);
         if (world == null) {
-            return new MessageUnsubscribeComponent(dimension, componentId);
+            return new MessageSynchronizationUnsubscribeComponent(dimension, componentId);
         }
 
-        // We need/want to cast here, because we don't want this method in the public API.
-        final EntityComponentManagerImpl manager = (EntityComponentManagerImpl) SillyBeeAPI.manager.getManager(world);
+        final EntityComponentManagerImpl manager = Manager.INSTANCE.getManager(world);
 
         final ReentrantLock lock = manager.getLock();
         lock.lock();
@@ -42,11 +42,10 @@ public class MessageHandlerSynchronizeValue extends AbstractMessageHandler<Messa
                 // component anymore. This will typically result in a no-op on the server,
                 // as this should, as mentioned above, only happen when the client
                 // destroyed the component's entity.
-                return new MessageUnsubscribeComponent(dimension, componentId);
+                return new MessageSynchronizationUnsubscribeComponent(dimension, componentId);
             }
 
-            // We need/want to cast here, because we don't want this method in the public API.
-            final SynchronizationManagerClientImpl synchronization = (SynchronizationManagerClientImpl) SillyBeeAPI.synchronization.getClient();
+            final SynchronizationManagerClientImpl synchronization = Synchronization.INSTANCE.getClient();
 
             synchronization.update(component, message.getValues());
 
