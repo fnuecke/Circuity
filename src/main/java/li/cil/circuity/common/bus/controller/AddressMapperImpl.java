@@ -140,6 +140,7 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         selectedMapping = index;
     }
 
+    @Nullable
     @Override
     public AddressBlock getAddressBlock(final Addressable device) {
         return mappings[selectedMapping].deviceToAddress.get(device);

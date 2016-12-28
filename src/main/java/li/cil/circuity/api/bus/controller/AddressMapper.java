@@ -74,6 +74,7 @@ public interface AddressMapper extends Subsystem {
      * @param device the device to get the address for.
      * @return the address of that device.
      */
+    @Nullable
     AddressBlock getAddressBlock(final Addressable device);
 
     /**

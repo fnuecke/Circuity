@@ -8,6 +8,8 @@ import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.InterruptSink;
 import li.cil.circuity.api.bus.device.InterruptSource;
 
+import javax.annotation.Nullable;
+
 /**
  * Implemented by bus controllers responsible for managing a bus.
  * <p>
@@ -57,8 +59,9 @@ public interface BusController extends BusConnector {
      *
      * @param subsystem the type of the subsystem to retrieve.
      * @param <T>       the generic type of the subsystem to retrieve.
-     * @return the subsystem of this bus.
+     * @return the subsystem of this bus, or <code>null</code> if no such system exists.
      */
+    @Nullable
     <T extends Subsystem> T getSubsystem(final Class<T> subsystem);
 
     // --------------------------------------------------------------------- //

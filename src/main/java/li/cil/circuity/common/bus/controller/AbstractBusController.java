@@ -395,6 +395,7 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     }
 
     @SuppressWarnings("unchecked")
+    @Nullable
     @Override
     public <T extends Subsystem> T getSubsystem(final Class<T> subsystem) {
         return (T) subsystems.get(subsystem);
