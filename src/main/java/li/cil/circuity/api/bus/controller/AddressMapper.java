@@ -64,7 +64,14 @@ public interface AddressMapper extends Subsystem {
 
     // --------------------------------------------------------------------- //
 
-    void setDeviceAddress(final Addressable device, final AddressBlock address);
+    /**
+     * Set the address of a device.
+     *
+     * @param device  the device to set the address for.
+     * @param address the new address of the device.
+     * @throws IllegalArgumentException if the address is unsupported.
+     */
+    void setDeviceAddress(final Addressable device, final AddressBlock address) throws IllegalArgumentException;
 
     // --------------------------------------------------------------------- //
 

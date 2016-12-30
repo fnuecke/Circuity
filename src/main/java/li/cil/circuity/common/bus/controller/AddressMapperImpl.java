@@ -38,6 +38,12 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
     // --------------------------------------------------------------------- //
 
     /**
+     * Lock used to ensure mutating calls happen synchronously, e.g. setting
+     * addresses of devices (which may be called from the networking thread).
+     */
+    private final Object lock = new Object();
+
+    /**
      * The controller hosting this system.
      */
     private final AbstractBusController controller;
@@ -106,9 +112,15 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
 
     @Override
     public void setDeviceAddress(final Addressable device, final AddressBlock address) {
+        if (!FULL_ADDRESS_BLOCK.contains(address)) {
+            throw new IllegalArgumentException("Address out of bounds.");
+        }
+        // This call synchronizes with the controller's executor thread.
         controller.scheduleScan();
-        for (final Mapping mapping : mappings) {
-            mapping.setDeviceAddress(device, address);
+        synchronized (lock) {
+            for (final Mapping mapping : mappings) {
+                mapping.setDeviceAddress(device, address);
+            }
         }
     }
 
@@ -333,7 +345,7 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
             if (persistentDeviceToAddress.containsKey(addressable.getPersistentId())) {
                 final AddressBlock addressBlock = persistentDeviceToAddress.get(addressable.getPersistentId());
                 deviceToAddress.put(addressable, addressBlock);
-                addressToDevice.add(addressable, addressBlock.getOffset(), addressBlock.getLength());
+                addressToDevice.tryAdd(addressable, addressBlock.getOffset(), addressBlock.getLength());
             } else {
                 final int index = Collections.binarySearch(pendingAdds, addressable, ADDRESSABLE_COMPARATOR);
                 pendingAdds.add(index < 0 ? ~index : index, addressable);
@@ -357,8 +369,15 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
             pendingAdds.clear();
 
             // We have no overlap if all devices were successfully added to the
-            // mapping of address to device.
-            return addressToDevice.size() == deviceToAddress.size();
+            // mapping of address to device. Empty blocks are *not* added to the
+            // range map, so we only want to count the non-empty ones.
+            int nonEmptyCount = 0;
+            for (final AddressBlock address : deviceToAddress.values()) {
+                if (address.getLength() > 0) {
+                    ++nonEmptyCount;
+                }
+            }
+            return addressToDevice.size() == nonEmptyCount;
         }
 
         // --------------------------------------------------------------------- //

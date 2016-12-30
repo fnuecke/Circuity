@@ -97,6 +97,9 @@ public final class RangeMap<T> {
      * @param length the length of the interval to store the value at.
      */
     public void add(final T value, final long offset, final long length) {
+        if (length < 1) {
+            throw new IllegalArgumentException("length must be larger than zero");
+        }
         if (!tryAdd(value, offset, length)) {
             throw new IllegalArgumentException("value overlaps existing item");
         }
@@ -111,6 +114,10 @@ public final class RangeMap<T> {
      * @return <code>true</code> if the value was added; <code>false</code> otherwise.
      */
     public boolean tryAdd(final T value, final long offset, final long length) {
+        if (length < 1) {
+            return false;
+        }
+
         final Entry<T> child = getChildAt(offset);
 
         // Can only add in null-entries.
@@ -285,10 +292,10 @@ public final class RangeMap<T> {
 
                     offset = other.offset;
                     length += other.length;
-                }
 
-                if (--candidates == 0) {
-                    break;
+                    if (--candidates == 0) {
+                        break;
+                    }
                 }
             }
 
@@ -299,10 +306,10 @@ public final class RangeMap<T> {
                     --nullEntries;
 
                     length += other.length;
-                }
 
-                if (--candidates == 0) {
-                    break;
+                    if (--candidates == 0) {
+                        break;
+                    }
                 }
             }
         }

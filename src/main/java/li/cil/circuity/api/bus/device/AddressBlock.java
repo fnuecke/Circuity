@@ -61,7 +61,15 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
         return length;
     }
 
+    public long getEnd() {
+        return offset + length;
+    }
+
     // --------------------------------------------------------------------- //
+
+    public boolean contains(final AddressBlock block) {
+        return block.getOffset() >= getOffset() && block.getEnd() <= getEnd();
+    }
 
     public AddressBlock take(final int addresses) {
         return new AddressBlock(offset, addresses);
