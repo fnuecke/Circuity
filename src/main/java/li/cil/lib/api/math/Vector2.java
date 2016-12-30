@@ -30,6 +30,17 @@ public final class Vector2 {
         }
     }
 
+    public Vector2 set(final int i, final float value) {
+        switch (i) {
+            case 0:
+                return new Vector2(value, y);
+            case 1:
+                return new Vector2(x, value);
+            default:
+                throw new IndexOutOfBoundsException();
+        }
+    }
+
     public float sqrMagnitude() {
         return x * x + y * y;
     }
