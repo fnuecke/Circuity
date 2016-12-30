@@ -5,7 +5,7 @@ import net.minecraft.client.renderer.GlStateManager;
 
 import java.util.Objects;
 
-public abstract class AbstractLabel<T extends AbstractLabel> extends AbstractLayoutable<T> {
+public abstract class AbstractLabel<T extends AbstractLabel> extends AbstractLayoutableWidget<T> {
     private String text = "";
     private int textColor = 0xFFFFFF;
     private Alignment.Horizontal horizontalAlignment = Alignment.Horizontal.LEFT;

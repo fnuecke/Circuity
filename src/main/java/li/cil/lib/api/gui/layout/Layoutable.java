@@ -1,6 +1,7 @@
 package li.cil.lib.api.gui.layout;
 
 import li.cil.lib.api.gui.widget.Widget;
+import li.cil.lib.api.math.Vector2;
 import li.cil.lib.client.gui.layout.HorizontalLayout;
 import li.cil.lib.client.gui.layout.VerticalLayout;
 
@@ -20,9 +21,7 @@ public interface Layoutable<T extends Layoutable> extends Widget<T> {
      *
      * @return the minimum width of the widget;
      */
-    default int getMinWidth() {
-        return 0;
-    }
+    int getMinWidth();
 
     /**
      * The minimal height of the widget.
@@ -32,9 +31,16 @@ public interface Layoutable<T extends Layoutable> extends Widget<T> {
      *
      * @return the minimum height of the widget;
      */
-    default int getMinHeight() {
-        return 0;
-    }
+    int getMinHeight();
+
+    /**
+     * Get the minimal size of the widget.
+     *
+     * @return the minimal size of the widget.
+     * @see #getMinWidth()
+     * @see #getMinHeight()
+     */
+    Vector2 getMinSize();
 
     /**
      * The preferred width of the widget.
@@ -47,9 +53,7 @@ public interface Layoutable<T extends Layoutable> extends Widget<T> {
      *
      * @return the preferred width of the widget.
      */
-    default int getPreferredWidth() {
-        return getWidth();
-    }
+    int getPreferredWidth();
 
     /**
      * The preferred height of the widget.
@@ -62,9 +66,16 @@ public interface Layoutable<T extends Layoutable> extends Widget<T> {
      *
      * @return the preferred height of the widget.
      */
-    default int getPreferredHeight() {
-        return getHeight();
-    }
+    int getPreferredHeight();
+
+    /**
+     * Get the preferred size of the widget.
+     *
+     * @return the preferred size of the widget.
+     * @see #getPreferredWidth()
+     * @see #getPreferredHeight()
+     */
+    Vector2 getPreferredSize();
 
     /**
      * The flexible width of the widget.
@@ -109,4 +120,13 @@ public interface Layoutable<T extends Layoutable> extends Widget<T> {
      * @see #getFlexibleHeight()
      */
     T setFlexibleHeight(final float value);
+
+    /**
+     * Get the flexible size of the widget.
+     *
+     * @return the flexible size of the widget.
+     * @see #getFlexibleWidth()
+     * @see #getFlexibleHeight()
+     */
+    Vector2 getFlexibleSize();
 }

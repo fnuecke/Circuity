@@ -1,46 +1,44 @@
 package li.cil.lib.client.gui.widget;
 
 import li.cil.lib.api.gui.layout.Layoutable;
+import li.cil.lib.api.math.Vector2;
 
-public abstract class AbstractLayoutable<T extends AbstractLayoutable> extends AbstractWidget<T> implements Layoutable<T> {
-    private float flexibleWidth, flexibleHeight;
-
+public interface AbstractLayoutable<T extends AbstractLayoutable> extends Layoutable<T> {
     // --------------------------------------------------------------------- //
     // Layoutable
 
     @Override
-    public float getFlexibleWidth() {
-        return flexibleWidth;
+    default int getMinWidth() {
+        return 0;
     }
 
     @Override
-    public T setFlexibleWidth(final float value) {
-        if (Float.compare(value, flexibleWidth) == 0) {
-            return self();
-        }
-
-        flexibleWidth = value;
-
-        invalidateParent();
-
-        return self();
+    default int getMinHeight() {
+        return 0;
     }
 
     @Override
-    public float getFlexibleHeight() {
-        return flexibleHeight;
+    default Vector2 getMinSize() {
+        return new Vector2(getMinWidth(), getMinHeight());
     }
 
     @Override
-    public T setFlexibleHeight(final float value) {
-        if (Float.compare(value, flexibleHeight) == 0) {
-            return self();
-        }
+    default int getPreferredWidth() {
+        return getMinWidth();
+    }
 
-        flexibleHeight = value;
+    @Override
+    default int getPreferredHeight() {
+        return getMinHeight();
+    }
 
-        invalidateParent();
+    @Override
+    default Vector2 getPreferredSize() {
+        return new Vector2(getPreferredWidth(), getPreferredHeight());
+    }
 
-        return self();
+    @Override
+    default Vector2 getFlexibleSize() {
+        return new Vector2(getPreferredWidth(), getPreferredHeight());
     }
 }

@@ -1,30 +1,10 @@
 package li.cil.lib.client.gui.widget;
 
-import li.cil.lib.api.gui.widget.Widget;
-
-public class Panel extends AbstractContainer<Panel> implements AbstractLayoutable<Panel> {
+public abstract class AbstractLayoutableWidget<T extends AbstractLayoutableWidget> extends AbstractWidget<T> implements AbstractLayoutable<T> {
     private float flexibleWidth, flexibleHeight;
 
     // --------------------------------------------------------------------- //
     // Layoutable
-
-    @Override
-    public int getPreferredWidth() {
-        int xMax = 0;
-        for (final Widget child : getChildren()) {
-            xMax = Math.max(xMax, child.getX() + child.getWidth());
-        }
-        return xMax;
-    }
-
-    @Override
-    public int getPreferredHeight() {
-        int yMax = 0;
-        for (final Widget child : getChildren()) {
-            yMax = Math.max(yMax, child.getY() + child.getHeight());
-        }
-        return yMax;
-    }
 
     @Override
     public float getFlexibleWidth() {
@@ -32,7 +12,7 @@ public class Panel extends AbstractContainer<Panel> implements AbstractLayoutabl
     }
 
     @Override
-    public Panel setFlexibleWidth(final float value) {
+    public T setFlexibleWidth(final float value) {
         if (Float.compare(value, flexibleWidth) == 0) {
             return self();
         }
@@ -50,7 +30,7 @@ public class Panel extends AbstractContainer<Panel> implements AbstractLayoutabl
     }
 
     @Override
-    public Panel setFlexibleHeight(final float value) {
+    public T setFlexibleHeight(final float value) {
         if (Float.compare(value, flexibleHeight) == 0) {
             return self();
         }
