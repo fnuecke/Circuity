@@ -1,6 +1,7 @@
 package li.cil.lib.ecs.entity;
 
 import li.cil.lib.api.ecs.component.Component;
+import li.cil.lib.api.ecs.entity.EntityContainer;
 
 import java.util.Collections;
 import java.util.Optional;

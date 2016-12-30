@@ -7,7 +7,7 @@ import li.cil.lib.api.ecs.component.event.ContainerDestructionListener;
 import li.cil.lib.api.ecs.component.event.EntityCollisionListener;
 import li.cil.lib.api.ecs.component.event.EntityWalkListener;
 import li.cil.lib.api.ecs.component.event.NeighborChangeListener;
-import li.cil.lib.ecs.entity.EntityContainer;
+import li.cil.lib.api.ecs.entity.EntityContainer;
 import net.minecraft.block.Block;
 import net.minecraft.block.material.MapColor;
 import net.minecraft.block.material.Material;

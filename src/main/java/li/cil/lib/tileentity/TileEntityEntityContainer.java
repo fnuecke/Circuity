@@ -5,6 +5,7 @@ import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;
+import li.cil.lib.capabilities.CapabilityEntityContainer;
 import li.cil.lib.ecs.component.ChunkNotifyingChangeListener;
 import li.cil.lib.ecs.component.LocationTileEntity;
 import li.cil.lib.ecs.entity.EntityContainerProxy;
@@ -110,6 +111,10 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
 
     @Override
     public boolean hasCapability(final Capability<?> capability, @Nullable final EnumFacing facing) {
+        if (capability == CapabilityEntityContainer.ENTITY_CONTAINER_CAPABILITY) {
+            return true;
+        }
+
         if (super.hasCapability(capability, facing)) {
             return true;
         }
@@ -129,6 +134,10 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
     @Nullable
     @Override
     public <T> T getCapability(final Capability<T> capability, @Nullable final EnumFacing facing) {
+        if (capability == CapabilityEntityContainer.ENTITY_CONTAINER_CAPABILITY) {
+            return CapabilityEntityContainer.ENTITY_CONTAINER_CAPABILITY.cast(this);
+        }
+
         final List<T> instances = new ArrayList<>();
 
         if (super.hasCapability(capability, facing)) {
@@ -154,7 +163,6 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
     }
 
     private static <T> void addCapability(@Nullable final T instance, final List<T> instances) {
-        // Paranoia.
         if (instance != null) {
             instances.add(instance);
         }
