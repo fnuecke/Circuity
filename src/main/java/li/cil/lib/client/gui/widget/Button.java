@@ -9,13 +9,12 @@ import net.minecraft.client.audio.PositionedSoundRecord;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.init.SoundEvents;
 
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.function.Consumer;
 
 public class Button extends AbstractLabel<Button> implements AbstractEventHandler<Button> {
-    private final Set<Consumer<Button>> listeners = Collections.newSetFromMap(new WeakHashMap<Consumer<Button>, Boolean>());
+    private final Set<Consumer<Button>> listeners = new HashSet<>();
 
     // --------------------------------------------------------------------- //
 
@@ -85,8 +84,10 @@ public class Button extends AbstractLabel<Button> implements AbstractEventHandle
 
     // --------------------------------------------------------------------- //
 
-    public void addListener(final Consumer<Button> listener) {
+    public Button addListener(final Consumer<Button> listener) {
         listeners.add(listener);
+
+        return this;
     }
 
     public void removeListener(final Consumer<Button> listener) {
