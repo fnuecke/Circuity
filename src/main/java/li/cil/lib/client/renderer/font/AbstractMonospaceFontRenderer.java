@@ -93,7 +93,6 @@ public abstract class AbstractMonospaceFontRenderer implements FontRenderer {
 
     private static VertexBuffer prologue(final ResourceLocation textureLocation) {
         GlStateManager.pushMatrix();
-        GlStateManager.depthMask(false);
 
         Minecraft.getMinecraft().getTextureManager().bindTexture(textureLocation);
 
@@ -109,7 +108,6 @@ public abstract class AbstractMonospaceFontRenderer implements FontRenderer {
 
         tessellator.draw();
 
-        GlStateManager.depthMask(true);
         GlStateManager.popMatrix();
     }
 

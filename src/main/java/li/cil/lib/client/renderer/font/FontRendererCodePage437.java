@@ -41,8 +41,6 @@ public final class FontRendererCodePage437 extends AbstractMonospaceFontRenderer
 
     // --------------------------------------------------------------------- //
 
-    // --------------------------------------------------------------------- //
-
     private FontRendererCodePage437() {
     }
 }
