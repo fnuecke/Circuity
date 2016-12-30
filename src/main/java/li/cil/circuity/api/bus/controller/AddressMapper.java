@@ -73,6 +73,18 @@ public interface AddressMapper extends Subsystem {
      */
     void setDeviceAddress(final Addressable device, final AddressBlock address) throws IllegalArgumentException;
 
+    /**
+     * Checks whether the address of the specified device is valid, i.e. that
+     * it doesn't overlap with any other device's address.
+     * <p>
+     * If the device is not managed by this address mapper, this wil also
+     * return <code>false</code>.
+     *
+     * @param device the device to check for.
+     * @return <code>true</code> if the device's address does not overlap the address of any other device; <code>false</code> otherwise.
+     */
+    boolean isDeviceAddressValid(final Addressable device);
+
     // --------------------------------------------------------------------- //
 
     /**

@@ -111,20 +111,6 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
     // AddressMapper
 
     @Override
-    public void setDeviceAddress(final Addressable device, final AddressBlock address) {
-        if (!FULL_ADDRESS_BLOCK.contains(address)) {
-            throw new IllegalArgumentException("Address out of bounds.");
-        }
-        // This call synchronizes with the controller's executor thread.
-        controller.scheduleScan();
-        synchronized (lock) {
-            for (final Mapping mapping : mappings) {
-                mapping.setDeviceAddress(device, address);
-            }
-        }
-    }
-
-    @Override
     public int getWordSize() {
         return wordSize;
     }
@@ -152,6 +138,25 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         selectedMapping = index;
     }
 
+    @Override
+    public void setDeviceAddress(final Addressable device, final AddressBlock address) {
+        if (!FULL_ADDRESS_BLOCK.contains(address)) {
+            throw new IllegalArgumentException("Address out of bounds.");
+        }
+        // This call synchronizes with the controller's executor thread.
+        controller.scheduleScan();
+        synchronized (lock) {
+            for (final Mapping mapping : mappings) {
+                mapping.setDeviceAddress(device, address);
+            }
+        }
+    }
+
+    @Override
+    public boolean isDeviceAddressValid(final Addressable device) {
+        return mappings[selectedMapping].isDeviceAddressValid(device);
+    }
+
     @Nullable
     @Override
     public AddressBlock getAddressBlock(final Addressable device) {
@@ -169,6 +174,7 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         final Addressable device = getDevice(address);
         if (device != null) {
             final AddressBlock memory = getAddressBlock(device);
+            assert memory != null : "address mapper in corrupted state";
             final long mappedAddress = address - memory.getOffset();
             device.write(mappedAddress, value);
         } else {
@@ -181,6 +187,7 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         final Addressable device = getDevice(address);
         if (device != null) {
             final AddressBlock memory = getAddressBlock(device);
+            assert memory != null : "address mapper in corrupted state";
             final long mappedAddress = address - memory.getOffset();
             return device.read(mappedAddress);
         } else {
@@ -257,6 +264,7 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         if (device instanceof Addressable) {
             final Addressable addressable = (Addressable) device;
             final AddressBlock memory = getAddressBlock(addressable);
+            assert memory != null : "address mapper in corrupted state";
             return (int) ((memory.getOffset() >>> (addressShift++ * getWordSize())) & getWordMask());
         }
         return 0xFFFFFFFF;
@@ -271,6 +279,7 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         if (device instanceof Addressable) {
             final Addressable addressable = (Addressable) device;
             final AddressBlock memory = getAddressBlock(addressable);
+            assert memory != null : "address mapper in corrupted state";
             return (int) ((memory.getLength() >>> (sizeShift++ * getWordSize())) & getWordMask());
         }
         return 0xFFFFFFFF;
@@ -339,6 +348,22 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
             deviceToAddress.put(addressable, addressBlock);
             persistentDeviceToAddress.put(addressable.getPersistentId(), addressBlock);
             addressToDevice.tryAdd(addressable, addressBlock.getOffset(), addressBlock.getLength());
+        }
+
+        public boolean isDeviceAddressValid(final Addressable addressable) {
+            final AddressBlock referenceAddress = deviceToAddress.get(addressable);
+            if (referenceAddress == null) {
+                return false;
+            }
+
+            for (final AddressBlock address : deviceToAddress.values()) {
+                if (address == referenceAddress) continue;
+                if (address.intersects(referenceAddress)) {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         public void add(final Addressable addressable) {
