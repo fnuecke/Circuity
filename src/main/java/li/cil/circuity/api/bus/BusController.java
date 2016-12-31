@@ -51,6 +51,16 @@ public interface BusController extends BusConnector {
     void scheduleScan();
 
     /**
+     * Called by sub-systems when their state changes.
+     * <p>
+     * Such changes typically indicate that the controller requires saving in
+     * the next world save, and this method should be implemented such that the
+     * container of the controller (e.g. a tile entity) is marked for saving
+     * accordingly.
+     */
+    void markChanged();
+
+    /**
      * Get the subsystem with the specified type.
      * <p>
      * Note that this must be the exact type, e.g. {@link AddressMapper} for

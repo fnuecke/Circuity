@@ -194,7 +194,7 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
         serialPortManager.addSerialPort(this::readAPIVersion, null, null);
 
         // TODO Populate based on some registry in which addons can register additional subsystems?
-        final DeviceMapperImpl selector = new DeviceMapperImpl();
+        final DeviceMapperImpl selector = new DeviceMapperImpl(this);
         subsystems.put(DeviceMapper.class, selector);
         subsystems.put(AddressMapper.class, new AddressMapperImpl(this));
         subsystems.put(InterruptMapper.class, new InterruptMapperImpl(this));

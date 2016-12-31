@@ -161,6 +161,14 @@ public class BusControllerBlock extends BusNeighborAware implements ITickable, L
         }
 
         // --------------------------------------------------------------------- //
+        // BusController
+
+        @Override
+        public void markChanged() {
+            BusControllerBlock.this.markChanged();
+        }
+
+        // --------------------------------------------------------------------- //
         // AbstractBusController
 
         @Override

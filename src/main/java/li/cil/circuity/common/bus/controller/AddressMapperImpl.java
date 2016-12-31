@@ -38,12 +38,6 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
     // --------------------------------------------------------------------- //
 
     /**
-     * Lock used to ensure mutating calls happen synchronously, e.g. setting
-     * addresses of devices (which may be called from the networking thread).
-     */
-    private final Object lock = new Object();
-
-    /**
      * The controller hosting this system.
      */
     private final AbstractBusController controller;
@@ -145,11 +139,8 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         }
         // This call synchronizes with the controller's executor thread.
         controller.scheduleScan();
-        synchronized (lock) {
-            for (final Mapping mapping : mappings) {
-                mapping.setDeviceAddress(device, address);
-            }
-        }
+        mappings[selectedMapping].setDeviceAddress(device, address);
+        controller.markChanged();
     }
 
     @Override
@@ -323,6 +314,12 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         // --------------------------------------------------------------------- //
 
         /**
+         * Lock for setting/removing/changing addressable addresses, as this
+         * may be triggered from the network thread.
+         */
+        private final Object lock = new Object();
+
+        /**
          * Mapping of addresses to devices.
          */
         private final RangeMap<Addressable> addressToDevice = new RangeMap<>(ADDRESS_COUNT);
@@ -344,22 +341,26 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         // --------------------------------------------------------------------- //
 
         public void setDeviceAddress(final Addressable addressable, final AddressBlock addressBlock) {
-            remove(addressable);
-            deviceToAddress.put(addressable, addressBlock);
-            persistentDeviceToAddress.put(addressable.getPersistentId(), addressBlock);
-            addressToDevice.tryAdd(addressable, addressBlock.getOffset(), addressBlock.getLength());
+            synchronized (lock) {
+                remove(addressable);
+                deviceToAddress.put(addressable, addressBlock);
+                persistentDeviceToAddress.put(addressable.getPersistentId(), addressBlock);
+                addressToDevice.tryAdd(addressable, addressBlock.getOffset(), addressBlock.getLength());
+            }
         }
 
         public boolean isDeviceAddressValid(final Addressable addressable) {
-            final AddressBlock referenceAddress = deviceToAddress.get(addressable);
-            if (referenceAddress == null) {
-                return false;
-            }
-
-            for (final AddressBlock address : deviceToAddress.values()) {
-                if (address == referenceAddress) continue;
-                if (address.intersects(referenceAddress)) {
+            synchronized (lock) {
+                final AddressBlock referenceAddress = deviceToAddress.get(addressable);
+                if (referenceAddress == null) {
                     return false;
+                }
+
+                for (final AddressBlock address : deviceToAddress.values()) {
+                    if (address == referenceAddress) continue;
+                    if (address.intersects(referenceAddress)) {
+                        return false;
+                    }
                 }
             }
 
@@ -367,42 +368,48 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         }
 
         public void add(final Addressable addressable) {
-            if (persistentDeviceToAddress.containsKey(addressable.getPersistentId())) {
-                final AddressBlock addressBlock = persistentDeviceToAddress.get(addressable.getPersistentId());
-                deviceToAddress.put(addressable, addressBlock);
-                addressToDevice.tryAdd(addressable, addressBlock.getOffset(), addressBlock.getLength());
-            } else {
-                final int index = Collections.binarySearch(pendingAdds, addressable, ADDRESSABLE_COMPARATOR);
-                pendingAdds.add(index < 0 ? ~index : index, addressable);
+            synchronized (lock) {
+                if (persistentDeviceToAddress.containsKey(addressable.getPersistentId())) {
+                    final AddressBlock addressBlock = persistentDeviceToAddress.get(addressable.getPersistentId());
+                    deviceToAddress.put(addressable, addressBlock);
+                    addressToDevice.tryAdd(addressable, addressBlock.getOffset(), addressBlock.getLength());
+                } else {
+                    final int index = Collections.binarySearch(pendingAdds, addressable, ADDRESSABLE_COMPARATOR);
+                    pendingAdds.add(index < 0 ? ~index : index, addressable);
+                }
             }
         }
 
         public void remove(final Addressable addressable) {
-            final AddressBlock addressBlock = deviceToAddress.remove(addressable);
-            persistentDeviceToAddress.remove(addressable.getPersistentId());
-            addressToDevice.remove(addressBlock.getOffset(), addressable);
+            synchronized (lock) {
+                final AddressBlock addressBlock = deviceToAddress.remove(addressable);
+                persistentDeviceToAddress.remove(addressable.getPersistentId());
+                addressToDevice.remove(addressBlock.getOffset(), addressable);
+            }
         }
 
         public boolean validate() {
-            for (final Addressable addressable : pendingAdds) {
-                final AddressBlock addressBlock = tryGetFreeAddress(addressable);
-                deviceToAddress.put(addressable, addressBlock);
-                persistentDeviceToAddress.put(addressable.getPersistentId(), addressBlock);
-                addressToDevice.tryAdd(addressable, addressBlock.getOffset(), addressBlock.getLength());
-            }
-
-            pendingAdds.clear();
-
-            // We have no overlap if all devices were successfully added to the
-            // mapping of address to device. Empty blocks are *not* added to the
-            // range map, so we only want to count the non-empty ones.
-            int nonEmptyCount = 0;
-            for (final AddressBlock address : deviceToAddress.values()) {
-                if (address.getLength() > 0) {
-                    ++nonEmptyCount;
+            synchronized (lock) {
+                for (final Addressable addressable : pendingAdds) {
+                    final AddressBlock addressBlock = tryGetFreeAddress(addressable);
+                    deviceToAddress.put(addressable, addressBlock);
+                    persistentDeviceToAddress.put(addressable.getPersistentId(), addressBlock);
+                    addressToDevice.tryAdd(addressable, addressBlock.getOffset(), addressBlock.getLength());
                 }
+
+                pendingAdds.clear();
+
+                // We have no overlap if all devices were successfully added to the
+                // mapping of address to device. Empty blocks are *not* added to the
+                // range map, so we only want to count the non-empty ones.
+                int nonEmptyCount = 0;
+                for (final AddressBlock address : deviceToAddress.values()) {
+                    if (address.getLength() > 0) {
+                        ++nonEmptyCount;
+                    }
+                }
+                return addressToDevice.size() == nonEmptyCount;
             }
-            return addressToDevice.size() == nonEmptyCount;
         }
 
         // --------------------------------------------------------------------- //

@@ -98,6 +98,7 @@ public class InterruptMapperImpl implements InterruptMapper, ElementManager, Ser
             throw new IllegalArgumentException("sinkId");
         }
         sourceIdToSinkId[sourceId] = sinkId < 0 ? -1 : sinkId;
+        controller.markChanged();
     }
 
     @Override

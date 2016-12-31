@@ -23,6 +23,11 @@ import java.util.function.Consumer;
 @Serializable
 public class DeviceMapperImpl implements DeviceMapper, ElementManager, SerialInterfaceProvider, SerialInterfaceDeviceSelector {
     /**
+     * The controller hosting this system.
+     */
+    private final AbstractBusController controller;
+
+    /**
      * List of registered listeners for selection changes.
      */
     private final List<Consumer<BusDevice>> selectionChangeListeners = new ArrayList<>();
@@ -51,6 +56,12 @@ public class DeviceMapperImpl implements DeviceMapper, ElementManager, SerialInt
      */
     @Serialize
     private int nameIndex;
+
+    // --------------------------------------------------------------------- //
+
+    public DeviceMapperImpl(final AbstractBusController controller) {
+        this.controller = controller;
+    }
 
     // --------------------------------------------------------------------- //
     // DeviceMapper
@@ -146,6 +157,8 @@ public class DeviceMapperImpl implements DeviceMapper, ElementManager, SerialInt
         for (final Consumer<BusDevice> listener : selectionChangeListeners) {
             listener.accept(getSelectedDevice());
         }
+
+        controller.markChanged();
     }
 
     private int readDeviceType(final long address) {
@@ -169,5 +182,7 @@ public class DeviceMapperImpl implements DeviceMapper, ElementManager, SerialInt
 
     private void writeResetDeviceNameIndex(final long address, final int value) {
         nameIndex = 0;
+
+        controller.markChanged();
     }
 }
