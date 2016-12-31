@@ -220,6 +220,21 @@ public abstract class AbstractWidget<T extends AbstractWidget> implements Widget
         t.draw();
     }
 
+    protected void drawElevatedQuad(final float x0, final float y0, final float x1, final float y1, final float margin) {
+        GlStateManager.disableTexture2D();
+
+        setColorRGB(getRenderSettings().getBackgroundColor());
+        drawQuad(0, 0, getWidth(), getHeight());
+        setColorRGB(getRenderSettings().getRimShadowColor());
+        drawQuad(margin, margin, getWidth(), getHeight());
+        setColorRGB(getRenderSettings().getRimLightColor());
+        drawQuad(0, 0, getWidth() - margin, getHeight() - margin);
+        setColorRGB(getRenderSettings().getBackgroundColor());
+        drawQuad(margin, margin, getWidth() - margin, getHeight() - margin);
+
+        GlStateManager.enableTexture2D();
+    }
+
     protected void invalidateParent() {
         final Container parent = getParent();
         if (parent != null) {
@@ -264,30 +279,30 @@ public abstract class AbstractWidget<T extends AbstractWidget> implements Widget
         }
 
         @Override
-        public int getButtonColor() {
+        public int getBackgroundColor() {
             return 0x776655;
         }
 
         @Override
-        public void setButtonColor(final int value) {
+        public void setBackgroundColor(final int value) {
         }
 
         @Override
-        public int getButtonColorRimLight() {
+        public int getRimLightColor() {
             return 0xFFEEDD;
         }
 
         @Override
-        public void setButtonColorRimLight(final int value) {
+        public void setRimLightColor(final int value) {
         }
 
         @Override
-        public int getButtonColorRimShadow() {
+        public int getRimShadowColor() {
             return 0x332211;
         }
 
         @Override
-        public void setButtonColorRimShadow(final int value) {
+        public void setRimShadowColor(final int value) {
         }
     }
 

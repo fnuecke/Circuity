@@ -11,15 +11,15 @@ public interface RenderSettings {
 
     void setButtonPadding(final int value);
 
-    int getButtonColor();
+    int getBackgroundColor();
 
-    void setButtonColor(final int value);
+    void setBackgroundColor(final int value);
 
-    int getButtonColorRimLight();
+    int getRimLightColor();
 
-    void setButtonColorRimLight(final int value);
+    void setRimLightColor(final int value);
 
-    int getButtonColorRimShadow();
+    int getRimShadowColor();
 
-    void setButtonColorRimShadow(final int value);
+    void setRimShadowColor(final int value);
 }

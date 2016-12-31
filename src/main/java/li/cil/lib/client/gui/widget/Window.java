@@ -13,6 +13,10 @@ import li.cil.lib.client.renderer.font.FontRenderer;
 import javax.annotation.Nullable;
 
 public class Window extends AbstractContainer<Window> implements Canvas<Window>, AbstractEventHandler<Window> {
+    private static final int MARGIN_SIZE = 2;
+
+    // --------------------------------------------------------------------- //
+
     private final RenderSettings renderSettings = new RenderSettingsImpl();
     private final InputSystemImpl inputSystem = new InputSystemImpl();
 
@@ -32,6 +36,13 @@ public class Window extends AbstractContainer<Window> implements Canvas<Window>,
     @Override
     public Canvas getCanvas() {
         return this;
+    }
+
+    @Override
+    public void render() {
+        drawElevatedQuad(0, 0, getWidth(), getHeight(), MARGIN_SIZE);
+
+        super.render();
     }
 
     // --------------------------------------------------------------------- //
@@ -60,9 +71,9 @@ public class Window extends AbstractContainer<Window> implements Canvas<Window>,
     private static final class RenderSettingsImpl implements RenderSettings {
         private FontRenderer fontRenderer = AbstractWidget.DEFAULT_RENDER_SETTINGS.getFontRenderer();
         private int buttonPadding = AbstractWidget.DEFAULT_RENDER_SETTINGS.getButtonPadding();
-        private int buttonColor = AbstractWidget.DEFAULT_RENDER_SETTINGS.getButtonColor();
-        private int buttonColorRimLight = AbstractWidget.DEFAULT_RENDER_SETTINGS.getButtonColorRimLight();
-        private int buttonColorRimShadow = AbstractWidget.DEFAULT_RENDER_SETTINGS.getButtonColorRimShadow();
+        private int buttonColor = AbstractWidget.DEFAULT_RENDER_SETTINGS.getBackgroundColor();
+        private int buttonColorRimLight = AbstractWidget.DEFAULT_RENDER_SETTINGS.getRimLightColor();
+        private int buttonColorRimShadow = AbstractWidget.DEFAULT_RENDER_SETTINGS.getRimShadowColor();
 
         // --------------------------------------------------------------------- //
 
@@ -87,32 +98,32 @@ public class Window extends AbstractContainer<Window> implements Canvas<Window>,
         }
 
         @Override
-        public int getButtonColor() {
+        public int getBackgroundColor() {
             return buttonColor;
         }
 
         @Override
-        public void setButtonColor(final int value) {
+        public void setBackgroundColor(final int value) {
             buttonColor = value;
         }
 
         @Override
-        public int getButtonColorRimLight() {
+        public int getRimLightColor() {
             return buttonColorRimLight;
         }
 
         @Override
-        public void setButtonColorRimLight(final int value) {
+        public void setRimLightColor(final int value) {
             buttonColorRimLight = value;
         }
 
         @Override
-        public int getButtonColorRimShadow() {
+        public int getRimShadowColor() {
             return buttonColorRimShadow;
         }
 
         @Override
-        public void setButtonColorRimShadow(final int value) {
+        public void setRimShadowColor(final int value) {
             buttonColorRimShadow = value;
         }
     }

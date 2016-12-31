@@ -46,16 +46,11 @@ public class Button extends AbstractLabel<Button> implements AbstractEventHandle
 
     @Override
     public void render() {
-        GlStateManager.disableTexture2D();
+        drawElevatedQuad(0, 0, getWidth(), getHeight(), 1);
 
-        setColorRGB(getRenderSettings().getButtonColor());
-        drawQuad(0, 0, getWidth(), getHeight());
-        setColorRGB(getRenderSettings().getButtonColorRimShadow());
-        drawQuad(1, 1, getWidth(), getHeight());
-        setColorRGB(getRenderSettings().getButtonColorRimLight());
-        drawQuad(0, 0, getWidth() - 1, getHeight() - 1);
-        setColorRGB(getRenderSettings().getButtonColor());
-        drawQuad(1, 1, getWidth() - 1, getHeight() - 1);
+        super.render();
+
+        GlStateManager.disableTexture2D();
 
         final Rect localBounds = new Rect(Vector2.ZERO, getSize());
         final Vector2 localMousePosition = toLocal(getInputSystem().getMousePosition());
@@ -65,8 +60,6 @@ public class Button extends AbstractLabel<Button> implements AbstractEventHandle
         }
 
         GlStateManager.enableTexture2D();
-
-        super.render();
     }
 
     // --------------------------------------------------------------------- //
