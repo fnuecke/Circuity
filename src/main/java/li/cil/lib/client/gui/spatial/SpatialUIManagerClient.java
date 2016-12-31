@@ -1,5 +1,6 @@
 package li.cil.lib.client.gui.spatial;
 
+import li.cil.lib.ModSillyBee;
 import li.cil.lib.SpatialUI;
 import li.cil.lib.api.gui.input.InputEvent;
 import li.cil.lib.api.gui.spatial.SpatialUIClient;
@@ -61,7 +62,11 @@ public final class SpatialUIManagerClient {
     public void handleData(final NBTTagCompound data) {
         synchronized (writeLock) {
             if (currentUI != null) {
-                currentUI.handleData(data);
+                try {
+                    currentUI.handleData(data);
+                } catch (final Throwable t) {
+                    ModSillyBee.getLogger().error(t);
+                }
             }
         }
     }

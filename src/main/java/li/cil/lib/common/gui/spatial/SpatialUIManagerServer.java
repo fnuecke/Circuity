@@ -1,8 +1,9 @@
 package li.cil.lib.common.gui.spatial;
 
+import li.cil.lib.ModSillyBee;
 import li.cil.lib.SpatialUI;
-import li.cil.lib.api.gui.spatial.SpatialUIServer;
 import li.cil.lib.api.gui.spatial.SpatialUIProviderServer;
+import li.cil.lib.api.gui.spatial.SpatialUIServer;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.NetHandlerPlayServer;
 import net.minecraft.util.EnumFacing;
@@ -32,7 +33,11 @@ public final class SpatialUIManagerServer {
         synchronized (activeProviders) {
             final SpatialUIServer serverUi = activeProviders.get(client);
             if (serverUi != null) {
-                serverUi.handleData(data);
+                try {
+                    serverUi.handleData(data);
+                } catch (final Throwable t) {
+                    ModSillyBee.getLogger().error(t);
+                }
             }
         }
     }
