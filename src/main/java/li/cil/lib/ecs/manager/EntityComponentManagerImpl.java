@@ -379,12 +379,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
      * tickable components currently managed by this manager.
      */
     public void update() {
-        lock.lock();
-        try {
-            updateTickables(addedUpdatingComponents, removedUpdatingComponents, updatingComponents, TICKABLE_COMPARATOR, ITickable::update);
-        } finally {
-            lock.unlock();
-        }
+        updateTickables(addedUpdatingComponents, removedUpdatingComponents, updatingComponents, TICKABLE_COMPARATOR, ITickable::update);
     }
 
     /**
@@ -395,12 +390,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
      * tickable components currently managed by this manager.
      */
     public void lateUpdate() {
-        lock.lock();
-        try {
-            updateTickables(addedLateUpdatingComponents, removedLateUpdatingComponents, lateUpdatingComponents, LATE_TICKABLE_COMPARATOR, LateTickable::lateUpdate);
-        } finally {
-            lock.unlock();
-        }
+        updateTickables(addedLateUpdatingComponents, removedLateUpdatingComponents, lateUpdatingComponents, LATE_TICKABLE_COMPARATOR, LateTickable::lateUpdate);
     }
 
     // --------------------------------------------------------------------- //
@@ -444,20 +434,25 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
         }
     }
 
-    private static <T> void updateTickables(final Set<T> added, final Set<T> removed, final List<T> current, final Comparator<T> comparator, final Consumer<T> updater) {
-        for (final T component : added) {
-            final int index = Collections.binarySearch(current, component, comparator);
-            assert index < 0 : "Inserting tickable that is already in the list!";
-            current.add(~index, component);
-        }
-        added.clear();
+    private <T> void updateTickables(final Set<T> added, final Set<T> removed, final List<T> current, final Comparator<T> comparator, final Consumer<T> updater) {
+        lock.lock();
+        try {
+            for (final T component : added) {
+                final int index = Collections.binarySearch(current, component, comparator);
+                assert index < 0 : "Inserting tickable that is already in the list!";
+                current.add(~index, component);
+            }
+            added.clear();
 
-        for (final T component : removed) {
-            final int index = Collections.binarySearch(current, component, comparator);
-            assert index >= 0 : "Removing tickable that is not in the list!";
-            current.remove(index);
+            for (final T component : removed) {
+                final int index = Collections.binarySearch(current, component, comparator);
+                assert index >= 0 : "Removing tickable that is not in the list!";
+                current.remove(index);
+            }
+            removed.clear();
+        } finally {
+            lock.unlock();
         }
-        removed.clear();
 
         for (final T component : current) {
             if (!removed.contains(component)) {
