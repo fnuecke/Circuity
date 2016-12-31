@@ -40,6 +40,8 @@ public interface Widget<T extends Widget> {
      */
     T setParent(@Nullable final Container value);
 
+    // --------------------------------------------------------------------- //
+
     /**
      * Get the horizontal position of the widget relative to its parent.
      *
@@ -130,6 +132,8 @@ public interface Widget<T extends Widget> {
      */
     T setSize(final Vector2 value);
 
+    // --------------------------------------------------------------------- //
+
     /**
      * Convert a coordinate in global coordinate space, i.e. in {@link Canvas}
      * space, to local coordinate space of this widget.
@@ -147,6 +151,8 @@ public interface Widget<T extends Widget> {
      * @return the coordinate in global space.
      */
     Vector2 toGlobal(final Vector2 local);
+
+    // --------------------------------------------------------------------- //
 
     /**
      * Render this widget.

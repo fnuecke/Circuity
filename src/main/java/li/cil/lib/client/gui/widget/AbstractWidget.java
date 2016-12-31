@@ -280,7 +280,7 @@ public abstract class AbstractWidget<T extends AbstractWidget> implements Widget
 
         @Override
         public int getBackgroundColor() {
-            return 0x776655;
+            return 0x998877;
         }
 
         @Override
