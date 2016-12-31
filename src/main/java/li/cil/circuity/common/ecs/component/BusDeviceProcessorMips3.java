@@ -69,7 +69,7 @@ public class BusDeviceProcessorMips3 extends AbstractComponentBusDevice {
 
         @Nullable
         @Override
-        public ITextComponent getInterruptName(final int interrupt) {
+        public ITextComponent getAcceptedInterruptName(final int interrupt) {
             // TODO: name for each IRQ
             return new TextComponentTranslation(Constants.I18N.INTERRUPT_SINK_INTERRUPT_REQUEST);
         }

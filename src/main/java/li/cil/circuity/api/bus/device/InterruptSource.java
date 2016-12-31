@@ -38,5 +38,5 @@ public interface InterruptSource extends BusDevice {
      * @return the name for that interrupt.
      */
     @Nullable
-    ITextComponent getInterruptName(final int interrupt);
+    ITextComponent getEmittedInterruptName(final int interrupt);
 }

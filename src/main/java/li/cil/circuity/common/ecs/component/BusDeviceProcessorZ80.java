@@ -75,7 +75,7 @@ public final class BusDeviceProcessorZ80 extends AbstractComponentBusDevice {
 
         @Nullable
         @Override
-        public ITextComponent getInterruptName(final int interrupt) {
+        public ITextComponent getAcceptedInterruptName(final int interrupt) {
             switch (interrupt) {
                 case 0:
                     return new TextComponentTranslation(Constants.I18N.INTERRUPT_SINK_NON_MASKABLE_INTERRUPT);

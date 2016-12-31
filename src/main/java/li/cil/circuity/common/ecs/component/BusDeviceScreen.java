@@ -172,7 +172,7 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
 
         @Nullable
         @Override
-        public ITextComponent getInterruptName(final int interrupt) {
+        public ITextComponent getEmittedInterruptName(final int interrupt) {
             return new TextComponentTranslation(Constants.I18N.INTERRUPT_SOURCE_KEYBOARD_INPUT);
         }
 

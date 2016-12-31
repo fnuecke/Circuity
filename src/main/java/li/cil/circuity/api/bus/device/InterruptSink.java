@@ -36,7 +36,7 @@ public interface InterruptSink extends BusDevice {
      * @return the name for that interrupt.
      */
     @Nullable
-    ITextComponent getInterruptName(final int interrupt);
+    ITextComponent getAcceptedInterruptName(final int interrupt);
 
     /**
      * Activate the specified interrupt provided by this device.
