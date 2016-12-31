@@ -9,6 +9,7 @@ import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.client.renderer.Tessellator;
 import net.minecraft.client.renderer.VertexBuffer;
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats;
+import org.lwjgl.input.Keyboard;
 import org.lwjgl.opengl.GL11;
 
 import java.io.IOException;
@@ -35,6 +36,16 @@ public final class GuiBlockScreen extends GuiScreen {
 
     // --------------------------------------------------------------------- //
     // GuiScreen
+
+    @Override
+    public void initGui() {
+        Keyboard.enableRepeatEvents(true);
+    }
+
+    @Override
+    public void onGuiClosed() {
+        Keyboard.enableRepeatEvents(false);
+    }
 
     @Override
     public void drawScreen(final int mx, final int my, final float unk1) {
@@ -108,7 +119,7 @@ public final class GuiBlockScreen extends GuiScreen {
         super.keyTyped(typedChar, keyCode);
 
         final ByteBuf data = Unpooled.buffer(1);
-        data.writeByte((byte) typedChar);
+        data.writeByte((byte) (keyCode == Keyboard.KEY_RETURN ? '\n' : typedChar));
         screen.sendData(data);
     }
 
