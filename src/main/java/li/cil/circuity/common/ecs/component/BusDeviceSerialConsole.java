@@ -204,6 +204,7 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
                 case '\b': { // Backspace
                     do {
                         scrX--;
+                        if (scrX >= 0) set(scrX, line(), ' ');
                     } while (scrX >= 0 && scrX % CONS_WIDTH != 0
                             && get(scrX, line()) == '\t');
 
