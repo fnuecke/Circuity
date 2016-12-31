@@ -51,6 +51,7 @@ public enum SpatialUIProviderClientAddressable implements SpatialUIProviderClien
 
     private final class SpatialUIClientImpl extends AbstractSpatialUIClient {
         private static final int UI_SIZE = 128;
+        private static final int UI_MARGIN = 8;
         private static final int VALID_COLOR = 0xFFFFFF;
         private static final int INVALID_COLOR = 0xFF0000;
 
@@ -70,6 +71,7 @@ public enum SpatialUIProviderClientAddressable implements SpatialUIProviderClien
                     setLayout(new VerticalLayout().
                             setHorizontalAlignment(Alignment.Horizontal.CENTER).
                             setVerticalAlignment(Alignment.Vertical.MIDDLE).
+                            setPadding(UI_MARGIN, UI_MARGIN, UI_MARGIN, UI_MARGIN).
                             setExpandWidth(true)).
                     add(new Panel().
                             setFlexibleWidth(1).

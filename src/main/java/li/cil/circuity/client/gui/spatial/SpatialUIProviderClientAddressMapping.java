@@ -48,6 +48,7 @@ public enum SpatialUIProviderClientAddressMapping implements SpatialUIProviderCl
 
     private final class SpatialUIClientImpl extends AbstractSpatialUIClient {
         private static final int UI_SIZE = 128;
+        private static final int UI_MARGIN = 8;
         private static final int CURRENT_COLOR = 0x00FF00;
 
         // --------------------------------------------------------------------- //
@@ -64,6 +65,7 @@ public enum SpatialUIProviderClientAddressMapping implements SpatialUIProviderCl
                     setLayout(new VerticalLayout().
                             setHorizontalAlignment(Alignment.Horizontal.CENTER).
                             setVerticalAlignment(Alignment.Vertical.MIDDLE).
+                            setPadding(UI_MARGIN, UI_MARGIN, UI_MARGIN, UI_MARGIN).
                             setExpandWidth(true));
         }
 

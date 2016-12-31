@@ -14,6 +14,7 @@ import li.cil.lib.api.gui.spatial.SpatialUIProviderClient;
 import li.cil.lib.api.gui.widget.Canvas;
 import li.cil.lib.client.gui.layout.VerticalLayout;
 import li.cil.lib.client.gui.widget.Button;
+import li.cil.lib.client.gui.widget.Label;
 import li.cil.lib.client.gui.widget.Window;
 import li.cil.lib.util.PlayerUtil;
 import net.minecraft.entity.player.EntityPlayer;
@@ -64,6 +65,7 @@ public enum SpatialUIProviderClientInterruptable implements SpatialUIProviderCli
 
     private final class SpatialUIClientImpl extends AbstractSpatialUIClient {
         private static final int UI_SIZE = 128;
+        private static final int UI_MARGIN = 8;
 
         // --------------------------------------------------------------------- //
 
@@ -79,6 +81,7 @@ public enum SpatialUIProviderClientInterruptable implements SpatialUIProviderCli
                     setLayout(new VerticalLayout().
                             setHorizontalAlignment(Alignment.Horizontal.CENTER).
                             setVerticalAlignment(Alignment.Vertical.MIDDLE).
+                            setPadding(UI_MARGIN, UI_MARGIN, UI_MARGIN, UI_MARGIN).
                             setExpandWidth(true));
         }
 
@@ -95,23 +98,39 @@ public enum SpatialUIProviderClientInterruptable implements SpatialUIProviderCli
 
             if (ItemConfigurator.hasInterruptSource(stack)) {
                 final NBTTagList sinks = data.getTagList(SpatialUIProviderServerInterruptable.SINKS_TAG, Constants.NBT.TAG_COMPOUND);
+                if (sinks.tagCount() > 0) {
+                    window.add(new Label().
+                            setText("Sinks").
+                            setHorizontalAlignment(Alignment.Horizontal.CENTER));
+                }
+
                 for (int i = 0; i < sinks.tagCount(); i++) {
                     final NBTTagCompound tag = sinks.getCompoundTagAt(i);
                     final int id = tag.getInteger(SpatialUIProviderServerInterruptable.ID_TAG);
                     final String json = tag.getString(SpatialUIProviderServerInterruptable.NAME_TAG);
                     final ITextComponent name = ITextComponent.Serializer.jsonToComponent(json);
 
-                    window.add(new Button().setText(name.getUnformattedText()).addListener(btn -> setSink(id)));
+                    window.add(new Button().
+                            setText(name.getUnformattedText()).
+                            addListener(btn -> setSink(id)));
                 }
             } else {
                 final NBTTagList sources = data.getTagList(SpatialUIProviderServerInterruptable.SOURCES_TAG, Constants.NBT.TAG_COMPOUND);
+                if (sources.tagCount() > 0) {
+                    window.add(new Label().
+                            setText("Sources").
+                            setHorizontalAlignment(Alignment.Horizontal.CENTER));
+                }
+
                 for (int i = 0; i < sources.tagCount(); i++) {
                     final NBTTagCompound tag = sources.getCompoundTagAt(i);
                     final int id = tag.getInteger(SpatialUIProviderServerInterruptable.ID_TAG);
                     final String json = tag.getString(SpatialUIProviderServerInterruptable.NAME_TAG);
                     final ITextComponent name = ITextComponent.Serializer.jsonToComponent(json);
 
-                    window.add(new Button().setText(name.getUnformattedText()).addListener(btn -> setSource(id)));
+                    window.add(new Button().
+                            setText(name.getUnformattedText()).
+                            addListener(btn -> setSource(id)));
                 }
             }
         }
