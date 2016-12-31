@@ -132,6 +132,20 @@ public abstract class AbstractContainer<T extends AbstractContainer> extends Abs
     }
 
     @Override
+    public void clear() {
+        if (children.size() < 1) {
+            return;
+        }
+
+        for (int index = children.size() - 1; index >= 0; index--) {
+            final Widget widget = children.remove(index);
+            widget.setParent(null);
+        }
+
+        invalidate();
+    }
+
+    @Override
     public Layout getLayout() {
         return layout == null ? DEFAULT_LAYOUT : layout;
     }

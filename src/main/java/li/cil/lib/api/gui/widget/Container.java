@@ -66,6 +66,11 @@ public interface Container<T extends Container> extends Widget<T> {
      */
     void removeAt(final int index);
 
+    /**
+     * Remove all child widgets from this container.
+     */
+    void clear();
+
     // --------------------------------------------------------------------- //
 
     /**
