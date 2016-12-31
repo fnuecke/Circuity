@@ -1,7 +1,10 @@
 package li.cil.lib.ecs.manager;
 
 import com.google.common.base.Throwables;
-import com.google.common.collect.Sets;
+import gnu.trove.map.TLongObjectMap;
+import gnu.trove.map.hash.TLongObjectHashMap;
+import gnu.trove.set.TLongSet;
+import gnu.trove.set.hash.TLongHashSet;
 import li.cil.circuity.ModCircuity;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
@@ -28,6 +31,7 @@ import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 public final class EntityComponentManagerImpl implements EntityComponentManager {
     private static final Comparator<ITickable> TICKABLE_COMPARATOR = Comparator.comparing(t -> ((Component) t).getId());
@@ -37,10 +41,10 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
 
     private final ReentrantLock lock = new ReentrantLock();
     private long lastId = 0;
-    private final HashSet<Long> entities = new HashSet<>();
-    private final HashMap<Long, List<Component>> componentsByEntity = new HashMap<>();
-    private final HashMap<Long, HashMap<Class<?>, List<Component>>> componentsByEntityAndType = new HashMap<>();
-    private final HashMap<Long, Component> componentsById = new HashMap<>();
+    private final TLongSet entities = new TLongHashSet();
+    private final TLongObjectMap<List<Component>> componentsByEntity = new TLongObjectHashMap<>();
+    private final TLongObjectMap<HashMap<Class<?>, List<Component>>> componentsByEntityAndType = new TLongObjectHashMap<>();
+    private final TLongObjectMap<Component> componentsById = new TLongObjectHashMap<>();
     private final HashMap<Class<?>, List<Component>> componentsByType = new HashMap<>();
     private final List<ITickable> updatingComponents = new ArrayList<>();
     private final Set<ITickable> addedUpdatingComponents = new HashSet<>();
@@ -48,8 +52,8 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     private final List<LateTickable> lateUpdatingComponents = new ArrayList<>();
     private final Set<LateTickable> addedLateUpdatingComponents = new HashSet<>();
     private final Set<LateTickable> removedLateUpdatingComponents = new HashSet<>();
-    private final Set<EntityChangeListener> entityChangeListeners = Sets.newSetFromMap(new WeakHashMap<>());
-    private final Set<ComponentChangeListener> componentChangeListeners = Sets.newSetFromMap(new WeakHashMap<>());
+    private final Set<EntityChangeListener> entityChangeListeners = Collections.newSetFromMap(new WeakHashMap<>());
+    private final Set<ComponentChangeListener> componentChangeListeners = Collections.newSetFromMap(new WeakHashMap<>());
 
     // --------------------------------------------------------------------- //
 
@@ -77,7 +81,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     public boolean addEntity(final long entity) {
         lock.lock();
         try {
-            if (hasEntity(entity)) {
+            if (entities.contains(entity)) {
                 return false;
             }
             entities.add(entity);
@@ -130,11 +134,9 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
                 collectTypes(clazz, type -> componentsByType.
                         computeIfAbsent(type, k -> new ArrayList<>()).
                         add(component));
-                componentsByEntity.
-                        computeIfAbsent(entity, k -> new ArrayList<>()).
+                computeIfAbsent(componentsByEntity, entity, ArrayList::new).
                         add(component);
-                collectTypes(clazz, type -> componentsByEntityAndType.
-                        computeIfAbsent(entity, k -> new HashMap<>()).
+                collectTypes(clazz, type -> computeIfAbsent(componentsByEntityAndType, entity, HashMap::new).
                         computeIfAbsent(type, k -> new ArrayList<>()).
                         add(component));
 
@@ -161,6 +163,13 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
         }
     }
 
+    private static <T> T computeIfAbsent(final TLongObjectMap<T> map, final long key, final Supplier<T> supplier) {
+        T value = map.get(key);
+        if (value == null)
+            map.put(key, value = supplier.get());
+        return value;
+    }
+
     // --------------------------------------------------------------------- //
     // EntityComponentManager
 
@@ -168,14 +177,24 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     public long addEntity() throws UnsupportedOperationException {
         requireServerSide();
 
-        final long entity = nextId();
-        addEntity(entity);
-        return entity;
+        lock.lock();
+        try {
+            final long entity = nextId();
+            addEntity(entity);
+            return entity;
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
     public boolean hasEntity(final long entity) {
-        return entities.contains(entity);
+        lock.lock();
+        try {
+            return entities.contains(entity);
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
@@ -183,7 +202,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
         lock.lock();
         try {
             // Remove at the end, so that the entity still exists while components are removed.
-            if (!hasEntity(entity)) {
+            if (!entities.contains(entity)) {
                 return false;
             }
 
@@ -212,19 +231,34 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     public <T extends Component> T addComponent(final long entity, final Class<T> clazz) throws UnsupportedOperationException {
         requireServerSide();
 
-        validateEntity(entity);
-        final long id = nextId();
-        return addComponent(entity, id, clazz);
+        lock.lock();
+        try {
+            validateEntity(entity);
+            final long id = nextId();
+            return addComponent(entity, id, clazz);
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
     public boolean hasComponent(final long component) {
-        return componentsById.containsKey(component);
+        lock.lock();
+        try {
+            return componentsById.containsKey(component);
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
     public boolean hasComponent(final Component component) {
-        return component == componentsById.get(component.getId());
+        lock.lock();
+        try {
+            return component == componentsById.get(component.getId());
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
@@ -265,47 +299,73 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     @Nullable
     @Override
     public Component getComponent(final long id) {
-        return componentsById.get(id);
+        lock.lock();
+        try {
+            return componentsById.get(id);
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> Iterable<T> getComponents(final Class<T> clazz) {
-        if (componentsByType.containsKey(clazz)) {
-            return (Iterable<T>) componentsByType.get(clazz);
-        } else {
-            return Collections.emptyList();
+        lock.lock();
+        try {
+            if (componentsByType.containsKey(clazz)) {
+                return (Iterable<T>) componentsByType.get(clazz);
+            } else {
+                return Collections.emptyList();
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
     public <T> Optional<T> getComponent(final long entity, final Class<T> clazz) {
-        final Iterable<T> components = getComponents(entity, clazz);
-        final Iterator<T> iterator = components.iterator();
-        if (iterator.hasNext()) {
-            return Optional.of(iterator.next());
-        } else {
-            return Optional.empty();
+        lock.lock();
+        try {
+            final Iterable<T> components = getComponents(entity, clazz);
+            final Iterator<T> iterator = components.iterator();
+            if (iterator.hasNext()) {
+                return Optional.of(iterator.next());
+            } else {
+                return Optional.empty();
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> Iterable<T> getComponents(final long entity, final Class<T> clazz) {
-        if (componentsByEntityAndType.containsKey(entity)) {
+        lock.lock();
+        try {
             final HashMap<Class<?>, List<Component>> componentTypes = componentsByEntityAndType.get(entity);
-            return (Iterable<T>) componentTypes.getOrDefault(clazz, Collections.emptyList());
-        } else {
-            return Collections.emptyList();
+            if (componentTypes != null) {
+                return (Iterable<T>) componentTypes.getOrDefault(clazz, Collections.emptyList());
+            } else {
+                return Collections.emptyList();
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
     @Override
     public Iterable<Component> getComponents(final long entity) {
-        if (hasEntity(entity)) {
-            return componentsByEntity.get(entity);
-        } else {
-            return Collections.emptyList();
+        lock.lock();
+        try {
+            final List<Component> components = componentsByEntity.get(entity);
+            if (components != null) {
+                return components;
+            } else {
+                return Collections.emptyList();
+            }
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -379,7 +439,7 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     }
 
     private void validateEntity(final long entity) {
-        if (!hasEntity(entity)) {
+        if (!entities.contains(entity)) {
             throw new IllegalArgumentException("Invalid entity.");
         }
     }
