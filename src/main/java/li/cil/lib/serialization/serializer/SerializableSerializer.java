@@ -123,7 +123,7 @@ public final class SerializableSerializer implements Serializer {
                         value = serialization.getDefault(field.getType());
                     }
 
-                    if (Modifier.isFinal(field.getModifiers()) && !Objects.equals(field.get(instance), value)) {
+                    if (Modifier.isFinal(field.getModifiers()) && ObjectUtils.notEqual(field.get(instance), value)) {
                         ModSillyBee.getLogger().warn("Serialized field '" + clazz.getName() + "." + field.getName() + "' is final but will be assigned a new value.");
                     }
 

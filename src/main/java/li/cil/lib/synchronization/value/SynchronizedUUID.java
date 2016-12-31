@@ -3,10 +3,10 @@ package li.cil.lib.synchronization.value;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import net.minecraft.network.PacketBuffer;
+import org.apache.commons.lang3.ObjectUtils;
 
 import javax.annotation.Nullable;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 @Serializable
@@ -31,7 +31,7 @@ public final class SynchronizedUUID extends AbstractSynchronizedValue {
     }
 
     public void set(@Nullable final UUID value) {
-        if (!Objects.equals(this.value, value)) {
+        if (ObjectUtils.notEqual(this.value, value)) {
             this.value = value;
             setDirty();
         }
