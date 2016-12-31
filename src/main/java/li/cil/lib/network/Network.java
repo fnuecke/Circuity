@@ -1,6 +1,10 @@
 package li.cil.lib.network;
 
 import li.cil.lib.network.handler.MessageHandlerComponentData;
+import li.cil.lib.network.handler.MessageHandlerSpatialUIDataClient;
+import li.cil.lib.network.handler.MessageHandlerSpatialUIDataServer;
+import li.cil.lib.network.handler.MessageHandlerSpatialUISubscribe;
+import li.cil.lib.network.handler.MessageHandlerSpatialUIUnsubscribe;
 import li.cil.lib.network.handler.MessageHandlerSynchronizationInitialize;
 import li.cil.lib.network.handler.MessageHandlerSynchronizationSubscribe;
 import li.cil.lib.network.handler.MessageHandlerSynchronizationUnsubscribeComponent;
@@ -9,6 +13,9 @@ import li.cil.lib.network.handler.MessageHandlerSynchronizeValue;
 import li.cil.lib.network.handler.MessageHandlerTypeInfo;
 import li.cil.lib.network.handler.MessageHandlerTypeInfoList;
 import li.cil.lib.network.message.MessageComponentData;
+import li.cil.lib.network.message.MessageSpatialUIData;
+import li.cil.lib.network.message.MessageSpatialUISubscribe;
+import li.cil.lib.network.message.MessageSpatialUIUnsubscribe;
 import li.cil.lib.network.message.MessageSynchronizationInitialize;
 import li.cil.lib.network.message.MessageSynchronizationSubscribe;
 import li.cil.lib.network.message.MessageSynchronizationUnsubscribeComponent;
@@ -37,7 +44,10 @@ public enum Network {
         SynchronizationUnsubscribeEntity,
         SynchronizationUnsubscribeComponent,
         SynchronizeValue,
-        ComponentData
+        ComponentData,
+        SpatialUISubscribe,
+        SpatialUIUnsubscribe,
+        SpatialUIData
     }
 
     // --------------------------------------------------------------------- //
@@ -66,5 +76,9 @@ public enum Network {
         wrapper.registerMessage(MessageHandlerSynchronizeValue.class, MessageSynchronizeValue.class, Messages.SynchronizeValue.ordinal(), Side.CLIENT);
         wrapper.registerMessage(MessageHandlerComponentData.class, MessageComponentData.class, Messages.ComponentData.ordinal(), Side.CLIENT);
         wrapper.registerMessage(MessageHandlerComponentData.class, MessageComponentData.class, Messages.ComponentData.ordinal(), Side.SERVER);
+        wrapper.registerMessage(MessageHandlerSpatialUISubscribe.class, MessageSpatialUISubscribe.class, Messages.SpatialUISubscribe.ordinal(), Side.SERVER);
+        wrapper.registerMessage(MessageHandlerSpatialUIUnsubscribe.class, MessageSpatialUIUnsubscribe.class, Messages.SpatialUIUnsubscribe.ordinal(), Side.SERVER);
+        wrapper.registerMessage(MessageHandlerSpatialUIDataClient.class, MessageSpatialUIData.class, Messages.SpatialUIData.ordinal(), Side.CLIENT);
+        wrapper.registerMessage(MessageHandlerSpatialUIDataServer.class, MessageSpatialUIData.class, Messages.SpatialUIData.ordinal(), Side.SERVER);
     }
 }

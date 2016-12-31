@@ -5,30 +5,22 @@ import li.cil.lib.api.event.ForwardedFMLServerStartedEvent;
 import li.cil.lib.api.event.ForwardedFMLServerStartingEvent;
 import li.cil.lib.api.event.ForwardedFMLServerStoppedEvent;
 import li.cil.lib.api.event.ForwardedFMLServerStoppingEvent;
-import li.cil.lib.capabilities.ItemHandlerModifiableWrapperProvider;
-import li.cil.lib.capabilities.ItemHandlerWrapperProvider;
-import li.cil.lib.network.Network;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.CapabilityInject;
+import li.cil.lib.common.ProxyCommon;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.common.SidedProxy;
 import net.minecraftforge.fml.common.event.FMLPreInitializationEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartedEvent;
 import net.minecraftforge.fml.common.event.FMLServerStartingEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppedEvent;
 import net.minecraftforge.fml.common.event.FMLServerStoppingEvent;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.IItemHandlerModifiable;
 import org.apache.logging.log4j.Logger;
 
 @Mod(modid = SillyBeeAPI.MOD_ID, name = ModSillyBee.MOD_NAME, version = SillyBeeAPI.MOD_VERSION)
 public final class ModSillyBee {
     public static final String MOD_NAME = "SillyBee";
 
-    @CapabilityInject(IItemHandler.class)
-    public static Capability<IItemHandler> ITEM_HANDLER_CAPABILITY = null;
-
-    @CapabilityInject(IItemHandlerModifiable.class)
-    public static Capability<IItemHandlerModifiable> ITEM_HANDLER_MODIFIABLE_CAPABILITY = null;
+    @SidedProxy(clientSide = "li.cil.lib.client.ProxyClient", serverSide = "li.cil.lib.common.ProxyCommon")
+    private static ProxyCommon proxy;
 
     private static Logger logger;
 
@@ -39,20 +31,7 @@ public final class ModSillyBee {
     @Mod.EventHandler
     public void preInit(final FMLPreInitializationEvent event) {
         logger = event.getModLog();
-
-        Network.init();
-        Scheduler.init();
-
-        Capabilities.init();
-        GlobalObjects.init();
-        Manager.init();
-        Scheduler.init();
-        Serialization.init();
-        Storage.init();
-        Synchronization.init();
-
-        SillyBeeAPI.capabilities.register(ITEM_HANDLER_CAPABILITY, ItemHandlerWrapperProvider.INSTANCE);
-        SillyBeeAPI.capabilities.register(ITEM_HANDLER_MODIFIABLE_CAPABILITY, ItemHandlerModifiableWrapperProvider.INSTANCE);
+        proxy.preInit(event);
     }
 
     @Mod.EventHandler

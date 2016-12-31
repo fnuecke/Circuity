@@ -32,49 +32,56 @@ public final class SillyBeeAPI {
     /**
      * Access to the capabilities API.
      * <p>
-     * This is initialized by the library mod in the pre-init phase.
+     * This is initialized by the library in the pre-init phase.
      */
     public static CapabilitiesAPI capabilities;
 
     /**
      * Access to the global object API.
      * <p>
-     * This is initialized by the mod in the pre-init phase.
+     * This is initialized by the library in the pre-init phase.
      */
     public static GlobalObjectsAPI globalObjects;
 
     /**
+     * Access to the spatial UI API.
+     * <p>
+     * This is initialized by the library in the pre-init phase.
+     */
+    public static SpatialUIAPI spatialUI;
+
+    /**
      * Access to the manager API.
      * <p>
-     * This is initialized by the library mod in the pre-init phase.
+     * This is initialized by the library in the pre-init phase.
      */
     public static ManagerAPI manager;
 
     /**
      * Access to the scheduler API.
      * <p>
-     * This is initialized by the library mod in the pre-init phase.
+     * This is initialized by the library in the pre-init phase.
      */
     public static SchedulerAPI scheduler;
 
     /**
      * Access to the serialization API.
      * <p>
-     * This is initialized by the library mod in the pre-init phase.
+     * This is initialized by the library in the pre-init phase.
      */
     public static SerializationAPI serialization;
 
     /**
      * Access to external data storage API.
      * <p>
-     * This is initialized by the library mod in the pre-init phase.
+     * This is initialized by the library in the pre-init phase.
      */
     public static StorageAPI storage;
 
     /**
      * Access to the synchronization API.
      * <p>
-     * This is initialized by the library mod in the pre-init phase.
+     * This is initialized by the library in the pre-init phase.
      */
     public static SynchronizationAPI synchronization;
 
