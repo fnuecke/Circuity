@@ -9,49 +9,18 @@ import li.cil.lib.api.math.Vector2;
 import sun.plugin.dom.exception.InvalidStateException;
 
 public abstract class AbstractLinearLayout implements Layout {
-    private boolean expandWidth, expandHeight;
     private Alignment.Horizontal horizontalAlignment = Alignment.Horizontal.LEFT;
     private Alignment.Vertical verticalAlignment = Alignment.Vertical.TOP;
+    private Vector2 horizontalPadding = Vector2.ZERO, verticalPadding = Vector2.ZERO;
+    private boolean expandWidth, expandHeight;
 
     // --------------------------------------------------------------------- //
-
-    public boolean shouldExpandWidth() {
-        return expandWidth;
-    }
-
-    public AbstractLinearLayout setExpandWidth(final boolean value) {
-        if (value == expandWidth) {
-            return this;
-        }
-
-        expandWidth = value;
-
-        return this;
-    }
-
-    public boolean shouldExpandHeight() {
-        return expandHeight;
-    }
-
-    public AbstractLinearLayout setExpandHeight(final boolean value) {
-        if (value == expandHeight) {
-            return this;
-        }
-
-        expandHeight = value;
-
-        return this;
-    }
 
     public Alignment.Horizontal getHorizontalAlignment() {
         return horizontalAlignment;
     }
 
     public AbstractLinearLayout setHorizontalAlignment(final Alignment.Horizontal value) {
-        if (value == horizontalAlignment) {
-            return this;
-        }
-
         horizontalAlignment = value;
 
         return this;
@@ -62,11 +31,74 @@ public abstract class AbstractLinearLayout implements Layout {
     }
 
     public AbstractLinearLayout setVerticalAlignment(final Alignment.Vertical value) {
-        if (value == verticalAlignment) {
-            return this;
-        }
-
         verticalAlignment = value;
+
+        return this;
+    }
+
+    public int getPaddingLeft() {
+        return (int) horizontalPadding.get(0);
+    }
+
+    public AbstractLinearLayout setPaddingLeft(final int value) {
+        horizontalPadding = horizontalPadding.set(0, value);
+
+        return this;
+    }
+
+    public int getPaddingRight() {
+        return (int) horizontalPadding.get(1);
+    }
+
+    public AbstractLinearLayout setPaddingRight(final int value) {
+        horizontalPadding = horizontalPadding.set(1, value);
+
+        return this;
+    }
+
+    public int getPaddingTop() {
+        return (int) verticalPadding.get(0);
+    }
+
+    public AbstractLinearLayout setPaddingTop(final int value) {
+        verticalPadding = verticalPadding.set(0, value);
+
+        return this;
+    }
+
+    public int getPaddingBottom() {
+        return (int) verticalPadding.get(1);
+    }
+
+    public AbstractLinearLayout setPaddingBottom(final int value) {
+        verticalPadding = verticalPadding.set(1, value);
+
+        return this;
+    }
+
+    public AbstractLinearLayout setPadding(final int left, final int right, final int top, final int bottom) {
+        horizontalPadding = new Vector2(left, right);
+        verticalPadding = new Vector2(top, bottom);
+
+        return this;
+    }
+
+    public boolean shouldExpandWidth() {
+        return expandWidth;
+    }
+
+    public AbstractLinearLayout setExpandWidth(final boolean value) {
+        expandWidth = value;
+
+        return this;
+    }
+
+    public boolean shouldExpandHeight() {
+        return expandHeight;
+    }
+
+    public AbstractLinearLayout setExpandHeight(final boolean value) {
+        expandHeight = value;
 
         return this;
     }
@@ -101,10 +133,18 @@ public abstract class AbstractLinearLayout implements Layout {
             totalWeight0 += layoutable.getFlexibleSize().get(dim0);
         }
 
-        final int surplusSize0 = containerSize0 - totalSize0;
+        final int paddingBefore0 = computePaddingBefore(dim0);
+        final int paddingAfter0 = computePaddingAfter(dim0);
+        final int availableSize0 = containerSize0 - paddingBefore0 - paddingAfter0;
+
+        final int paddingBefore1 = computePaddingBefore(dim1);
+        final int paddingAfter1 = computePaddingAfter(dim1);
+        final int availableSize1 = containerSize1 - paddingBefore1 - paddingAfter1;
+
+        final int surplusSize0 = availableSize0 - totalSize0;
         final boolean canExpand = shouldExpand(dim0) && surplusSize0 > 0 && totalWeight0 > 0;
 
-        int offset0 = canExpand ? 0 : computeOffset(dim0, totalSize0, containerSize0);
+        int offset0 = (canExpand ? 0 : computeOffset(dim0, totalSize0, availableSize0)) + paddingBefore0;
         for (final Widget child : container.getChildren()) {
             if (!(child instanceof Layoutable)) {
                 continue;
@@ -131,13 +171,14 @@ public abstract class AbstractLinearLayout implements Layout {
 
             offset0 += size0;
 
-            if (shouldExpand(dim1) && containerSize1 > preferredSize1) {
-                final int size1 = Math.max(minSize1, containerSize1);
+            if (shouldExpand(dim1) && availableSize1 > preferredSize1) {
+                final int size1 = Math.max(minSize1, availableSize1);
                 size = size.set(dim1, size1);
+                position = position.set(dim1, paddingBefore1);
             } else {
-                final int size1 = Math.max(minSize1, Math.min(containerSize1, preferredSize1));
+                final int size1 = Math.max(minSize1, Math.min(availableSize1, preferredSize1));
                 size = size.set(dim1, size1);
-                final int offset1 = computeOffset(dim1, (int) size.get(dim1), containerSize1);
+                final int offset1 = computeOffset(dim1, (int) size.get(dim1), availableSize1) + paddingBefore1;
                 position = position.set(dim1, offset1);
             }
 
@@ -150,6 +191,28 @@ public abstract class AbstractLinearLayout implements Layout {
 
     private int getSecondaryDimension() {
         return 1 - getPrimaryDimension();
+    }
+
+    private int computePaddingBefore(final int dimension) {
+        switch (dimension) {
+            case 0:
+                return (int) horizontalPadding.x;
+            case 1:
+                return (int) verticalPadding.x;
+            default:
+                throw new IllegalStateException();
+        }
+    }
+
+    private int computePaddingAfter(final int dimension) {
+        switch (dimension) {
+            case 0:
+                return (int) horizontalPadding.y;
+            case 1:
+                return (int) verticalPadding.y;
+            default:
+                throw new IllegalStateException();
+        }
     }
 
     private int computeOffset(final int dimension, final int inner, final int outer) {
