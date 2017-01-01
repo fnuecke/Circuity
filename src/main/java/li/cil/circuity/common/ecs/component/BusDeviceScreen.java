@@ -17,7 +17,7 @@ import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.api.bus.device.util.SerialPortManager;
 import li.cil.circuity.client.gui.GuiType;
 import li.cil.circuity.common.Constants;
-import li.cil.circuity.common.bus.util.SerialPortManagerProxy;
+import li.cil.circuity.server.bus.util.SerialPortManagerProxy;
 import li.cil.circuity.util.GUIUtil;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.event.ActivationListener;

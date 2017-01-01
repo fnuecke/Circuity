@@ -127,21 +127,21 @@ public enum SpatialUIProviderServerInterruptable implements SpatialUIProviderSer
                     final int count = sink.getAcceptedInterrupts();
                     changed = setSize(sinkNames, count);
 
-                    final PrimitiveIterator.OfInt ids = mapper.getInterruptSinkIds(sink);
+                    final PrimitiveIterator.OfInt sinkIds = mapper.getInterruptSinkIds(sink);
                     for (int i = 0; i < count; i++) {
                         final NBTTagCompound tag = sinkNames.getCompoundTagAt(i);
 
-                        assert ids.hasNext() : "interrupt mapper provided sink ids do not match interrupt sink";
-                        final int id = ids.nextInt();
+                        assert sinkIds.hasNext() : "interrupt mapper provided sink ids do not match interrupt sink";
+                        final int sinkId = sinkIds.nextInt();
 
                         final ITextComponent name = sink.getAcceptedInterruptName(i);
                         final String json = ITextComponent.Serializer.componentToJson(name);
 
-                        if (id != tag.getInteger(ID_TAG) || ObjectUtils.notEqual(json, tag.getString(NAME_TAG))) {
+                        if (sinkId != tag.getInteger(ID_TAG) || ObjectUtils.notEqual(json, tag.getString(NAME_TAG))) {
                             changed = true;
                         }
 
-                        tag.setInteger(ID_TAG, id);
+                        tag.setInteger(ID_TAG, sinkId);
                         tag.setString(NAME_TAG, json);
                     }
                 }
@@ -152,21 +152,21 @@ public enum SpatialUIProviderServerInterruptable implements SpatialUIProviderSer
                     final int count = source.getEmittedInterrupts();
                     changed = setSize(sourceNames, count);
 
-                    final PrimitiveIterator.OfInt ids = mapper.getInterruptSourceIds(source);
+                    final PrimitiveIterator.OfInt sourceIds = mapper.getInterruptSourceIds(source);
                     for (int i = 0; i < count; i++) {
                         final NBTTagCompound tag = sourceNames.getCompoundTagAt(i);
 
-                        assert ids.hasNext() : "interrupt mapper provided source ids do not match interrupt source";
-                        final int id = ids.nextInt();
+                        assert sourceIds.hasNext() : "interrupt mapper provided source ids do not match interrupt source";
+                        final int sourceId = sourceIds.nextInt();
 
                         final ITextComponent name = source.getEmittedInterruptName(i);
                         final String json = ITextComponent.Serializer.componentToJson(name);
 
-                        if (id != tag.getInteger(ID_TAG) || ObjectUtils.notEqual(json, tag.getString(NAME_TAG))) {
+                        if (sourceId != tag.getInteger(ID_TAG) || ObjectUtils.notEqual(json, tag.getString(NAME_TAG))) {
                             changed = true;
                         }
 
-                        tag.setInteger(ID_TAG, id);
+                        tag.setInteger(ID_TAG, sourceId);
                         tag.setString(NAME_TAG, json);
                     }
                 }

@@ -1,4 +1,4 @@
-package li.cil.circuity.common.bus.controller;
+package li.cil.circuity.server.bus.controller;
 
 import li.cil.circuity.api.bus.BusDevice;
 import li.cil.circuity.api.bus.BusElement;

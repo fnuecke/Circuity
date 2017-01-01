@@ -10,7 +10,7 @@ import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.api.bus.device.util.SerialPortManager;
 import li.cil.circuity.common.Constants;
-import li.cil.circuity.common.bus.util.SerialPortManagerProxy;
+import li.cil.circuity.server.bus.util.SerialPortManagerProxy;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.serialization.Serializable;

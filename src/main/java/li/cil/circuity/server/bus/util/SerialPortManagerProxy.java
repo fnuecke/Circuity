@@ -1,4 +1,4 @@
-package li.cil.circuity.common.bus.util;
+package li.cil.circuity.server.bus.util;
 
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.Addressable;

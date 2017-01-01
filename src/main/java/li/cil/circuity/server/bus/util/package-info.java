@@ -1,6 +1,6 @@
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-package li.cil.circuity.common.bus.controller;
+package li.cil.circuity.server.bus.util;
 
 import mcp.MethodsReturnNonnullByDefault;
 
