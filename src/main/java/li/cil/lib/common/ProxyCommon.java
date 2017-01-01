@@ -1,13 +1,5 @@
 package li.cil.lib.common;
 
-import li.cil.lib.Capabilities;
-import li.cil.lib.GlobalObjects;
-import li.cil.lib.Manager;
-import li.cil.lib.Scheduler;
-import li.cil.lib.Serialization;
-import li.cil.lib.SpatialUI;
-import li.cil.lib.Storage;
-import li.cil.lib.Synchronization;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.capabilities.CapabilityEntityContainer;
 import li.cil.lib.capabilities.ItemHandlerModifiableWrapperProvider;

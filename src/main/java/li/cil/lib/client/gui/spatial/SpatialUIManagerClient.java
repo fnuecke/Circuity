@@ -1,7 +1,7 @@
 package li.cil.lib.client.gui.spatial;
 
 import li.cil.lib.ModSillyBee;
-import li.cil.lib.SpatialUI;
+import li.cil.lib.common.SpatialUI;
 import li.cil.lib.api.gui.input.InputEvent;
 import li.cil.lib.api.gui.spatial.SpatialUIClient;
 import li.cil.lib.api.gui.spatial.SpatialUIProviderClient;

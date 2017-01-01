@@ -1,7 +1,8 @@
-package li.cil.lib;
+package li.cil.lib.common;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import li.cil.lib.ModSillyBee;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.StorageAPI;
 import li.cil.lib.api.event.ForwardedFMLServerStoppedEvent;

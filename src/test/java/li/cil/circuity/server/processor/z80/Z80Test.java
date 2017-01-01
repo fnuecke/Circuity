@@ -2,10 +2,10 @@ package li.cil.circuity.server.processor.z80;
 
 import li.cil.circuity.common.ecs.component.BusDeviceRandomAccessMemory;
 import li.cil.circuity.common.ecs.component.BusDeviceProcessorZ80;
-import li.cil.lib.Manager;
-import li.cil.lib.Scheduler;
-import li.cil.lib.Serialization;
-import li.cil.lib.Synchronization;
+import li.cil.lib.common.Manager;
+import li.cil.lib.common.Scheduler;
+import li.cil.lib.common.Serialization;
+import li.cil.lib.common.Synchronization;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import net.minecraft.init.Bootstrap;

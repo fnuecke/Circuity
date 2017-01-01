@@ -5,6 +5,7 @@ import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.api.serialization.SerializerCollection;
+import li.cil.lib.common.Serialization;
 import net.minecraftforge.fml.relauncher.Side;
 import org.junit.Test;
 

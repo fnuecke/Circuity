@@ -88,10 +88,18 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
             if (device.buffer.isWritable()) {
                 device.buffer.write(data.readByte());
             }
+
             final BusController controller = device.getBusController();
-            if (controller != null) {
-                controller.getSubsystem(InterruptMapper.class).interrupt(device, 0, 0);
+            if (controller == null) {
+                return;
             }
+
+            final InterruptMapper mapper = controller.getSubsystem(InterruptMapper.class);
+            if (mapper == null) {
+                return;
+            }
+
+            mapper.interrupt(device, 0, 0);
         }
     }
 

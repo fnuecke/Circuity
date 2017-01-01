@@ -1,7 +1,7 @@
 package li.cil.lib.network.message;
 
 import io.netty.buffer.ByteBuf;
-import li.cil.lib.Synchronization;
+import li.cil.lib.common.Synchronization;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.synchronization.SynchronizationManagerServerImpl;

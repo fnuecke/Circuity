@@ -1,6 +1,6 @@
 package li.cil.lib.network.handler;
 
-import li.cil.lib.Synchronization;
+import li.cil.lib.common.Synchronization;
 import li.cil.lib.network.message.MessageTypeInfoList;
 import li.cil.lib.synchronization.SynchronizationManagerClientImpl;
 import net.minecraftforge.fml.common.network.simpleimpl.IMessage;

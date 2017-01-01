@@ -160,6 +160,10 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
         @Override
         public void handleBusOnline() {
             final AddressMapper mapper = controller.getSubsystem(AddressMapper.class);
+            if (mapper == null) {
+                return;
+            }
+
             try {
                 IntelHexLoader.load(Files.readAllLines(Paths.get("F:\\sdcc\\monitor.ihx")), mapper::mapAndWrite);
             } catch (IOException | IllegalArgumentException e) {

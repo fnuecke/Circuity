@@ -1,5 +1,6 @@
 package li.cil.lib.api.ecs.component;
 
+import li.cil.lib.api.ManagerAPI;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
@@ -27,7 +28,7 @@ public interface Location extends Component {
     /**
      * The world the component's entity resides in.
      * <p>
-     * This should be the same as what {@link li.cil.lib.Manager#getWorld(EntityComponentManager, boolean)}
+     * This should be the same as what {@link ManagerAPI#getWorld(EntityComponentManager, boolean)}
      * returns for the component's manager (with the remote flag being that of the returned world).
      *
      * @return the world the component's entity resides in.

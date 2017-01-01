@@ -1,4 +1,4 @@
-package li.cil.lib;
+package li.cil.lib.common;
 
 import li.cil.lib.api.GlobalObjectsAPI;
 import li.cil.lib.api.SillyBeeAPI;

@@ -1,7 +1,7 @@
 package li.cil.lib.network.handler;
 
-import li.cil.lib.Manager;
-import li.cil.lib.Synchronization;
+import li.cil.lib.common.Manager;
+import li.cil.lib.common.Synchronization;
 import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.ecs.manager.EntityComponentManagerImpl;
 import li.cil.lib.network.message.MessageSynchronizationUnsubscribeComponent;

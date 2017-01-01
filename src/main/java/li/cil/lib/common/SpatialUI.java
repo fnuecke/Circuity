@@ -1,5 +1,6 @@
-package li.cil.lib;
+package li.cil.lib.common;
 
+import li.cil.lib.ModSillyBee;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.SpatialUIAPI;
 import li.cil.lib.api.gui.spatial.SpatialUIProviderClient;

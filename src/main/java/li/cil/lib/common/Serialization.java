@@ -1,4 +1,4 @@
-package li.cil.lib;
+package li.cil.lib.common;
 
 import li.cil.lib.api.SerializationAPI;
 import li.cil.lib.api.SillyBeeAPI;

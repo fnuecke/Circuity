@@ -12,6 +12,7 @@ import li.cil.lib.api.ecs.component.LateTickable;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
 import li.cil.lib.api.ecs.manager.event.ComponentChangeListener;
 import li.cil.lib.api.ecs.manager.event.EntityChangeListener;
+import li.cil.lib.common.Manager;
 import net.minecraft.util.ITickable;
 import net.minecraft.world.World;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
@@ -372,8 +373,8 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     // --------------------------------------------------------------------- //
 
     /**
-     * Called at the beginning of each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
-     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
+     * Called at the beginning of each tick from {@link Manager#handleClientTick(TickEvent.ClientTickEvent)}
+     * or {@link Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
      * <p>
      * Processes lists of added and removed components, then updates all
      * tickable components currently managed by this manager.
@@ -383,8 +384,8 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     }
 
     /**
-     * Called at the end of each tick from {@link li.cil.lib.Manager#handleClientTick(TickEvent.ClientTickEvent)}
-     * or {@link li.cil.lib.Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
+     * Called at the end of each tick from {@link Manager#handleClientTick(TickEvent.ClientTickEvent)}
+     * or {@link Manager#handleServerTick(TickEvent.ServerTickEvent)} (depending on which side this manager is on).
      * <p>
      * Processes lists of added and removed components, then updates all
      * tickable components currently managed by this manager.

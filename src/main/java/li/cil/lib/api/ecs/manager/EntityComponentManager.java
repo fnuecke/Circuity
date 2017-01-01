@@ -1,6 +1,6 @@
 package li.cil.lib.api.ecs.manager;
 
-import li.cil.lib.Manager;
+import li.cil.lib.api.ManagerAPI;
 import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.manager.event.ComponentChangeListener;
 import li.cil.lib.api.ecs.manager.event.EntityChangeListener;
@@ -13,7 +13,7 @@ import java.util.Optional;
  * A manager keeping track of a list of entities and their components.
  * <p>
  * Typically there's one manager per world. To obtain an instance of a manager,
- * use the methods available in the {@link Manager} class.
+ * use the methods available in the {@link ManagerAPI} class.
  * <p>
  * Note that entities and components may only be created and removed on the
  * server side. To create an entity client side manually (this is automatically
@@ -31,7 +31,7 @@ import java.util.Optional;
  * case of nested entities, however, you will always need to initiate and stop
  * synchronization manually.
  *
- * @see Manager
+ * @see ManagerAPI
  */
 @SuppressWarnings("unused")
 public interface EntityComponentManager {

@@ -7,6 +7,7 @@ import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.serialization.Serializable;
 import li.cil.lib.api.serialization.Serialize;
 import li.cil.lib.api.synchronization.SynchronizationManagerServer;
+import li.cil.lib.common.Serialization;
 import li.cil.lib.synchronization.value.SynchronizedArray;
 import li.cil.lib.synchronization.value.SynchronizedBoolean;
 import li.cil.lib.synchronization.value.SynchronizedByte;
