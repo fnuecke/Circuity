@@ -42,6 +42,6 @@ public class InventoryMutable extends InventoryImmutable implements ItemHandlerM
         if (capability == ITEM_HANDLER_MODIFIABLE_CAPABILITY) {
             return ITEM_HANDLER_MODIFIABLE_CAPABILITY.cast(this);
         }
-        return null;
+        return super.getCapability(capability, facing);
     }
 }
