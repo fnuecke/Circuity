@@ -1,12 +1,12 @@
 package li.cil.lib.client.gui.spatial;
 
 import li.cil.lib.ModSillyBee;
-import li.cil.lib.common.SpatialUI;
 import li.cil.lib.api.gui.input.InputEvent;
 import li.cil.lib.api.gui.spatial.SpatialUIClient;
 import li.cil.lib.api.gui.spatial.SpatialUIProviderClient;
 import li.cil.lib.api.gui.spatial.SpatialUIProviderServer;
 import li.cil.lib.api.math.Vector2;
+import li.cil.lib.common.SpatialUI;
 import li.cil.lib.common.gui.spatial.SpatialUIManagerServer;
 import li.cil.lib.network.Network;
 import li.cil.lib.network.message.MessageSpatialUISubscribe;
@@ -36,6 +36,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import org.lwjgl.opengl.GL11;
 
+import javax.annotation.Nullable;
 import java.util.Objects;
 import java.util.function.Consumer;
 
@@ -138,8 +139,23 @@ public final class SpatialUIManagerClient {
     }
 
     @SubscribeEvent
+    public void handleLeftClick(final PlayerInteractEvent.LeftClickEmpty event) {
+        handleClick(event, null); // Cancel this event if a spatial UI is shown.
+    }
+
+    @SubscribeEvent
     public void handleRightClick(final PlayerInteractEvent.RightClickBlock event) {
         handleClick(event, this::handleRightClickClient);
+    }
+
+    @SubscribeEvent
+    public void handleRightClick(final PlayerInteractEvent.RightClickEmpty event) {
+        handleClick(event, null); // Cancel this event if a spatial UI is shown.
+    }
+
+    @SubscribeEvent
+    public void handleRightClick(final PlayerInteractEvent.RightClickItem event) {
+        handleClick(event, null); // Cancel this event if a spatial UI is shown.
     }
 
     @SubscribeEvent
@@ -252,7 +268,7 @@ public final class SpatialUIManagerClient {
         GlStateManager.scale(-1, -1, 1);
     }
 
-    private void handleClick(final PlayerInteractEvent event, final Consumer<PlayerInteractEvent> clickHandler) {
+    private void handleClick(final PlayerInteractEvent event, @Nullable final Consumer<PlayerInteractEvent> clickHandler) {
         if (event.getSide() == Side.SERVER) {
             if (event.getEntityPlayer() instanceof EntityPlayerMP) {
                 final NetHandlerPlayServer client = ((EntityPlayerMP) event.getEntityPlayer()).connection;
@@ -264,7 +280,9 @@ public final class SpatialUIManagerClient {
             synchronized (writeLock) {
                 if (currentUI != null) {
                     event.setCanceled(true);
-                    clickHandler.accept(event);
+                    if (clickHandler != null) {
+                        clickHandler.accept(event);
+                    }
                 }
             }
         }
