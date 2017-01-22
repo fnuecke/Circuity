@@ -31,7 +31,7 @@ public interface ExternalData {
      * As such you may store a direct reference to the byte buffer. In fact, it
      * is strongly encouraged to do so, as failing to do so may lead to the
      * underlying data getting garbage collected and reloaded in the next call,
-     * which will typically pretty bad performance-wise.
+     * which will typically be pretty bad performance-wise.
      * <p>
      * Modify this buffer as you see fit, but make sure to call {@link #markChanged()}
      * if you wish the changes to persist, as they will not be flushed to disk
