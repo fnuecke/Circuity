@@ -20,6 +20,14 @@ public class RingBuffer {
         writeIdx = readIdx = 0;
     }
 
+    public int size() {
+        if (readIdx <= writeIdx) {
+            return writeIdx - readIdx;
+        } else {
+            return writeIdx + buffer.length - readIdx;
+        }
+    }
+
     public boolean isReadable() {
         return (readIdx % buffer.length) != (writeIdx % buffer.length);
     }
