@@ -13,6 +13,8 @@ public final class Constants {
     public static final String CONFIGURATOR_NAME = "configurator";
     public static final String EEPROM_NAME = "eeprom";
     public static final String EEPROM_READER_NAME = "eeprom_reader";
+    public static final String FLOPPY_DISK_NAME = "floppy_disk";
+    public static final String FLOPPY_DISK_DRIVE_NAME = "floppy_disk_drive";
     public static final String PROCESSOR_MIPS3_NAME = "processor_mips3";
     public static final String PROCESSOR_Z80_NAME = "processor_z80";
     public static final String RANDOM_ACCESS_MEMORY_NAME = "random_access_memory";
@@ -62,7 +64,7 @@ public final class Constants {
     public static final class DeviceInfo {
         public static final String BUS_CONTROLLER_NAME = "Bus Controller";
         public static final String EEPROM_READER_NAME = "EEPROM Reader";
-        public static final String HARD_DISK_DRIVE_NAME = "HDD";
+        public static final String FLOPPY_DISK_DRIVE_NAME = "Floppy";
         public static final String RANDOM_ACCESS_MEMORY_NAME = "RAM";
         public static final String REDSTONE_CONTROLLER_NAME = "Redstone Controller";
         public static final String SCREEN_NAME = "Screen";

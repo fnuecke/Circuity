@@ -1,6 +1,6 @@
 @ParametersAreNonnullByDefault
 @MethodsReturnNonnullByDefault
-package li.cil.circuity.common.capabilities.hdd;
+package li.cil.circuity.common.capabilities.fdd;
 
 import mcp.MethodsReturnNonnullByDefault;
 

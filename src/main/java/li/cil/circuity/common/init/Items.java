@@ -5,6 +5,7 @@ import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.Globals;
 import li.cil.circuity.common.item.ItemConfigurator;
 import li.cil.circuity.common.item.ItemEEPROM;
+import li.cil.circuity.common.item.ItemFloppyDisk;
 import net.minecraft.block.Block;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemBlock;
@@ -16,6 +17,8 @@ public final class Items {
     public static Item configurator;
     public static Item eeprom;
     public static Item eepromReader;
+    public static Item floppyDisk;
+    public static Item floppyDiskDrive;
     public static Item processorMips3;
     public static Item processorZ80;
     public static Item randomAccessMemory;
@@ -29,6 +32,8 @@ public final class Items {
         configurator = register(new ItemConfigurator(), Constants.CONFIGURATOR_NAME);
         eeprom = register(new ItemEEPROM(), Constants.EEPROM_NAME);
         eepromReader = register(Blocks.eepromReader);
+        floppyDisk = register(new ItemFloppyDisk(), Constants.FLOPPY_DISK_NAME);
+        floppyDiskDrive = register(Blocks.floppyDiskDrive);
         processorMips3 = register(Blocks.processorMips3);
         processorZ80 = register(Blocks.processorZ80);
         randomAccessMemory = register(Blocks.randomAccessMemory);

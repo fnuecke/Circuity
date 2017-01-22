@@ -5,7 +5,7 @@ import li.cil.circuity.client.gui.spatial.SpatialUIProviderClientAddressable;
 import li.cil.circuity.client.gui.spatial.SpatialUIProviderClientInterruptable;
 import li.cil.circuity.common.capabilities.CapabilityBusElement;
 import li.cil.circuity.common.capabilities.eeprom.CapabilityEEPROM;
-import li.cil.circuity.common.capabilities.hdd.CapabilityHardDiskDrive;
+import li.cil.circuity.common.capabilities.fdd.CapabilityFloppyDisk;
 import li.cil.circuity.common.init.Blocks;
 import li.cil.circuity.common.init.Items;
 import li.cil.circuity.server.gui.spatial.SpatialUIProviderServerAddressMapping;
@@ -25,7 +25,7 @@ public abstract class ProxyCommon {
         Items.init();
 
         CapabilityBusElement.register();
-        CapabilityHardDiskDrive.register();
+        CapabilityFloppyDisk.register();
         CapabilityEEPROM.register();
     }
 

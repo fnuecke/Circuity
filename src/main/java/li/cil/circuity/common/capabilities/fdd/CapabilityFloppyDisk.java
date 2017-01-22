@@ -1,23 +1,23 @@
-package li.cil.circuity.common.capabilities.hdd;
+package li.cil.circuity.common.capabilities.fdd;
 
-import li.cil.circuity.api.item.HardDiskDrive;
+import li.cil.circuity.api.item.FloppyDisk;
 import li.cil.circuity.common.capabilities.storage.StorageMediumStorage;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityInject;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 
-public final class CapabilityHardDiskDrive {
-    @CapabilityInject(HardDiskDrive.class)
-    public static Capability<HardDiskDrive> HARD_DISK_DRIVE_CAPABILITY;
+public final class CapabilityFloppyDisk {
+    @CapabilityInject(FloppyDisk.class)
+    public static Capability<FloppyDisk> FLOPPY_DISK_CAPABILITY;
 
     // --------------------------------------------------------------------- //
 
     public static void register() {
-        CapabilityManager.INSTANCE.register(HardDiskDrive.class, new StorageMediumStorage<>(), HardDiskDriveImpl::new);
+        CapabilityManager.INSTANCE.register(FloppyDisk.class, new StorageMediumStorage<>(), FloppyDiskImpl::new);
     }
 
     // --------------------------------------------------------------------- //
 
-    private CapabilityHardDiskDrive() {
+    private CapabilityFloppyDisk() {
     }
 }
