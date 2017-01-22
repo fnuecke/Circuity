@@ -120,6 +120,11 @@ public class DeviceMapperImpl implements DeviceMapper, ElementManager, SerialInt
         manager.addSerialPort(this::readSelectedDevice, this::writeSelectedDevice, null);
         manager.addSerialPort(this::readDeviceType, null, null);
         manager.addSerialPort(this::readDeviceName, this::writeResetDeviceNameIndex, null);
+        // Reserved/padding.
+        manager.addNullPort();
+        manager.addNullPort();
+        manager.addNullPort();
+        manager.addNullPort();
     }
 
     // --------------------------------------------------------------------- //

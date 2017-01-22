@@ -219,6 +219,7 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
     public void reset() {
         addressShift = 0;
         sizeShift = 0;
+        selectedMapping = 0;
     }
 
     @Override
@@ -241,6 +242,12 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
         manager.addSerialPort(this::readDeviceAddress, this::writeResetDeviceAddressShift, null);
         manager.addSerialPort(this::readDeviceSize, this::writeResetDeviceSizeShift, null);
         manager.addSerialPort(this::readSelectedMapping, this::writeSelectedMapping, null);
+        // Reserved/padding.
+        manager.addNullPort();
+        manager.addNullPort();
+        manager.addNullPort();
+        manager.addNullPort();
+        manager.addNullPort();
     }
 
     public void handleSelectedDeviceChanged(final BusDevice newDevice) {
@@ -390,6 +397,18 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
 
         public boolean validate() {
             synchronized (lock) {
+                for (final Addressable addressable : deviceToAddress.keySet()) {
+                    final AddressBlock addressBlock = deviceToAddress.get(addressable);
+                    final AddressBlock preferredAddressBlock = addressable.getPreferredAddressBlock(FULL_ADDRESS_BLOCK).clamp(FULL_ADDRESS_BLOCK);
+                    if (addressBlock.getLength() != preferredAddressBlock.getLength()) {
+                        final AddressBlock newAddressBlock = preferredAddressBlock.at(addressBlock.getOffset());
+                        deviceToAddress.put(addressable, newAddressBlock);
+                        persistentDeviceToAddress.put(addressable.getPersistentId(), newAddressBlock);
+                        addressToDevice.remove(addressBlock.getOffset(), addressable);
+                        addressToDevice.tryAdd(addressable, newAddressBlock.getOffset(), newAddressBlock.getLength());
+                    }
+                }
+
                 for (final Addressable addressable : pendingAdds) {
                     final AddressBlock addressBlock = tryGetFreeAddress(addressable);
                     deviceToAddress.put(addressable, addressBlock);

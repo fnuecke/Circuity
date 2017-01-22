@@ -192,6 +192,14 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     public AbstractBusController() {
         serialPortManager.setPreferredAddressOffset(Constants.BUS_CONTROLLER_ADDRESS);
         serialPortManager.addSerialPort(this::readAPIVersion, null, null);
+        // Reserved/padding.
+        serialPortManager.addNullPort();
+        serialPortManager.addNullPort();
+        serialPortManager.addNullPort();
+        serialPortManager.addNullPort();
+        serialPortManager.addNullPort();
+        serialPortManager.addNullPort();
+        serialPortManager.addNullPort();
 
         // TODO Populate based on some registry in which addons can register additional subsystems?
         final DeviceMapperImpl selector = new DeviceMapperImpl(this);
@@ -361,7 +369,7 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     }
 
     // --------------------------------------------------------------------- //
-    // BusStateAware
+    // BusStateListener
 
     @Override
     public void handleBusOnline() {
