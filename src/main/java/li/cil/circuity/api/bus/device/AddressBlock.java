@@ -84,7 +84,7 @@ public final class AddressBlock implements INBTSerializable<NBTTagCompound> {
     }
 
     public AddressBlock clamp(final AddressBlock that) {
-        return new AddressBlock(Math.max(offset, that.offset), Math.min(offset + length, that.offset + that.length));
+        return new AddressBlock(Math.max(offset, that.offset), Math.min(length, that.offset + that.length - offset));
     }
 
     public AddressBlock at(final long offset) {
