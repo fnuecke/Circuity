@@ -2,9 +2,7 @@ package li.cil.circuity.common.ecs.component;
 
 import io.netty.buffer.ByteBuf;
 import li.cil.circuity.ModCircuity;
-import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusElement;
-import li.cil.circuity.api.bus.controller.InterruptMapper;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
@@ -12,7 +10,6 @@ import li.cil.circuity.api.bus.device.BusChangeListener;
 import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
-import li.cil.circuity.api.bus.device.InterruptSource;
 import li.cil.circuity.api.bus.device.ScreenRenderer;
 import li.cil.circuity.api.bus.device.util.SerialPortManager;
 import li.cil.circuity.client.gui.GuiType;
@@ -89,17 +86,7 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
                 device.buffer.write(data.readByte());
             }
 
-            final BusController controller = device.getBusController();
-            if (controller == null) {
-                return;
-            }
-
-            final InterruptMapper mapper = controller.getSubsystem(InterruptMapper.class);
-            if (mapper == null) {
-                return;
-            }
-
-            mapper.interrupt(device, 0, 0);
+            device.triggerInterrupt(0, 0);
         }
     }
 
@@ -130,7 +117,7 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.SCREEN, Constants.DeviceInfo.SCREEN_NAME);
 
     @Serializable
-    public final class ScreenImpl extends AbstractBusDevice implements Addressable, AddressHint, InterruptSource, BusStateListener, BusChangeListener, SerialPortManagerProxy {
+    public final class ScreenImpl extends AbstractBusDevice implements Addressable, AddressHint, InterruptSourceProxy, BusStateListener, BusChangeListener, SerialPortManagerProxy {
         private final SerialPortManager serialPortManager = new SerialPortManager();
         private final List<ScreenRenderer> renderers = new ArrayList<>();
 
@@ -151,6 +138,7 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
             serialPortManager.addSerialPort(this::readSelectedRenderer, this::writeSelectedRenderer, null);
             serialPortManager.addSerialPort(this::readSelectedUUID, this::writeResetUUIDIndex, null);
             serialPortManager.addSerialPort(this::readKey, null, null);
+            serialPortManager.addSerialPort(this::readQueueSize, null, null);
         }
 
         // --------------------------------------------------------------------- //
@@ -251,6 +239,12 @@ public class BusDeviceScreen extends AbstractComponentBusDevice implements Activ
         private int readKey(final long address) {
             synchronized (BusDeviceScreen.this.lock) {
                 return buffer.isReadable() ? buffer.read() : 0;
+            }
+        }
+
+        private int readQueueSize(final long address) {
+            synchronized (BusDeviceScreen.this.lock) {
+                return buffer.size();
             }
         }
 
