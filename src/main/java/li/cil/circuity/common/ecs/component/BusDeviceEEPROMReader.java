@@ -3,18 +3,15 @@ package li.cil.circuity.common.ecs.component;
 import io.netty.buffer.ByteBuf;
 import li.cil.circuity.api.bus.BusController;
 import li.cil.circuity.api.bus.BusElement;
-import li.cil.circuity.api.bus.controller.AddressMapper;
 import li.cil.circuity.api.bus.device.AbstractBusDevice;
 import li.cil.circuity.api.bus.device.AddressBlock;
 import li.cil.circuity.api.bus.device.AddressHint;
 import li.cil.circuity.api.bus.device.Addressable;
-import li.cil.circuity.api.bus.device.BusStateListener;
 import li.cil.circuity.api.bus.device.DeviceInfo;
 import li.cil.circuity.api.bus.device.DeviceType;
 import li.cil.circuity.api.item.EEPROM;
 import li.cil.circuity.common.Constants;
 import li.cil.circuity.common.capabilities.eeprom.CapabilityEEPROM;
-import li.cil.circuity.util.IntelHexLoader;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.event.InventoryChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
@@ -27,9 +24,6 @@ import net.minecraft.world.World;
 import net.minecraftforge.items.IItemHandler;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 
 @Serializable
 public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice implements InventoryChangeListener {
@@ -81,10 +75,14 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
     // --------------------------------------------------------------------- //
 
     private void scheduleUpdateData() {
-        if (scheduledDataUpdate != null) return;
+        if (scheduledDataUpdate != null) {
+            return;
+        }
 
         final World world = getWorld();
-        if (world.isRemote) return;
+        if (world.isRemote) {
+            return;
+        }
 
         scheduledDataUpdate = SillyBeeAPI.scheduler.schedule(world, this::updateData);
     }
@@ -110,7 +108,7 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
 
     public static final DeviceInfo DEVICE_INFO = new DeviceInfo(DeviceType.READ_ONLY_MEMORY, Constants.DeviceInfo.EEPROM_READER_NAME);
 
-    public final class EEPROMImpl extends AbstractBusDevice implements Addressable, AddressHint, BusStateListener {
+    public final class EEPROMImpl extends AbstractBusDevice implements Addressable, AddressHint {
         // --------------------------------------------------------------------- //
         // BusDevice
 
@@ -152,27 +150,6 @@ public final class BusDeviceEEPROMReader extends AbstractComponentBusDevice impl
         @Override
         public int getSortHint() {
             return Constants.EEPROM_ADDRESS;
-        }
-
-        // --------------------------------------------------------------------- //
-        // BusStateAware
-
-        @Override
-        public void handleBusOnline() {
-            final AddressMapper mapper = controller.getSubsystem(AddressMapper.class);
-            if (mapper == null) {
-                return;
-            }
-
-            try {
-                IntelHexLoader.load(Files.readAllLines(Paths.get("F:\\sdcc\\monitor.ihx")), mapper::mapAndWrite);
-            } catch (IOException | IllegalArgumentException e) {
-                e.printStackTrace();
-            }
-        }
-
-        @Override
-        public void handleBusOffline() {
         }
     }
 }
