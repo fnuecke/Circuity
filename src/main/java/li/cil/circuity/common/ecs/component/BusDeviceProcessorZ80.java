@@ -101,7 +101,7 @@ public final class BusDeviceProcessorZ80 extends AbstractComponentBusDevice {
         }
 
         // --------------------------------------------------------------------- //
-        // BusStateAware
+        // BusStateListener
 
         @Override
         public void handleBusOnline() {

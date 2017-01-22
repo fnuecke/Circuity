@@ -83,7 +83,7 @@ public class BusDeviceProcessorMips3 extends AbstractComponentBusDevice {
         }
 
         // --------------------------------------------------------------------- //
-        // BusStateAware
+        // BusStateListener
 
         @Override
         public void handleBusOnline() {

@@ -112,7 +112,7 @@ public final class BusDeviceRandomAccessMemory extends AbstractComponentBusDevic
         }
 
         // --------------------------------------------------------------------- //
-        // BusStateAware
+        // BusStateListener
 
         @Override
         public void handleBusOnline() {
