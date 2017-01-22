@@ -48,4 +48,11 @@ public final class LocationTileEntity extends AbstractComponent implements Locat
         final BlockPos pos = getPosition();
         return new Vec3d(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5);
     }
+
+    // --------------------------------------------------------------------- //
+    // AbstractComponent
+
+    @Override
+    protected void initWorld() {
+    }
 }

@@ -47,4 +47,11 @@ public final class LocationEntity extends AbstractComponent implements Location 
     public Vec3d getPositionVector() {
         return getParent().getPositionVector();
     }
+
+    // --------------------------------------------------------------------- //
+    // AbstractComponent
+
+    @Override
+    protected void initWorld() {
+    }
 }

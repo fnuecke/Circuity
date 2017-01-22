@@ -48,4 +48,11 @@ public final class LocationChild extends AbstractComponent implements Location {
     public BlockPos getPosition() {
         return getParent().getPosition();
     }
+
+    // --------------------------------------------------------------------- //
+    // AbstractComponent
+
+    @Override
+    protected void initWorld() {
+    }
 }

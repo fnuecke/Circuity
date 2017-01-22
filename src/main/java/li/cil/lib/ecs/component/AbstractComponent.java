@@ -2,11 +2,13 @@ package li.cil.lib.ecs.component;
 
 import io.netty.buffer.ByteBuf;
 import li.cil.lib.ModSillyBee;
+import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.component.Location;
 import li.cil.lib.api.ecs.component.MessageReceiver;
 import li.cil.lib.api.ecs.component.event.ChangeListener;
 import li.cil.lib.api.ecs.manager.EntityComponentManager;
+import li.cil.lib.api.scheduler.ScheduledCallback;
 import li.cil.lib.network.Network;
 import li.cil.lib.network.message.MessageComponentData;
 import net.minecraft.util.math.Vec3d;
@@ -19,6 +21,8 @@ public abstract class AbstractComponent implements Component, MessageReceiver {
     private final EntityComponentManager manager;
     private final long entity;
     private final long id;
+    private World world;
+    private ScheduledCallback scheduledMarkChanged;
 
     // --------------------------------------------------------------------- //
 
@@ -48,10 +52,15 @@ public abstract class AbstractComponent implements Component, MessageReceiver {
 
     @Override
     public void onCreate() {
+        initWorld();
     }
 
     @Override
     public void onDestroy() {
+        if (scheduledMarkChanged != null) {
+            SillyBeeAPI.scheduler.cancel(getWorld(), scheduledMarkChanged);
+        }
+        world = null;
     }
 
     // --------------------------------------------------------------------- //
@@ -124,12 +133,7 @@ public abstract class AbstractComponent implements Component, MessageReceiver {
      * @return the world the component's entity lives in.
      */
     public World getWorld() {
-        final Optional<Location> location = getComponent(Location.class);
-        if (location.isPresent()) {
-            return location.get().getWorld();
-        } else {
-            throw new IllegalStateException("Not in any world.");
-        }
+        return world;
     }
 
     /**
@@ -141,7 +145,9 @@ public abstract class AbstractComponent implements Component, MessageReceiver {
      * entities).
      */
     public void markChanged() {
-        getComponents(ChangeListener.class).forEach(ChangeListener::markChanged);
+        if (scheduledMarkChanged == null) {
+            scheduledMarkChanged = SillyBeeAPI.scheduler.schedule(getWorld(), this::markChanged0);
+        }
     }
 
     // --------------------------------------------------------------------- //
@@ -180,5 +186,24 @@ public abstract class AbstractComponent implements Component, MessageReceiver {
      */
     protected double getMessageRange() {
         return 64.0;
+    }
+
+    /**
+     * Initialize the cached world reference for {@link #getWorld()}.
+     */
+    protected void initWorld() {
+        final Optional<Location> location = getComponent(Location.class);
+        if (location.isPresent()) {
+            world = location.get().getWorld();
+        } else {
+            throw new IllegalStateException("Not in any world.");
+        }
+    }
+
+    // --------------------------------------------------------------------- //
+
+    private void markChanged0() {
+        scheduledMarkChanged = null;
+        getComponents(ChangeListener.class).forEach(ChangeListener::markChanged);
     }
 }
