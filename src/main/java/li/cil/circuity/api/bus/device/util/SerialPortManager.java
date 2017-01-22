@@ -33,6 +33,14 @@ public final class SerialPortManager {
         ports.add(new Port(reader, writer, description));
     }
 
+    /**
+     * Add a "null" port, i.e. a port with no reader or writer. Used to
+     * skip an address.
+     */
+    public void addNullPort() {
+        ports.add(Port.NULL);
+    }
+
     public void setPreferredAddressOffset(final long offset) {
         preferredAddressOffset = offset;
     }
@@ -74,6 +82,8 @@ public final class SerialPortManager {
     // --------------------------------------------------------------------- //
 
     private static final class Port {
+        public static final Port NULL = new Port(null, null, null);
+
         public final Reader reader;
         public final Writer writer;
         public final ITextComponent description;
