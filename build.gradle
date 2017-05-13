@@ -1,27 +1,26 @@
 buildscript {
-  repositories {
-    jcenter()
-    maven {
-      name = "forge"
-      url = "http://files.minecraftforge.net/maven"
+    repositories {
+        jcenter()
+        maven {
+            name = "forge"
+            url = "http://files.minecraftforge.net/maven"
+        }
     }
-  }
-  dependencies {
-    classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
-  }
+    dependencies {
+        classpath 'net.minecraftforge.gradle:ForgeGradle:2.2-SNAPSHOT'
+    }
 }
 
 apply plugin: 'net.minecraftforge.gradle.forge'
-apply plugin: 'idea'
 apply plugin: 'maven-publish'
 
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
 
 file "build.properties" withReader {
-  def prop = new Properties()
-  prop.load(it)
-  ext.config = new ConfigSlurper().parse prop
+    def prop = new Properties()
+    prop.load(it)
+    ext.config = new ConfigSlurper().parse prop
 }
 
 version = config.mod.version
@@ -42,100 +41,82 @@ def getGitRef() {
 }
 
 if (System.getenv("BUILD_NUMBER") != null)
-  version += ".${System.getenv("BUILD_NUMBER")}"
-
-if (config.mod.subversion != null && config.mod.subversion != "")
-  version += "-${config.mod.subversion}"
-
-if (System.getenv("BUILD_NUMBER") == null)
-  version += "+" + getGitRef()
+    version += ".${System.getenv("BUILD_NUMBER")}"
+else
+    version += "+" + getGitRef()
 
 ext.simpleVersion = version
 version = "MC${config.minecraft.version}-${project.version}"
 
 minecraft {
-  if (config.forge.branch != null && config.forge.branch != "")
-    version = "${config.minecraft.version}-${config.forge.version}-${config.forge.branch}"
-  else
     version = "${config.minecraft.version}-${config.forge.version}"
-  runDir = "run"
-  mappings = config.minecraft.mappings
-  replace "@VERSION@", project.simpleVersion
+    runDir = "run"
+    mappings = config.minecraft.mappings
+    replace "@VERSION@", project.simpleVersion
 }
 
 repositories {
+    maven { url "http://dvs1.progwml6.com/files/maven" }
 }
 
 dependencies {
-  testCompile 'junit:junit:4.12'
-  testCompile 'org.mockito:mockito-core:2.+'
+    deobfCompile "mezz.jei:jei_${config.minecraft.version}:${config.jei.version}"
+    testCompile 'junit:junit:4.12'
+    testCompile 'org.mockito:mockito-core:2.+'
 }
 
 processResources {
-  inputs.property "version", project.version
-  inputs.property "mcversion", project.minecraft.version
-  inputs.property "forgeversion", config.forge.version
+    inputs.property "version", project.simpleVersion
+    inputs.property "mcversion", project.minecraft.version
+    inputs.property "fversion", config.forge.version
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version':project.simpleVersion, 'mcversion':project.minecraft.version, 'fversion':config.forge.version
+    }
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
 
-  from(sourceSets.main.resources.srcDirs) {
-    include 'mcmod.info'
-    expand 'version':project.version, 'mcversion':project.minecraft.version, 'forgeversion':config.forge.version
-  }
-
-  from(sourceSets.main.resources.srcDirs) {
-    exclude 'mcmod.info'
-  }
-
-  // Move access transformer to META-INF
-  rename '(.+_at.cfg)', 'META-INF/$1'
+    // Move access transformer to META-INF
+    rename '(.+_at.cfg)', 'META-INF/$1'
 }
 
 jar {
-  manifest {
-    attributes FMLAT: "circuity_at.cfg"
-  }
-}
-
-javadoc {
-  include 'li/cil/**/api/**'
+    manifest {
+        attributes FMLAT: "circuity_at.cfg"
+    }
 }
 
 task apiJar(type: Jar) {
-  from sourceSets.main.output
-  from sourceSets.main.java
-  classifier = 'api'
-  include 'li/cil/**/api/**'
+    from sourceSets.main.allSource
+    from sourceSets.main.output
+    classifier = 'api'
+    include 'li/cil/circuity/api/**'
 }
 
 task javadocJar(type: Jar, dependsOn: javadoc) {
-  from 'build/docs/javadoc'
-  classifier 'javadoc'
-}
-
-task sourcesJar(type: Jar) {
-  from sourceSets.main.java
-  classifier = 'sources'
+    from javadoc.destinationDir
+    classifier 'javadoc'
 }
 
 artifacts {
-  archives apiJar
-  archives javadocJar
-  archives sourcesJar
+    archives javadocJar
+    archives apiJar
 }
 
 publishing {
-  publications {
-    mavenJava(MavenPublication) {
-      artifact jar
-      artifact apiJar
-      artifact javadocJar
-      artifact sourcesJar
+    publications {
+        mavenJava(MavenPublication) {
+            artifact jar
+            artifact javadocJar
+            artifact apiJar
+        }
     }
-  }
-  repositories {
-    maven {
-      url "${config.maven.url}"
+    repositories {
+        maven {
+            url "${config.maven.url}"
+        }
     }
-  }
 }
 
 // this is needed for IntelliJ so we don't have to copy over the assets manually every time
