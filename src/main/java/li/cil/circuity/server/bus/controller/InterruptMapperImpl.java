@@ -76,7 +76,8 @@ public class InterruptMapperImpl implements InterruptMapper, ElementManager, Ser
      * means that there is no mapping for that source interrupt ID. This array
      * will be grown as necessary.
      */
-    @SuppressWarnings("ZeroLengthArrayAllocation") // Avoids having to init with -1s.
+    // Avoids having to init with -1s.
+    @SuppressWarnings("ZeroLengthArrayAllocation")
     @Serialize
     private int[] sourceIdToSinkId = new int[0];
 
@@ -113,7 +114,9 @@ public class InterruptMapperImpl implements InterruptMapper, ElementManager, Ser
 
     @Override
     public void interrupt(final InterruptSource source, final int sourceInterrupt, final int data) {
-        if (!controller.isOnline()) return;
+        if (!controller.isOnline()) {
+            return;
+        }
         final int interruptSourceId = infoToSourceId.get(InterruptInfo.of(source, sourceInterrupt));
         final int interruptSinkId = sourceIdToSinkId[interruptSourceId];
         if (interruptSinkId >= 0) {
@@ -329,8 +332,12 @@ public class InterruptMapperImpl implements InterruptMapper, ElementManager, Ser
 
         @Override
         public boolean equals(final Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
 
             final InterruptInfo<?> that = (InterruptInfo<?>) o;
             return index == that.index && instance.equals(that.instance);

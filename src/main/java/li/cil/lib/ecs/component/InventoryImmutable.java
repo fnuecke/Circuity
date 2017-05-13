@@ -57,8 +57,9 @@ public class InventoryImmutable extends AbstractComponent implements ItemHandler
 
         @Override
         public ItemStack insertItem(final int slot, final ItemStack stack, final boolean simulate) {
-            if (filter == null || filter.canInsertItem(this, slot, stack))
+            if (filter == null || filter.canInsertItem(this, slot, stack)) {
                 return super.insertItem(slot, stack, simulate);
+            }
             return stack;
         }
 

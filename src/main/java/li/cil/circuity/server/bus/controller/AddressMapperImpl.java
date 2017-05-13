@@ -364,7 +364,9 @@ public class AddressMapperImpl implements AddressMapper, ElementManager, SerialI
                 }
 
                 for (final AddressBlock address : deviceToAddress.values()) {
-                    if (address == referenceAddress) continue;
+                    if (address == referenceAddress) {
+                        continue;
+                    }
                     if (address.intersects(referenceAddress)) {
                         return false;
                     }

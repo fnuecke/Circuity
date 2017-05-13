@@ -58,8 +58,12 @@ public class MapSerializer implements Serializer {
             final NBTTagCompound itemInfoTag = new NBTTagCompound();
             itemInfoTag.setInteger(KEY_CLASS_TAG, entry.getKey() == null ? -1 : entryClasses.indexOf(entry.getKey().getClass()));
             itemInfoTag.setInteger(VALUE_CLASS_TAG, entry.getValue() == null ? -1 : entryClasses.indexOf(entry.getValue().getClass()));
-            if (entry.getKey() != null) itemInfoTag.setTag(KEY_TAG, serialization.serialize(entry.getKey()));
-            if (entry.getValue() != null) itemInfoTag.setTag(VALUE_TAG, serialization.serialize(entry.getValue()));
+            if (entry.getKey() != null) {
+                itemInfoTag.setTag(KEY_TAG, serialization.serialize(entry.getKey()));
+            }
+            if (entry.getValue() != null) {
+                itemInfoTag.setTag(VALUE_TAG, serialization.serialize(entry.getValue()));
+            }
             mapTag.appendTag(itemInfoTag);
         }
 
@@ -129,8 +133,8 @@ public class MapSerializer implements Serializer {
             if (oldInstance != null) {
                 final Optional<Map.Entry<Object, Object>> oldEntryOpt = oldInstance.entrySet().stream().
                         filter(e -> !reusedKeys.contains(e.getKey()) &&
-                                ((e.getKey() == null && keyClass == null) || (e.getKey().getClass() == keyClass)) &&
-                                ((e.getValue() == null && valueClass == null) || (e.getValue().getClass() == valueClass))).
+                                    ((e.getKey() == null && keyClass == null) || (e.getKey().getClass() == keyClass)) &&
+                                    ((e.getValue() == null && valueClass == null) || (e.getValue().getClass() == valueClass))).
                         findFirst();
                 if (oldEntryOpt.isPresent()) {
                     oldEntry = oldEntryOpt.get();

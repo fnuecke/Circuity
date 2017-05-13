@@ -29,7 +29,9 @@ public final class SidedRedstoneController extends AbstractRedstoneController {
     @Override
     public void setOutput(@Nullable final EnumFacing side, final int value) {
         final byte clampedOutput = clampSignal(value);
-        if (clampedOutput == getOutput(side)) return;
+        if (clampedOutput == getOutput(side)) {
+            return;
+        }
         output[side != null ? side.getIndex() : EnumFacing.VALUES.length] = clampedOutput;
         scheduleNotifyNeighbors();
         markChanged();

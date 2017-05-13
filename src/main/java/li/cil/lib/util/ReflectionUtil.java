@@ -138,7 +138,9 @@ public final class ReflectionUtil {
     }
 
     private static void collectFields(@Nullable final Class<?> clazz, final Predicate<Field> filter, final List<Field> output) {
-        if (clazz == null) return;
+        if (clazz == null) {
+            return;
+        }
         Arrays.stream(clazz.getDeclaredFields()).filter(filter).forEach(output::add);
         collectFields(clazz.getSuperclass(), filter, output);
     }

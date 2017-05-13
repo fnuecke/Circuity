@@ -194,8 +194,9 @@ public abstract class AbstractContainer<T extends AbstractContainer> extends Abs
                 final EventHandler eventHandler = (EventHandler) child;
                 if (event.getType() == InputEvent.Type.MOUSE) {
                     final Rect bounds = eventHandler.getGlobalBounds();
-                    if (!bounds.contains(event.getPosition()))
+                    if (!bounds.contains(event.getPosition())) {
                         continue;
+                    }
                 }
                 if (eventHandler.processInput(event)) {
                     return true;

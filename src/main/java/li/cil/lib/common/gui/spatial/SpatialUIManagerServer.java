@@ -1,9 +1,9 @@
 package li.cil.lib.common.gui.spatial;
 
 import li.cil.lib.ModSillyBee;
-import li.cil.lib.common.SpatialUI;
 import li.cil.lib.api.gui.spatial.SpatialUIProviderServer;
 import li.cil.lib.api.gui.spatial.SpatialUIServer;
+import li.cil.lib.common.SpatialUI;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.network.NetHandlerPlayServer;
 import net.minecraft.util.EnumFacing;

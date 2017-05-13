@@ -51,7 +51,9 @@ public class CollectionSerializer implements Serializer {
         for (final Object item : collection) {
             final NBTTagCompound itemInfoTag = new NBTTagCompound();
             itemInfoTag.setInteger(ITEM_CLASS_TAG, item == null ? -1 : itemClasses.indexOf(item.getClass()));
-            if (item != null) itemInfoTag.setTag(ITEM_TAG, serialization.serialize(item));
+            if (item != null) {
+                itemInfoTag.setTag(ITEM_TAG, serialization.serialize(item));
+            }
             collectionTag.appendTag(itemInfoTag);
         }
 
@@ -141,7 +143,9 @@ public class CollectionSerializer implements Serializer {
     private static List<Class<?>> collectClasses(final Collection collection) {
         final List<Class<?>> classes = new ArrayList<>();
         for (final Object item : collection) {
-            if (item == null) continue;
+            if (item == null) {
+                continue;
+            }
             final Class<?> clazz = item.getClass();
             if (!classes.contains(clazz)) {
                 classes.add(clazz);

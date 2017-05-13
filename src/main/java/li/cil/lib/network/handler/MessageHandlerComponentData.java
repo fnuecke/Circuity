@@ -1,10 +1,10 @@
 package li.cil.lib.network.handler;
 
 import io.netty.buffer.ByteBuf;
-import li.cil.lib.common.Manager;
 import li.cil.lib.ModSillyBee;
 import li.cil.lib.api.ecs.component.Component;
 import li.cil.lib.api.ecs.component.MessageReceiver;
+import li.cil.lib.common.Manager;
 import li.cil.lib.ecs.manager.EntityComponentManagerImpl;
 import li.cil.lib.network.message.MessageComponentData;
 import net.minecraft.world.World;

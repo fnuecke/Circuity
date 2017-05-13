@@ -68,7 +68,9 @@ public enum Storage implements StorageAPI {
         final String uuidString = uuid.toString();
         final File basePath = new File(DimensionManager.getCurrentSaveRootDirectory(), SillyBeeAPI.MOD_ID);
         final File groupPath = new File(basePath, uuidString.substring(0, 1));
-        if (createDirectories) groupPath.mkdirs();
+        if (createDirectories) {
+            groupPath.mkdirs();
+        }
         return new File(groupPath, uuidString + ".bin");
     }
 

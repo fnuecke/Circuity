@@ -63,8 +63,9 @@ public final class CombinedItemHandlerWrapper implements IItemHandler {
     // --------------------------------------------------------------------- //
 
     private int getHandlerIndex(final int slot) {
-        if (slot < 0)
+        if (slot < 0) {
             return -1;
+        }
 
         for (int i = 0; i < baseIndex.length; i++) {
             if (slot - baseIndex[i] < 0) {

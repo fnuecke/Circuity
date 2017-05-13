@@ -1,8 +1,8 @@
 package li.cil.lib.network.handler;
 
+import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.common.Manager;
 import li.cil.lib.common.Synchronization;
-import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.ecs.manager.EntityComponentManagerImpl;
 import li.cil.lib.network.message.MessageSynchronizationUnsubscribeEntity;
 import li.cil.lib.synchronization.SynchronizationManagerServerImpl;

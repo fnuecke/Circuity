@@ -24,6 +24,8 @@ import li.cil.lib.synchronization.value.SynchronizedInt;
 import li.cil.lib.synchronization.value.SynchronizedUUID;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 import javax.annotation.Nullable;
 import java.util.UUID;
@@ -151,12 +153,14 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
         // --------------------------------------------------------------------- //
         // ScreenRenderer
 
-        @SuppressWarnings("ConstantConditions") // We make sure persistentId is never null.
+        // We make sure persistentId.get() is never null.
+        @SuppressWarnings("ConstantConditions")
         @Override
         public UUID getPersistentId() {
             return BusDeviceSerialConsole.this.persistentId.get();
         }
 
+        @SideOnly(Side.CLIENT)
         @Override
         public void render(final int width, final int height) {
             final AbstractMonospaceFontRenderer fontRenderer = FontRendererCodePage437.INSTANCE;
@@ -204,9 +208,11 @@ public final class BusDeviceSerialConsole extends AbstractComponentBusDevice imp
                 case '\b': { // Backspace
                     do {
                         scrX--;
-                        if (scrX >= 0) set(scrX, line(), ' ');
+                        if (scrX >= 0) {
+                            set(scrX, line(), ' ');
+                        }
                     } while (scrX >= 0 && scrX % CONS_WIDTH != 0
-                            && get(scrX, line()) == '\t');
+                             && get(scrX, line()) == '\t');
 
                     if (scrX < 0) {
                         scrX = 0;

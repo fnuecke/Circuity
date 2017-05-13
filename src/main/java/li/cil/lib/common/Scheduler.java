@@ -93,13 +93,19 @@ public enum Scheduler implements SchedulerAPI {
     // --------------------------------------------------------------------- //
 
     private static void runWorldCallbacksServer(@Nullable final World world, final PriorityQueue<ScheduledCallback> queue) {
-        if (world == null) queue.clear();
-        else if (!world.isRemote) runWorldCallbacks(world, queue);
+        if (world == null) {
+            queue.clear();
+        } else if (!world.isRemote) {
+            runWorldCallbacks(world, queue);
+        }
     }
 
     private static void runWorldCallbacksClient(@Nullable final World world, final PriorityQueue<ScheduledCallback> queue) {
-        if (world == null) queue.clear();
-        else if (world.isRemote) runWorldCallbacks(world, queue);
+        if (world == null) {
+            queue.clear();
+        } else if (world.isRemote) {
+            runWorldCallbacks(world, queue);
+        }
     }
 
     private static void runWorldCallbacks(final World world, final PriorityQueue<ScheduledCallback> queue) {

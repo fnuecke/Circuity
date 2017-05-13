@@ -1,6 +1,8 @@
 package li.cil.circuity.api.bus.device;
 
 import li.cil.circuity.api.bus.BusDevice;
+import net.minecraftforge.fml.relauncher.Side;
+import net.minecraftforge.fml.relauncher.SideOnly;
 
 /**
  * When implemented on a {@link BusDevice}, it may be used by a screen to
@@ -16,5 +18,6 @@ public interface ScreenRenderer extends BusDevice {
      * @param width  the available width for rendering.
      * @param height the available height for rendering.
      */
+    @SideOnly(Side.CLIENT)
     void render(final int width, final int height);
 }

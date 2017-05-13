@@ -1,9 +1,9 @@
 package li.cil.lib.network.handler;
 
-import li.cil.lib.common.Manager;
-import li.cil.lib.common.Synchronization;
 import li.cil.lib.api.SillyBeeAPI;
 import li.cil.lib.api.ecs.component.Component;
+import li.cil.lib.common.Manager;
+import li.cil.lib.common.Synchronization;
 import li.cil.lib.ecs.manager.EntityComponentManagerImpl;
 import li.cil.lib.network.message.MessageSynchronizationInitialize;
 import li.cil.lib.network.message.MessageSynchronizationUnsubscribeEntity;
@@ -18,6 +18,7 @@ import javax.annotation.Nullable;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class MessageHandlerSynchronizationInitialize extends AbstractMessageHandler<MessageSynchronizationInitialize, MessageSynchronizationUnsubscribeEntity> {
+    @SuppressWarnings("unchecked")
     @Nullable
     @Override
     public MessageSynchronizationUnsubscribeEntity onMessage(final MessageSynchronizationInitialize message, final MessageContext context) {
@@ -46,7 +47,6 @@ public class MessageHandlerSynchronizationInitialize extends AbstractMessageHand
                 final Class componentClass = SillyBeeAPI.synchronization.getClient().getTypeByTypeId(componentInfo.getInteger(MessageSynchronizationInitialize.COMPONENT_CLASS_TAG));
                 assert (componentClass != null);
 
-                @SuppressWarnings("unchecked")
                 final Component component = manager.addComponent(entity, componentId, componentClass);
                 if (manager.hasComponent(component) && componentInfo.hasKey(MessageSynchronizationInitialize.COMPONENT_TAG)) {
                     final NBTTagList componentNbt = componentInfo.getTagList(MessageSynchronizationInitialize.COMPONENT_TAG, Constants.NBT.TAG_COMPOUND);

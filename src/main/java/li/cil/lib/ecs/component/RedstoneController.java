@@ -29,7 +29,9 @@ public final class RedstoneController extends AbstractRedstoneController {
     @Override
     public void setOutput(@Nullable final EnumFacing side, final int value) {
         final byte clampedOutput = clampSignal(value);
-        if (clampedOutput == getOutput(side)) return;
+        if (clampedOutput == getOutput(side)) {
+            return;
+        }
         output = clampedOutput;
         scheduleNotifyNeighbors();
         markChanged();

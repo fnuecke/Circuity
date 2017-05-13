@@ -74,16 +74,24 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
     // --------------------------------------------------------------------- //
 
     protected static byte clampSignal(final int value) {
-        if (value < 0) return (byte) 0;
-        if (value > 0xFF) return (byte) 0xFF;
+        if (value < 0) {
+            return (byte) 0;
+        }
+        if (value > 0xFF) {
+            return (byte) 0xFF;
+        }
         return (byte) value;
     }
 
     protected final void scheduleNotifyNeighbors() {
-        if (scheduledNeighborNotification != null) return;
+        if (scheduledNeighborNotification != null) {
+            return;
+        }
 
         final World world = getWorld();
-        if (world.isRemote) return;
+        if (world.isRemote) {
+            return;
+        }
 
         scheduledNeighborNotification = SillyBeeAPI.scheduler.schedule(world, this::handleNotifyNeighbors);
     }
@@ -102,10 +110,14 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
     }
 
     private void scheduleInputComputation() {
-        if (scheduledInputComputation != null) return;
+        if (scheduledInputComputation != null) {
+            return;
+        }
 
         final World world = getWorld();
-        if (world.isRemote) return;
+        if (world.isRemote) {
+            return;
+        }
 
         scheduledInputComputation = SillyBeeAPI.scheduler.schedule(world, this::handleInputComputation);
     }
@@ -126,7 +138,9 @@ public abstract class AbstractRedstoneController extends AbstractComponent imple
     }
 
     private void updateInput(final Location location, final BlockPos neighborPos) {
-        if (scheduledInputComputation != null) return;
+        if (scheduledInputComputation != null) {
+            return;
+        }
 
         final World world = location.getWorld();
         final BlockPos pos = location.getPosition();

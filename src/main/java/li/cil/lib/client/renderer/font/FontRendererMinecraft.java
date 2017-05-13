@@ -66,9 +66,13 @@ public final class FontRendererMinecraft implements FontRenderer {
     // This is basically FontRenderer#renderDefaultChar.
     private static int renderChar(final char ch) {
         final int charIndex = FONT_CHARS.indexOf(ch);
-        if (charIndex < 0) return 0;
+        if (charIndex < 0) {
+            return 0;
+        }
         final int width = getFontRenderer().getCharWidth(ch);
-        if (width < 1) return 0;
+        if (width < 1) {
+            return 0;
+        }
 
         final int uIndex = charIndex % 16 * 8;
         final int vIndex = charIndex / 16 * 8;

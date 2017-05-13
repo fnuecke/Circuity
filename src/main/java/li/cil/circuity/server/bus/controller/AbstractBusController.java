@@ -393,7 +393,9 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
     @Override
     public void scheduleScan() {
         final World world = getBusWorld();
-        if (world.isRemote) return;
+        if (world.isRemote) {
+            return;
+        }
         synchronized (lock) {
             if (scheduledScan == null) {
                 scheduledScan = SillyBeeAPI.scheduler.schedule(world, this::scanSynchronized);
@@ -435,7 +437,9 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
             for (final AsyncTickable tickable : tickables) {
                 // A rescan might have snuck in or the owner may have been disposed
                 // between this was scheduled and before the worker thread started.
-                if (!isOnline()) return;
+                if (!isOnline()) {
+                    return;
+                }
                 tickable.updateAsync();
             }
         }
@@ -476,7 +480,9 @@ public abstract class AbstractBusController extends AbstractBusDevice implements
             // closed set to avoid infinite loops due to cycles in the graph.
             while (!open.isEmpty()) {
                 final BusConnector connector = open.poll();
-                if (!closed.add(connector)) continue;
+                if (!closed.add(connector)) {
+                    continue;
+                }
                 if (!connector.getConnected(adjacentElements)) {
                     scanErrored(State.ERROR_CONNECTION_FAILED);
                     return;

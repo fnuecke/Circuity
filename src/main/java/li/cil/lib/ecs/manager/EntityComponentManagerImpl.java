@@ -166,8 +166,9 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
 
     private static <T> T computeIfAbsent(final TLongObjectMap<T> map, final long key, final Supplier<T> supplier) {
         T value = map.get(key);
-        if (value == null)
+        if (value == null) {
             map.put(key, value = supplier.get());
+        }
         return value;
     }
 
@@ -467,7 +468,9 @@ public final class EntityComponentManagerImpl implements EntityComponentManager 
     }
 
     private static void collectTypes(@Nullable final Class<?> clazz, final Consumer<Class<?>> consumer) {
-        if (clazz == null) return;
+        if (clazz == null) {
+            return;
+        }
         consumer.accept(clazz);
         for (final Class<?> interfaceClass : clazz.getInterfaces()) {
             consumer.accept(interfaceClass);

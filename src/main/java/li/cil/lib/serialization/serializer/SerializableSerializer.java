@@ -15,7 +15,6 @@ import javax.annotation.Nullable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.List;
-import java.util.Objects;
 
 public final class SerializableSerializer implements Serializer {
     private static final String FIELD_CLASS_TAG = "class";

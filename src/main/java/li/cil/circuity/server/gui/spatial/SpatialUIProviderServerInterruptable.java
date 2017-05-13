@@ -184,10 +184,12 @@ public enum SpatialUIProviderServerInterruptable implements SpatialUIProviderSer
                 return false;
             }
 
-            while (count < list.tagCount())
+            while (count < list.tagCount()) {
                 list.removeTag(list.tagCount() - 1);
-            while (count > list.tagCount())
+            }
+            while (count > list.tagCount()) {
                 list.appendTag(new NBTTagCompound());
+            }
 
             return true;
         }
@@ -199,10 +201,12 @@ public enum SpatialUIProviderServerInterruptable implements SpatialUIProviderSer
                 return;
             }
 
-            while (sourceNames.tagCount() > 0)
+            while (sourceNames.tagCount() > 0) {
                 sourceNames.removeTag(sourceNames.tagCount() - 1);
-            while (sinkNames.tagCount() > 0)
+            }
+            while (sinkNames.tagCount() > 0) {
                 sinkNames.removeTag(sinkNames.tagCount() - 1);
+            }
 
             context.sendData(data);
         }

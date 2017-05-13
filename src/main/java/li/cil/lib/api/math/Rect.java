@@ -55,7 +55,7 @@ public final class Rect {
 
     public boolean intersects(final Rect rect) {
         return rect.xMin < xMax && rect.xMax > xMin &&
-                rect.yMin < yMax && rect.yMax > yMin;
+               rect.yMin < yMax && rect.yMax > yMin;
     }
 
     public Rect offset(final Vector2 v) {
@@ -82,15 +82,19 @@ public final class Rect {
 
     @Override
     public boolean equals(final Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
 
         final Rect rect = (Rect) o;
 
         return Float.compare(rect.xMin, xMin) == 0 &&
-                Float.compare(rect.xMax, xMax) == 0 &&
-                Float.compare(rect.yMin, yMin) == 0 &&
-                Float.compare(rect.yMax, yMax) == 0;
+               Float.compare(rect.xMax, xMax) == 0 &&
+               Float.compare(rect.yMin, yMin) == 0 &&
+               Float.compare(rect.yMax, yMax) == 0;
     }
 
     @Override

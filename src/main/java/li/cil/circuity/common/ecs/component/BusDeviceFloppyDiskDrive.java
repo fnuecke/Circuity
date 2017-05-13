@@ -274,8 +274,9 @@ public final class BusDeviceFloppyDiskDrive extends AbstractComponentBusDevice i
                     image.setTrack(0);
 
                     status = S_INDEX | S_TRACK0;
-                    if ((value & C_ARG_LOAD_HEAD) == C_ARG_LOAD_HEAD)
+                    if ((value & C_ARG_LOAD_HEAD) == C_ARG_LOAD_HEAD) {
                         status |= S_HEAD_LOADED;
+                    }
                     track = 0;
 
                     setInterruptRequest();
@@ -303,10 +304,12 @@ public final class BusDeviceFloppyDiskDrive extends AbstractComponentBusDevice i
                     }
 
                     status = S_INDEX;
-                    if (image.getTrack() == 0)
+                    if (image.getTrack() == 0) {
                         status |= S_TRACK0;
-                    if ((value & C_ARG_LOAD_HEAD) == C_ARG_LOAD_HEAD)
+                    }
+                    if ((value & C_ARG_LOAD_HEAD) == C_ARG_LOAD_HEAD) {
                         status |= S_HEAD_LOADED;
+                    }
                     track = image.getTrack();
 
                     setInterruptRequest();
@@ -341,13 +344,16 @@ public final class BusDeviceFloppyDiskDrive extends AbstractComponentBusDevice i
                     }
 
                     status = S_INDEX;
-                    if (image.getTrack() == 0)
+                    if (image.getTrack() == 0) {
                         status |= S_TRACK0;
-                    if ((value & C_ARG_LOAD_HEAD) == C_ARG_LOAD_HEAD)
+                    }
+                    if ((value & C_ARG_LOAD_HEAD) == C_ARG_LOAD_HEAD) {
                         status |= S_HEAD_LOADED;
+                    }
 
-                    if ((command & C_STEP_IN_UPDATE) != 0)
+                    if ((command & C_STEP_IN_UPDATE) != 0) {
                         track = image.getTrack();
+                    }
 
                     setInterruptRequest();
                     break;
@@ -376,13 +382,16 @@ public final class BusDeviceFloppyDiskDrive extends AbstractComponentBusDevice i
                     }
 
                     status = S_INDEX;
-                    if (image.getTrack() == 0)
+                    if (image.getTrack() == 0) {
                         status |= S_TRACK0;
-                    if ((value & C_ARG_LOAD_HEAD) == C_ARG_LOAD_HEAD)
+                    }
+                    if ((value & C_ARG_LOAD_HEAD) == C_ARG_LOAD_HEAD) {
                         status |= S_HEAD_LOADED;
+                    }
 
-                    if ((command & C_STEP_OUT_UPDATE) != 0)
+                    if ((command & C_STEP_OUT_UPDATE) != 0) {
                         track = image.getTrack();
+                    }
 
                     setInterruptRequest();
                     break;
@@ -428,10 +437,14 @@ public final class BusDeviceFloppyDiskDrive extends AbstractComponentBusDevice i
 
                 case C_FORCE_INTERRUPT: {
                     writesLeft = readsLeft = 0;
-                    if (isBusy()) status &= ~S_BUSY;
-                    else status = (image != null && image.getTrack() == 0) ? S_TRACK0 : 0;
-                    if ((value & C_ARG_IMMEDIATE_IRQ) == C_ARG_IMMEDIATE_IRQ)
+                    if (isBusy()) {
+                        status &= ~S_BUSY;
+                    } else {
+                        status = (image != null && image.getTrack() == 0) ? S_TRACK0 : 0;
+                    }
+                    if ((value & C_ARG_IMMEDIATE_IRQ) == C_ARG_IMMEDIATE_IRQ) {
                         setInterruptRequest();
+                    }
                     break;
                 }
             }
@@ -445,10 +458,11 @@ public final class BusDeviceFloppyDiskDrive extends AbstractComponentBusDevice i
             }
 
             final int side;
-            if ((command & C_ARG_SIDE_COMPARE) == C_ARG_SIDE_COMPARE)
+            if ((command & C_ARG_SIDE_COMPARE) == C_ARG_SIDE_COMPARE) {
                 side = ((command & C_ARG_SIDE_FLAG) == C_ARG_SIDE_FLAG) ? 1 : 0;
-            else
+            } else {
                 side = this.side;
+            }
 
             if (!image.seek(side, track, sector)) {
                 status = S_RECORD_NOT_FOUND;
@@ -456,10 +470,11 @@ public final class BusDeviceFloppyDiskDrive extends AbstractComponentBusDevice i
                 return 0;
             }
 
-            if ((command & C_ARG_MULTIPLE) != 0)
+            if ((command & C_ARG_MULTIPLE) != 0) {
                 return (image.getSectorCount() - sector) * image.getSectorSize();
-            else
+            } else {
                 return image.getSectorSize();
+            }
         }
 
         private int readTrack(final long address) {

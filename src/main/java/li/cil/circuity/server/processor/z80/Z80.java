@@ -128,15 +128,21 @@ public final class Z80 {
     public boolean run(final int cycles) {
         synchronized (lock) {
             // Don't allow saving up cycles.
-            if (status == Status.HALTED) return false;
+            if (status == Status.HALTED) {
+                return false;
+            }
             cycleBudget += cycles;
             for (; ; ) {
-                if (cycleBudget <= 0) return true;
+                if (cycleBudget <= 0) {
+                    return true;
+                }
                 R = (byte) ((R & 0b10000000) | ((R + 1) & 0b01111111));
                 final byte opcode = read8();
                 cycleBudget -= 1;
                 execute(opcode);
-                if (status == Status.HALTED) return false;
+                if (status == Status.HALTED) {
+                    return false;
+                }
             }
         }
     }
@@ -158,7 +164,9 @@ public final class Z80 {
      */
     public boolean irq(final byte data) {
         synchronized (lock) {
-            if (!IFF1 || !status.allowInterrupts) return false;
+            if (!IFF1 || !status.allowInterrupts) {
+                return false;
+            }
             status = Status.RUNNING;
 
             IFF1 = IFF2 = false;
@@ -200,7 +208,9 @@ public final class Z80 {
      */
     public void nmi() {
         synchronized (lock) {
-            if (!status.allowInterrupts) return;
+            if (!status.allowInterrupts) {
+                return;
+            }
             status = Status.RUNNING;
 
 //            IFF2 = IFF1;
@@ -635,8 +645,11 @@ public final class Z80 {
         final int carry = u ^ result;
 
         byte f = (byte) (F & FLAG_MASK_C);
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= carry & FLAG_MASK_H;
         f |= OVERFLOW_TABLE[(carry >>> 7) & 0b11];
 
@@ -650,8 +663,11 @@ public final class Z80 {
         final int carry = u ^ result;
 
         byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= carry & FLAG_MASK_H;
         f |= OVERFLOW_TABLE[(carry >>> 7) & 0b11];
 
@@ -665,8 +681,11 @@ public final class Z80 {
         final int carry = ul ^ ur ^ result;
 
         byte f = 0;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= carry & FLAG_MASK_H;
         f |= OVERFLOW_TABLE[carry >>> 7];
         f |= result >>> (8 - FLAG_SHIFT_C);
@@ -681,8 +700,11 @@ public final class Z80 {
         final int carry = ul ^ ur ^ result;
 
         byte f = 0;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= carry & FLAG_MASK_H;
         f |= OVERFLOW_TABLE[carry >>> 7];
         f |= result >>> (8 - FLAG_SHIFT_C);
@@ -697,8 +719,11 @@ public final class Z80 {
         int carry = ul ^ ur ^ result;
 
         byte f = FLAG_MASK_N;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= carry & FLAG_MASK_H;
         carry &= 0b1_10000000;
         f |= OVERFLOW_TABLE[carry >>> 7];
@@ -714,8 +739,11 @@ public final class Z80 {
         int carry = ul ^ ur ^ result;
 
         byte f = FLAG_MASK_N;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= carry & FLAG_MASK_H;
         carry &= 0b1_10000000;
         f |= OVERFLOW_TABLE[carry >>> 7];
@@ -729,8 +757,11 @@ public final class Z80 {
         A &= rhs;
 
         byte f = FLAG_MASK_H;
-        if (A == 0) f |= FLAG_MASK_Z;
-        else f |= A & FLAG_MASK_S;
+        if (A == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= A & FLAG_MASK_S;
+        }
         f |= computeParity(A) << FLAG_SHIFT_PV;
         F = f;
     }
@@ -739,8 +770,11 @@ public final class Z80 {
         A |= rhs;
 
         byte f = 0;
-        if (A == 0) f |= FLAG_MASK_Z;
-        else f |= A & FLAG_MASK_S;
+        if (A == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= A & FLAG_MASK_S;
+        }
         f |= computeParity(A) << FLAG_SHIFT_PV;
         F = f;
     }
@@ -749,8 +783,11 @@ public final class Z80 {
         A ^= rhs;
 
         byte f = 0;
-        if (A == 0) f |= FLAG_MASK_Z;
-        else f |= A & FLAG_MASK_S;
+        if (A == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= A & FLAG_MASK_S;
+        }
         f |= computeParity(A) << FLAG_SHIFT_PV;
         F = f;
     }
@@ -761,8 +798,11 @@ public final class Z80 {
         int carry = ul ^ ur ^ result;
 
         byte f = FLAG_MASK_N;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= carry & FLAG_MASK_H;
         carry &= 0b1_10000000;
         f |= OVERFLOW_TABLE[carry >>> 7];
@@ -776,8 +816,11 @@ public final class Z80 {
         int carry = u ^ result;
 
         byte f = FLAG_MASK_N;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= carry & FLAG_MASK_H;
         carry &= 0b1_10000000;
         f |= OVERFLOW_TABLE[carry >>> 7];
@@ -793,8 +836,11 @@ public final class Z80 {
         final int result = (a >>> 1) | ((F & FLAG_MASK_C) << 7);
 
         byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
 
         F = f;
@@ -807,8 +853,11 @@ public final class Z80 {
         final int result = (a >>> 1) | (carry << 7);
 
         byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
 
         F = f;
@@ -821,8 +870,11 @@ public final class Z80 {
         final int result = (a << 1) | (F & FLAG_MASK_C);
 
         byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
 
         F = f;
@@ -835,8 +887,11 @@ public final class Z80 {
         final int result = (a << 1) | carry;
 
         byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
 
         F = f;
@@ -849,8 +904,11 @@ public final class Z80 {
         final int result = u << 1;
 
         byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
 
         F = f;
@@ -863,8 +921,11 @@ public final class Z80 {
         final int result = (u << 1) | 1;
 
         byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
 
         F = f;
@@ -876,8 +937,11 @@ public final class Z80 {
         final int result = value >> 1;
 
         byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
 
         F = f;
@@ -890,8 +954,11 @@ public final class Z80 {
         final int result = u >>> 1;
 
         byte f = carry;
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= computeParity((byte) result) << FLAG_SHIFT_PV;
 
         F = f;
@@ -917,8 +984,11 @@ public final class Z80 {
         final int carry = ul ^ ur ^ result;
 
         byte f = 0;
-        if (result == 0) f |= FLAG_MASK_Z;
-        else f |= (result >>> 8) & FLAG_MASK_S;
+        if (result == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= (result >>> 8) & FLAG_MASK_S;
+        }
         f |= (carry >>> 8) & FLAG_MASK_H;
         f |= OVERFLOW_TABLE[carry >>> 15];
         f |= result >>> (16 - FLAG_SHIFT_C);
@@ -933,8 +1003,11 @@ public final class Z80 {
         int carry = ul ^ ur ^ result;
 
         byte f = FLAG_MASK_N;
-        if (result == 0) f |= FLAG_MASK_Z;
-        else f |= (result >>> 8) & FLAG_MASK_S;
+        if (result == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= (result >>> 8) & FLAG_MASK_S;
+        }
         f |= (carry >>> 8) & FLAG_MASK_H;
         carry &= 0b1_10000000_00000000;
         f |= OVERFLOW_TABLE[carry >>> 15];
@@ -970,7 +1043,9 @@ public final class Z80 {
         cycleBudget -= 2;
 
         byte f = (byte) (F & FLAG_MASK_SZC);
-        if (BC() != 0) f |= FLAG_MASK_PV;
+        if (BC() != 0) {
+            f |= FLAG_MASK_PV;
+        }
         F = f;
     }
 
@@ -991,10 +1066,15 @@ public final class Z80 {
         BC((short) (BC() - 1));
 
         byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
-        if ((result & 0xFF) == 0) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if ((result & 0xFF) == 0) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= carry & FLAG_MASK_H;
-        if (BC() != 0) f |= FLAG_MASK_PV;
+        if (BC() != 0) {
+            f |= FLAG_MASK_PV;
+        }
         F = f;
 
         cycleBudget -= 5;
@@ -1016,7 +1096,9 @@ public final class Z80 {
         cycleBudget -= 1;
 
         byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
-        if (B == 0) f |= FLAG_MASK_Z;
+        if (B == 0) {
+            f |= FLAG_MASK_Z;
+        }
         F = f;
     }
 
@@ -1036,7 +1118,9 @@ public final class Z80 {
         cycleBudget -= 1;
 
         byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
-        if (B == 0) f |= FLAG_MASK_Z;
+        if (B == 0) {
+            f |= FLAG_MASK_Z;
+        }
         F = f;
     }
 
@@ -1083,10 +1167,15 @@ public final class Z80 {
         final boolean bcNonZero = BC() != 0;
         final boolean areEqual = (result & 0xFF) == 0;
         byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
-        if (areEqual) f |= FLAG_MASK_Z;
-        else f |= result & FLAG_MASK_S;
+        if (areEqual) {
+            f |= FLAG_MASK_Z;
+        } else {
+            f |= result & FLAG_MASK_S;
+        }
         f |= carry & FLAG_MASK_H;
-        if (bcNonZero) f |= FLAG_MASK_PV;
+        if (bcNonZero) {
+            f |= FLAG_MASK_PV;
+        }
         F = f;
 
         cycleBudget -= 5;
@@ -1113,7 +1202,9 @@ public final class Z80 {
         cycleBudget -= 1;
 
         byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
-        if (B == 0) f |= FLAG_MASK_Z;
+        if (B == 0) {
+            f |= FLAG_MASK_Z;
+        }
         F = f;
 
         if (B != 0) {
@@ -1138,7 +1229,9 @@ public final class Z80 {
         cycleBudget -= 1;
 
         byte f = (byte) (FLAG_MASK_N | (F & FLAG_MASK_C));
-        if (B == 0) f |= FLAG_MASK_Z;
+        if (B == 0) {
+            f |= FLAG_MASK_Z;
+        }
         F = f;
 
         if (B != 0) {
@@ -1331,13 +1424,17 @@ public final class Z80 {
                                         c = d = 0;
                                     }
 
-                                    if ((a & 0x0f) > 0x09 || FLAG_H())
+                                    if ((a & 0x0f) > 0x09 || FLAG_H()) {
                                         d += 0x06;
+                                    }
                                     A += FLAG_N() ? -d : +d;
 
                                     byte f = 0;
-                                    if (A == 0) f |= FLAG_MASK_Z;
-                                    else f |= A & FLAG_MASK_S;
+                                    if (A == 0) {
+                                        f |= FLAG_MASK_Z;
+                                    } else {
+                                        f |= A & FLAG_MASK_S;
+                                    }
                                     f |= computeParity(A) << FLAG_SHIFT_PV;
                                     f |= ((A ^ a) & FLAG_MASK_H);
                                     f |= (F & FLAG_MASK_N);
@@ -1533,7 +1630,9 @@ public final class Z80 {
                                         }
                                         case 1: { // (DD prefix)
                                             status = Status.PARSING_DD;
-                                            if (cycleBudget <= 0) return;
+                                            if (cycleBudget <= 0) {
+                                                return;
+                                            }
                                             opcode = read8();
                                             cycleBudget -= 1;
                                             r = registersDD;
@@ -1563,8 +1662,11 @@ public final class Z80 {
                                                             }
 
                                                             byte f = (byte) (F & FLAG_MASK_C);
-                                                            if ((value & 0xFF) == 0) f |= FLAG_MASK_Z;
-                                                            else f |= value & FLAG_MASK_S;
+                                                            if ((value & 0xFF) == 0) {
+                                                                f |= FLAG_MASK_Z;
+                                                            } else {
+                                                                f |= value & FLAG_MASK_S;
+                                                            }
                                                             f |= computeParity(value) << FLAG_SHIFT_PV;
                                                             F = f;
                                                             return;
@@ -1628,14 +1730,22 @@ public final class Z80 {
                                                                     return;
                                                                 case 2: // LD A,I
                                                                 case 3: { // LD A,R
-                                                                    if (y == 2) A = I;
-                                                                    else A = R;
+                                                                    if (y == 2) {
+                                                                        A = I;
+                                                                    } else {
+                                                                        A = R;
+                                                                    }
                                                                     cycleBudget -= 1;
 
                                                                     byte f = (byte) (F & FLAG_MASK_C);
-                                                                    if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
-                                                                    else f |= A & FLAG_MASK_S;
-                                                                    if (IFF2) f |= FLAG_MASK_PV;
+                                                                    if ((A & 0xFF) == 0) {
+                                                                        f |= FLAG_MASK_Z;
+                                                                    } else {
+                                                                        f |= A & FLAG_MASK_S;
+                                                                    }
+                                                                    if (IFF2) {
+                                                                        f |= FLAG_MASK_PV;
+                                                                    }
                                                                     F = f;
                                                                     return;
                                                                 }
@@ -1654,8 +1764,11 @@ public final class Z80 {
                                                                     A = (byte) (uahl >>> 8);
 
                                                                     byte f = (byte) (F & FLAG_MASK_C);
-                                                                    if ((A & 0xFF) == 0) f |= FLAG_MASK_Z;
-                                                                    else f |= A & FLAG_MASK_S;
+                                                                    if ((A & 0xFF) == 0) {
+                                                                        f |= FLAG_MASK_Z;
+                                                                    } else {
+                                                                        f |= A & FLAG_MASK_S;
+                                                                    }
                                                                     f |= computeParity(A) << FLAG_SHIFT_PV;
                                                                     F = f;
                                                                     return;
@@ -1685,7 +1798,9 @@ public final class Z80 {
                                         }
                                         case 3: // (FD prefix)
                                             status = Status.PARSING_FD;
-                                            if (cycleBudget <= 0) return;
+                                            if (cycleBudget <= 0) {
+                                                return;
+                                            }
                                             opcode = read8();
                                             cycleBudget -= 1;
                                             r = registersFD;
@@ -1865,7 +1980,8 @@ public final class Z80 {
         byte apply(final byte value);
     }
 
-    @FunctionalInterface // Yes, there's Runnable, but I don't like using it for non-threaded use-cases.
+    // Yes, there's Runnable, but I don't like using it for non-threaded use-cases.
+    @FunctionalInterface
     private interface Action {
         void apply();
     }
