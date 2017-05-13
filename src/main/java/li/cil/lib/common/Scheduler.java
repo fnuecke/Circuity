@@ -11,8 +11,12 @@ import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
+import net.minecraftforge.fml.common.network.FMLNetworkEvent;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.WeakHashMap;
 
@@ -21,7 +25,10 @@ public enum Scheduler implements SchedulerAPI {
 
     // --------------------------------------------------------------------- //
 
-    private final WeakHashMap<World, PriorityQueue<ScheduledCallback>> scheduledCallbacks = new WeakHashMap<>();
+    private final WeakHashMap<World, List<ScheduledCallback>> addedCallbacksClient = new WeakHashMap<>();
+    private final WeakHashMap<World, PriorityQueue<ScheduledCallback>> scheduledCallbacksClient = new WeakHashMap<>();
+    private final WeakHashMap<World, List<ScheduledCallback>> addedCallbacksServer = new WeakHashMap<>();
+    private final WeakHashMap<World, PriorityQueue<ScheduledCallback>> scheduledCallbacksServer = new WeakHashMap<>();
 
     // --------------------------------------------------------------------- //
 
@@ -35,25 +42,24 @@ public enum Scheduler implements SchedulerAPI {
 
     @SubscribeEvent
     public void handleServerTick(final TickEvent.ServerTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            synchronized (scheduledCallbacks) {
-                scheduledCallbacks.forEach(Scheduler::runWorldCallbacksServer);
-            }
-        }
+        handleTick(event.phase, addedCallbacksServer, scheduledCallbacksServer);
     }
 
     @SubscribeEvent
     public void handleClientTick(final TickEvent.ClientTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            synchronized (scheduledCallbacks) {
-                scheduledCallbacks.forEach(Scheduler::runWorldCallbacksClient);
-            }
-        }
+        handleTick(event.phase, addedCallbacksClient, scheduledCallbacksClient);
     }
 
     @SubscribeEvent
     public void handleServerStopped(final ForwardedFMLServerStoppedEvent event) {
-        scheduledCallbacks.clear();
+        addedCallbacksServer.clear();
+        scheduledCallbacksServer.clear();
+    }
+
+    @SubscribeEvent
+    public void handleClientDisconnection(final FMLNetworkEvent.ClientDisconnectionFromServerEvent event) {
+        addedCallbacksClient.clear();
+        scheduledCallbacksClient.clear();
     }
 
     // --------------------------------------------------------------------- //
@@ -72,39 +78,63 @@ public enum Scheduler implements SchedulerAPI {
     @Override
     public ScheduledCallback scheduleAt(final World world, final long tick, final Runnable callback) {
         final ScheduledCallback scheduledCallback = new ScheduledCallbackImpl(tick, callback);
-        synchronized (INSTANCE.scheduledCallbacks) {
-            INSTANCE.scheduledCallbacks.
-                    computeIfAbsent(world, (ignored) -> new PriorityQueue<>()).
-                    add(scheduledCallback);
+        if (world.isRemote) {
+            scheduleAt(addedCallbacksClient, world, scheduledCallback);
+        } else {
+            scheduleAt(addedCallbacksServer, world, scheduledCallback);
         }
         return scheduledCallback;
     }
 
     @Override
     public void cancel(final World world, final ScheduledCallback callback) {
-        synchronized (INSTANCE.scheduledCallbacks) {
-            final PriorityQueue<ScheduledCallback> queue = INSTANCE.scheduledCallbacks.get(world);
-            if (queue != null) {
-                queue.remove(callback);
-            }
+        if (world.isRemote) {
+            cancel(world, callback, addedCallbacksClient, scheduledCallbacksClient);
+        } else {
+            cancel(world, callback, addedCallbacksServer, scheduledCallbacksServer);
         }
     }
 
     // --------------------------------------------------------------------- //
 
-    private static void runWorldCallbacksServer(@Nullable final World world, final PriorityQueue<ScheduledCallback> queue) {
-        if (world == null) {
-            queue.clear();
-        } else if (!world.isRemote) {
-            runWorldCallbacks(world, queue);
+    private static void handleTick(final TickEvent.Phase phase, final WeakHashMap<World, List<ScheduledCallback>> added, final WeakHashMap<World, PriorityQueue<ScheduledCallback>> scheduled) {
+        if (phase != TickEvent.Phase.END) {
+            return;
+        }
+
+        synchronized (scheduled) {
+            synchronized (added) {
+                for (final Map.Entry<World, List<ScheduledCallback>> entry : added.entrySet()) {
+                    scheduled.
+                            computeIfAbsent(entry.getKey(), w -> new PriorityQueue<>()).
+                            addAll(entry.getValue());
+                }
+                added.clear();
+            }
+            scheduled.forEach(Scheduler::runWorldCallbacks);
         }
     }
 
-    private static void runWorldCallbacksClient(@Nullable final World world, final PriorityQueue<ScheduledCallback> queue) {
-        if (world == null) {
-            queue.clear();
-        } else if (world.isRemote) {
-            runWorldCallbacks(world, queue);
+    private static void scheduleAt(final WeakHashMap<World, List<ScheduledCallback>> added, final World world, final ScheduledCallback callback) {
+        synchronized (added) {
+            added.
+                    computeIfAbsent(world, (ignored) -> new ArrayList<>()).
+                    add(callback);
+        }
+    }
+
+    private static void cancel(final World world, final ScheduledCallback callback, final WeakHashMap<World, List<ScheduledCallback>> added, final WeakHashMap<World, PriorityQueue<ScheduledCallback>> scheduled) {
+        synchronized (added) {
+            final List<ScheduledCallback> list = added.get(world);
+            if (list != null) {
+                list.remove(callback);
+            }
+        }
+        synchronized (scheduled) {
+            final PriorityQueue<ScheduledCallback> queue = scheduled.get(world);
+            if (queue != null) {
+                queue.remove(callback);
+            }
         }
     }
 
@@ -124,7 +154,10 @@ public enum Scheduler implements SchedulerAPI {
         }
     }
 
-    private static boolean isWorldLoaded(final World world) {
+    private static boolean isWorldLoaded(@Nullable final World world) {
+        if (world == null) {
+            return false;
+        }
         if (!world.isRemote) {
             return isWorldLoadedServer(world);
         } else {
