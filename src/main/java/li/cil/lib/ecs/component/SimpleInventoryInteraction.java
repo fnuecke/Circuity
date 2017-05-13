@@ -12,7 +12,7 @@ import net.minecraftforge.items.ItemHandlerHelper;
 import java.util.Optional;
 
 public class SimpleInventoryInteraction extends AbstractComponent implements ActivationListener {
-    protected SimpleInventoryInteraction(final EntityComponentManager manager, final long entity, final long id) {
+    public SimpleInventoryInteraction(final EntityComponentManager manager, final long entity, final long id) {
         super(manager, entity, id);
     }
 
