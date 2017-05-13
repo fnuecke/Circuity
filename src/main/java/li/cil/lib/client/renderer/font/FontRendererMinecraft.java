@@ -60,7 +60,7 @@ public final class FontRendererMinecraft implements FontRenderer {
     // --------------------------------------------------------------------- //
 
     private static net.minecraft.client.gui.FontRenderer getFontRenderer() {
-        return Minecraft.getMinecraft().fontRendererObj;
+        return Minecraft.getMinecraft().fontRenderer;
     }
 
     // This is basically FontRenderer#renderDefaultChar.

@@ -39,11 +39,11 @@ public class SpatialUIContextServer implements SpatialUIContext {
 
     @Override
     public EntityPlayer getPlayer() {
-        return client.playerEntity;
+        return client.player;
     }
 
     @Override
     public void sendData(final NBTTagCompound value) {
-        Network.INSTANCE.getWrapper().sendTo(new MessageSpatialUIData(value), client.playerEntity);
+        Network.INSTANCE.getWrapper().sendTo(new MessageSpatialUIData(value), client.player);
     }
 }

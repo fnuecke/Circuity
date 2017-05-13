@@ -231,7 +231,7 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
 
             // TODO Package info by distance to player (via Location component on entity) where possible, send further away data less frequently.
 
-            assert client.playerEntity != null : "welp, need to check this here then. threading, yay";
+            assert client.player != null : "welp, need to check this here then. threading, yay";
 
             for (final Map.Entry<World, Map<Component, NBTTagList>> infoByWorld : infos.entrySet()) {
                 final World world = infoByWorld.getKey();
@@ -240,7 +240,7 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
                     final NBTTagList values = infoByComponent.getValue();
 
                     final MessageSynchronizeValue message = new MessageSynchronizeValue(world, component, values);
-                    Network.INSTANCE.getWrapper().sendTo(message, client.playerEntity);
+                    Network.INSTANCE.getWrapper().sendTo(message, client.player);
                 }
             }
         }
@@ -313,7 +313,7 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
 
                 for (final NetHandlerPlayServer client : oldInfo.clients) {
                     subscribeComponent(client, component);
-                    Network.INSTANCE.getWrapper().sendTo(message, client.playerEntity);
+                    Network.INSTANCE.getWrapper().sendTo(message, client.player);
                 }
             }
         }
@@ -337,9 +337,9 @@ public final class SynchronizationManagerServerImpl extends AbstractSynchronizat
         final MessageTypeInfoList message = new MessageTypeInfoList(typeById);
 
         // GLORIOUS HACKS
-        connection.playerEntity.connection = connection;
-        Network.INSTANCE.getWrapper().sendTo(message, connection.playerEntity);
-        connection.playerEntity.connection = null;
+        connection.player.connection = connection;
+        Network.INSTANCE.getWrapper().sendTo(message, connection.player);
+        connection.player.connection = null;
     }
     // --------------------------------------------------------------------- //
 

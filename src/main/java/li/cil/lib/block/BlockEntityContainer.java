@@ -85,11 +85,13 @@ public class BlockEntityContainer extends BlockWithTileEntity {
         return redstone.isPresent();
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public boolean canProvidePower(final IBlockState state) {
         return true;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public int getWeakPower(final IBlockState state, final IBlockAccess world, final BlockPos pos, final EnumFacing side) {
         final Optional<Redstone> redstone = getComponent(world, pos, Redstone.class);
@@ -113,6 +115,7 @@ public class BlockEntityContainer extends BlockWithTileEntity {
         super.onNeighborChange(world, pos, neighbor);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void neighborChanged(final IBlockState state, final World world, final BlockPos pos, final Block block, final BlockPos fromPos) {
         final Iterable<NeighborChangeListener> listeners = getComponents(world, pos, NeighborChangeListener.class);
