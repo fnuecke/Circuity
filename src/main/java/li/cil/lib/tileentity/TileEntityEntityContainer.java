@@ -87,6 +87,7 @@ public abstract class TileEntityEntityContainer extends TileEntity implements En
 
     @Override
     public void handleUpdateTag(final NBTTagCompound tag) {
+        super.readFromNBT(tag);
         SillyBeeAPI.synchronization.getClient().subscribe(getManager(), entity = tag.getLong(ENTITY_TAG));
         getWorld().notifyNeighborsOfStateChange(getPos(), getBlockType(), false);
     }
